@@ -1,0 +1,37 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { trpc } from "@/lib/trpc";
+import { exportPrivatePdf } from "@/lib/printDocument";
+import { CalendarDays, CheckCircle2, ClipboardList, FileDown, MapPinned, Target } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+export default function PsvRitualPanel() {
+  const utils = trpc.useUtils();
+  const [weekOf, setWeekOf] = useState(todayKey);
+  const ritual = trpc.psv.weeklyRitual.useQuery({ weekOf });
+  const pipeline = trpc.psv.pipeline.useQuery();
+  const [dailyResult, setDailyResult] = useState("");
+  const [dailyPlan, setDailyPlan] = useState("");
+  const [weeklyRoute, setWeeklyRoute] = useState("");
+  const [preparedIds, setPreparedIds] = useState<number[]>([]);
+  useEffect(() => { const item = ritual.data; setDailyResult(item?.dailyResult ?? ""); setDailyPlan(item?.dailyPlan ?? ""); setWeeklyRoute(item?.weeklyRoute ?? ""); setPreparedIds(item?.preparedLeadIds ?? []); }, [ritual.data]);
+  const leads = useMemo(() => [...(pipeline.data ?? [])].sort((a, b) => Number(b.temperature === "quente") - Number(a.temperature === "quente") || b.projectedTpv - a.projectedTpv).slice(0, 30), [pipeline.data]);
+  const selectedLeads = leads.filter(lead => preparedIds.includes(lead.id));
+  const cadence = leads.length < 20 ? `Faltam ${20 - leads.length} oportunidades para a faixa recomendada de 20 a 30.` : leads.length > 30 ? "O funil possui mais de 30 oportunidades: selecione as mais preparadas para esta semana." : "Sua PSV está na faixa recomendada de 20 a 30 oportunidades.";
+  const save = trpc.psv.saveWeeklyRitual.useMutation({ onSuccess: async () => { await Promise.all([utils.psv.weeklyRitual.invalidate({ weekOf }), utils.psv.pipeline.invalidate()]); toast.success("Ritual de PSV salvo para a semana."); }, onError: error => toast.error(error.message) });
+  const toggleLead = (id: number) => setPreparedIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
+  const exportPsv = () => {
+    const saved = exportPrivatePdf("PSV semanal", `Semana de referência: ${new Date(`${weekOf}T12:00:00`).toLocaleDateString("pt-BR")}`, [
+      { title: "Resultado do dia anterior", text: dailyResult || "Não informado." },
+      { title: "Plano do dia", text: dailyPlan || "Não informado." },
+      { title: "Roteiro semanal", text: weeklyRoute || "Não informado." },
+      { title: `Oportunidades preparadas (${selectedLeads.length})`, items: selectedLeads.map(lead => `${lead.clientName} · ${lead.temperature} · ${lead.stage} · TPV projetado R$ ${lead.projectedTpv.toLocaleString("pt-BR")}`) },
+    ]);
+    if (!saved) toast.error("Permita a abertura da janela de impressão para salvar o PDF.");
+  };
+  return <div className="max-w-6xl space-y-6"><section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p className="font-mono text-[10px] font-semibold tracking-[.14em] text-emerald-600">RITUAL PSV / PREPARO SEMANAL</p><h2 className="mt-2 text-3xl font-semibold tracking-[-.055em]">Resultado, plano e oportunidades preparadas.</h2><p className="mt-2 max-w-3xl text-sm text-emerald-800/65">Use esta rotina antes da PSV. Nada é enviado ou alterado fora da plataforma.</p></div><Button variant="outline" className="border-emerald-200 text-emerald-900" onClick={exportPsv}><FileDown size={16} /> Exportar PSV em PDF</Button></section><section className="grid gap-4 lg:grid-cols-[.75fr_1.25fr]"><article className="rounded-xl border border-emerald-100 bg-white p-5"><label className="grid gap-1 text-xs">Data de referência da semana<Input type="date" value={weekOf} onChange={event => setWeekOf(event.target.value || todayKey())} /></label><div className="mt-5 rounded-lg bg-lime-50 p-4 text-sm text-emerald-950"><div className="flex items-center gap-2"><Target size={17} /><b>Cadência de oportunidades</b></div><strong className="mt-3 block text-3xl">{leads.length}</strong><p className="mt-1 text-xs leading-5 opacity-75">{cadence}</p></div><div className="mt-4 grid grid-cols-2 gap-3 text-xs"><div className="rounded-lg bg-[#f6f8f2] p-3"><CalendarDays className="mb-2 text-emerald-600" size={16} /><b>{leads.filter(lead => lead.nextContactAt && new Date(lead.nextContactAt).getTime() <= Date.now() + 7 * 86_400_000).length}</b><span className="ml-1 text-emerald-700/65">com ação em 7 dias</span></div><div className="rounded-lg bg-[#f6f8f2] p-3"><CheckCircle2 className="mb-2 text-emerald-600" size={16} /><b>{preparedIds.length}</b><span className="ml-1 text-emerald-700/65">preparadas</span></div></div></article><article className="rounded-xl border border-emerald-100 bg-white p-5"><div className="flex items-center gap-2"><ClipboardList className="text-emerald-600" size={18} /><div><p className="font-mono text-[10px] tracking-[.12em] text-emerald-600">PLANO DO DIA E ROTEIRO</p><h3 className="mt-1 text-xl font-semibold">Da revisão para a agenda.</h3></div></div><div className="mt-5 grid gap-4"><label className="grid gap-1 text-xs">Resultado do dia anterior<Textarea value={dailyResult} onChange={event => setDailyResult(event.target.value)} /></label><label className="grid gap-1 text-xs">Plano do dia<Textarea value={dailyPlan} onChange={event => setDailyPlan(event.target.value)} /></label><label className="grid gap-1 text-xs">Roteiro semanal<Textarea value={weeklyRoute} onChange={event => setWeeklyRoute(event.target.value)} /></label></div></article></section><section className="rounded-xl border border-emerald-100 bg-white p-5"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-end"><div className="flex gap-3"><span className="grid h-10 w-10 place-items-center rounded-lg bg-lime-100 text-emerald-800"><MapPinned size={20} /></span><div><p className="font-mono text-[10px] tracking-[.12em] text-emerald-600">PREPARAÇÃO DE OPORTUNIDADES</p><h3 className="mt-1 text-xl font-semibold">Selecione até 30 leads do seu funil privado.</h3><p className="mt-1 text-sm text-emerald-800/65">A lista prioriza temperatura e TPV; você decide o que entra na semana.</p></div></div><Button className="bg-[#0e3426]" onClick={() => save.mutate({ weekOf, dailyResult, dailyPlan, weeklyRoute, preparedLeadIds: preparedIds })} disabled={save.isPending}><CheckCircle2 size={16} /> {save.isPending ? "Salvando..." : "Salvar ritual PSV"}</Button></div><div className="mt-5 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{leads.map(lead => <label key={lead.id} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${preparedIds.includes(lead.id) ? "border-lime-300 bg-lime-50" : "border-emerald-100 bg-white"}`}><input className="mt-1 h-4 w-4 accent-emerald-700" type="checkbox" checked={preparedIds.includes(lead.id)} onChange={() => toggleLead(lead.id)} /><span><b className="block">{lead.clientName}</b><small className="mt-1 block text-emerald-700/65">{lead.temperature === "quente" ? "Quente" : "Frio"} · {lead.stage} · R$ {lead.projectedTpv.toLocaleString("pt-BR")}</small></span></label>)}{!pipeline.isLoading && !leads.length && <p className="rounded-lg bg-[#f6f8f2] p-4 text-sm text-emerald-700/65">Seu funil está vazio. Adicione oportunidades na PSV semanal antes de montar o ritual.</p>}</div></section></div>;
+}

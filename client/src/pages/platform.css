@@ -1,0 +1,92 @@
+.fiorati-mark { width: 34px; height: 34px; object-fit: contain; }
+.ledger-surface { background-image: repeating-linear-gradient(0deg, transparent 0, transparent 35px, rgba(22, 107, 64, .05) 36px, transparent 37px); }
+.itaka-passage { background: #073725 !important; border-color: #176b49 !important; box-shadow: inset 0 1px 0 rgba(229, 255, 205, .08), 0 8px 18px rgba(7, 55, 37, .12); }
+.itaka-passage-label { color: #d9f98a !important; }
+.itaka-passage-theme { background: #def8a2 !important; color: #063725 !important; }
+.itaka-passage-text { color: #f4fbea !important; font-weight: 500; text-shadow: 0 1px 1px rgba(0, 0, 0, .22); }
+.itaka-passage-citation { color: #d9f98a !important; }
+.ledger-progress { background-color: #dff3e5; background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(20, 94, 59, .2) calc(10% - 1px), rgba(20, 94, 59, .2) 10%); }
+.ledger-index { border-left: 3px solid #1f7546; padding-left: .75rem; }
+.fiorati-embedded-calculator { display: block !important; width: 100% !important; min-width: 0; min-height: auto; }
+.fiorati-embedded-calculator .side-ledger { display: none; }
+.fiorati-embedded-calculator .workspace { width: 100%; min-width: 0; padding: 0; }
+.fiorati-embedded-calculator .matrix-evidence { max-width: 630px; line-height: 1.4; }
+.fiorati-embedded-calculator .matrix-evidence b,
+.fiorati-embedded-calculator .rate-evidence { font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+.fiorati-embedded-calculator .matrix-evidence .confirmed,
+.fiorati-embedded-calculator .rate-evidence.confirmada { color: #1a7a44; }
+.fiorati-embedded-calculator .matrix-evidence .correlation,
+.fiorati-embedded-calculator .rate-evidence.correlacao { color: #a46d10; }
+.fiorati-embedded-calculator .matrix-evidence .manual,
+.fiorati-embedded-calculator .rate-evidence.manual { color: #617468; }
+.fiorati-embedded-calculator .rate-evidence { display: block; margin-top: 5px; font-size: 9px; line-height: 1.2; }
+
+/* Mantém a navegação existente e apresenta a assinatura atual da plataforma. */
+aside .fiorati-mark + div b { font-size: 0; }
+aside .fiorati-mark + div b span { display: none; }
+aside .fiorati-mark + div b::before { content: "NOVA"; display: block; font-size: 1.125rem; line-height: 1; }
+aside .fiorati-mark + div b::after { content: "ODISSEIA: FIORATI"; display: block; margin-top: 3px; font-family: "IBM Plex Mono", monospace; font-size: .72rem; color: #d7ef79; }
+header > button { font-size: 0; }
+header > button::after { content: "NOVA ODISSEIA"; font-size: .875rem; }
+
+/* Fiodisseu: mascote decorativo da Nova Odisseia, mantido fora do fluxo de interação. */
+.fiorati-mark {
+  display: none !important;
+}
+
+aside > div:first-child,
+header > button {
+  position: relative;
+}
+
+aside > div:first-child::before,
+header > button::before {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 42px;
+  flex: 0 0 34px;
+  background: url("/assets/fiodisseu-mascote-transparent.png") center / contain no-repeat;
+}
+
+header > button::before {
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 26px;
+}
+
+header > button {
+  padding-left: 28px;
+}
+
+main::after {
+  content: "";
+  position: fixed;
+  z-index: 10;
+  width: 84px;
+  height: 112px;
+  pointer-events: none;
+  background: url("/assets/fiodisseu-mascote-transparent.png") center bottom / contain no-repeat;
+  filter: drop-shadow(0 8px 10px rgba(14, 52, 38, .18));
+  opacity: 0;
+  transform: translateY(20px) rotate(-2deg);
+  animation: fiodisseu-roam 74s cubic-bezier(.23, 1, .32, 1) infinite;
+}
+
+@keyframes fiodisseu-roam {
+  0%, 7%, 100% { right: 18px; bottom: 76px; opacity: 0; transform: translateY(20px) rotate(-2deg); }
+  9%, 16% { right: 18px; bottom: 76px; opacity: .94; transform: translateY(0) rotate(-2deg); }
+  20%, 34% { left: 18px; top: 90px; right: auto; bottom: auto; opacity: 0; transform: translateY(-16px) rotate(2deg); }
+  36%, 43% { left: 18px; top: 90px; right: auto; bottom: auto; opacity: .94; transform: translateY(0) rotate(2deg); }
+  47%, 68% { left: auto; top: auto; right: 24px; bottom: 76px; opacity: 0; transform: translateY(20px) rotate(-2deg); }
+  70%, 77% { left: auto; top: auto; right: 24px; bottom: 76px; opacity: .94; transform: translateY(0) rotate(-2deg); }
+}
+
+@media (max-width: 640px) {
+  main::after { width: 62px; height: 84px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main::after { animation: none; opacity: .78; right: 12px; bottom: 68px; }
+}

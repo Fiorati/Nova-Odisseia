@@ -1,0 +1,153 @@
+/* FIORATI ELITE 2026 — assinatura de livro-razão: entradas, regras e resultados têm materiais distintos. */
+.brand-lockup h1 {
+  font-size: 18px;
+  letter-spacing: -0.07em;
+  line-height: 0.88;
+}
+
+.brand-lockup h1 span {
+  display: block;
+  margin-top: 4px;
+  color: #d9eabb;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78em;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+.brand-eyebrow { margin-bottom: 3px; }
+
+.nav-item.active {
+  background: #1f7546;
+  color: #f7faef;
+  box-shadow: inset 3px 0 0 #d9eabb;
+}
+
+.top-strip {
+  border-radius: 8px;
+  background-color: #eef0e7;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 33px,
+    rgba(33, 91, 59, 0.075) 34px,
+    transparent 35px
+  );
+}
+
+.top-strip::before {
+  content: "F-2026 / REGISTRO DE VARIÁVEL";
+  position: absolute;
+  right: 32px;
+  bottom: 17px;
+  z-index: 2;
+  color: #4c6c58;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.07em;
+}
+
+.top-strip h2 em,
+.section-heading-row h3 em {
+  color: #166b40;
+}
+
+.first-use-strip,
+.parameter-card,
+.clients-table-wrap,
+.matrix-board {
+  border-radius: 6px;
+}
+
+.first-use-strip {
+  border-left: 3px solid #216b42;
+  background: #fffef9;
+}
+
+.section-card:not(.result-card):not(.multiplier-card) {
+  border-radius: 7px;
+}
+
+.parameter-card {
+  box-shadow: none;
+  background-color: #fffefa;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 28px,
+    rgba(33, 91, 59, 0.035) 29px,
+    transparent 30px
+  );
+}
+
+.parameter-card input,
+.clients-table input,
+.segment-edit input {
+  border-radius: 3px;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: transparent;
+}
+
+.clients-table-wrap,
+.matrix-board {
+  box-shadow: none;
+  border-top: 2px solid #2b7348;
+}
+
+.clients-table th,
+.matrix-table th {
+  background: #eef2eb;
+}
+
+.base-editor {
+  display: grid;
+  gap: 4px;
+  min-width: 125px;
+}
+
+.base-editor small,
+.reward-cell small {
+  display: block;
+  margin-top: 3px;
+  color: #5e7664;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+}
+
+.base-editor button {
+  width: fit-content;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #167547;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.matrix-toolbar,
+.segment-edit {
+  background: #f6f8f2;
+}
+
+.matrix-table {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 38px,
+    rgba(33, 91, 59, 0.035) 39px,
+    transparent 40px
+  );
+}
+
+.result-card {
+  border-radius: 7px;
+  box-shadow: 0 9px 22px rgba(31, 100, 52, 0.13);
+}
+
+@media (max-width: 640px) {
+  .top-strip::before { right: 19px; bottom: 14px; font-size: 8px; }
+}

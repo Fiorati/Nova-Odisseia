@@ -1,0 +1,211 @@
+:root {
+  --ulisses-electric: #00e66a;
+  --ulisses-signal: #38ff82;
+  --ulisses-moss: #12382b;
+  --ulisses-deep: #08251c;
+  --ulisses-ink: #102019;
+  --ulisses-mist: #f4f7f2;
+  --ulisses-line: rgba(18, 56, 43, .14);
+}
+
+body {
+  background:
+    radial-gradient(circle at 92% 2%, rgba(0, 230, 106, .15), transparent 24rem),
+    linear-gradient(130deg, #f8faf6 0%, var(--ulisses-mist) 55%, #e4f1e8 100%);
+  color: var(--ulisses-ink);
+}
+
+/* Projeto Ulisses: geometria de rota, progresso e navegação. */
+.fiorati-mark { display: block; flex: 0 0 auto; object-fit: contain; }
+
+aside {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 116% 9%, rgba(56, 255, 130, .48), transparent 12rem),
+    radial-gradient(circle at -20% 80%, rgba(0, 230, 106, .22), transparent 16rem),
+    linear-gradient(170deg, #102f24 0%, #08251c 48%, #061b15 100%) !important;
+}
+
+aside::before {
+  content: "";
+  position: absolute;
+  right: -5.5rem;
+  top: 12rem;
+  width: 20rem;
+  height: 20rem;
+  border: 1px solid rgba(56, 255, 130, .26);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.35rem rgba(56, 255, 130, .04), 0 0 0 3.7rem rgba(56, 255, 130, .025);
+  transform: rotate(-20deg);
+}
+
+aside nav button {
+  border: 1px solid transparent;
+  border-radius: 14px !important;
+  transition: transform 160ms cubic-bezier(.23, 1, .32, 1), background 160ms ease, color 160ms ease, border-color 160ms ease !important;
+}
+
+aside nav button:hover { transform: translateX(3px); border-color: rgba(56, 255, 130, .18); }
+aside nav button.bg-lime-200 {
+  background: var(--ulisses-electric) !important;
+  color: #062117 !important;
+  box-shadow: 0 8px 24px rgba(0, 230, 106, .2);
+}
+
+header {
+  border-color: var(--ulisses-line) !important;
+  background: rgba(248, 250, 246, .84) !important;
+  backdrop-filter: blur(18px);
+}
+
+header .bg-emerald-900 { background: var(--ulisses-moss) !important; color: var(--ulisses-signal) !important; }
+
+main > div > section,
+main section.rounded-xl,
+main article.rounded-xl {
+  border-color: var(--ulisses-line) !important;
+  box-shadow: 0 16px 38px rgba(7, 37, 27, .055);
+}
+
+.ledger-surface {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, .86) !important;
+  background-image:
+    linear-gradient(90deg, transparent 0 93%, rgba(0, 230, 106, .15) 93% 94%, transparent 94%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 31px, rgba(18, 56, 43, .045) 32px, transparent 33px) !important;
+}
+
+.ledger-surface::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  bottom: -5rem;
+  width: 16rem;
+  height: 16rem;
+  background: conic-gradient(from 220deg, transparent 0 21%, rgba(0, 230, 106, .22) 21% 38%, transparent 38% 57%, rgba(18, 56, 43, .11) 57% 72%, transparent 72%);
+  border-radius: 50%;
+  opacity: .9;
+}
+
+.ledger-index { border-left-color: var(--ulisses-electric) !important; color: #0a8747 !important; }
+.ledger-progress { background-color: #d5fae4 !important; background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(10, 93, 55, .22) calc(10% - 1px), rgba(10, 93, 55, .22) 10%) !important; }
+
+.bg-lime-300 { background-color: var(--ulisses-electric) !important; color: #062117 !important; }
+.bg-lime-200 { background-color: #c6f8da !important; color: #062117 !important; }
+.bg-lime-100 { background-color: #ebfff1 !important; color: #0c3d2a !important; }
+
+.text-lime-200, .text-lime-100 { color: var(--ulisses-signal) !important; }
+
+.bg-\[\#0e3426\], .bg-emerald-900 { background-color: var(--ulisses-moss) !important; }
+.bg-\[\#f4f3ec\], .bg-\[\#f5f8f2\], .bg-\[\#f6f8f2\] { background-color: var(--ulisses-mist) !important; }
+.text-emerald-950 { color: var(--ulisses-ink) !important; }
+.text-emerald-600 { color: #068449 !important; }
+
+button.bg-\[\#0e3426\], .bg-\[\#0e3426\] button, button.bg-emerald-900 {
+  background: linear-gradient(115deg, #0b2f23, #16523c) !important;
+  color: #f5fff8 !important;
+  border: 1px solid rgba(56, 255, 130, .22) !important;
+  box-shadow: 0 10px 22px rgba(8, 37, 28, .18);
+}
+
+button.bg-\[\#0e3426\]:hover, button.bg-emerald-900:hover { background: linear-gradient(115deg, #16523c, #1b6248) !important; }
+button:active { transform: scale(.98); }
+.bg-\[\#0e3426\] .text-emerald-100\/70,
+.bg-emerald-900 .text-emerald-100\/70 { color: rgba(237, 255, 243, .88) !important; }
+.bg-\[\#0e3426\] .text-lime-200,
+.bg-emerald-900 .text-lime-200 { color: #76ffb0 !important; }
+
+input, select, textarea {
+  border-color: rgba(18, 56, 43, .18) !important;
+  background-color: rgba(255, 255, 255, .82) !important;
+  border-radius: 11px !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid rgba(0, 230, 106, .42) !important;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(0, 230, 106, .1) !important;
+}
+
+/* Migração M1: o caderno técnico ganha um mapa de campanha contemporâneo. */
+.fiorati-embedded-calculator .top-strip,
+.fiorati-embedded-calculator .hunter-section {
+  background-color: var(--ulisses-moss) !important;
+  background-image:
+    radial-gradient(circle at 86% 22%, rgba(56, 255, 130, .35), transparent 15rem),
+    linear-gradient(130deg, #0a2c20, #174b38) !important;
+  border-color: rgba(56, 255, 130, .22) !important;
+  color: white;
+}
+
+.fiorati-embedded-calculator .top-strip h2,
+.fiorati-embedded-calculator .top-strip .top-copy,
+.fiorati-embedded-calculator .top-strip .kicker { color: white !important; }
+.fiorati-embedded-calculator .top-strip h2 em { color: var(--ulisses-signal) !important; }
+.fiorati-embedded-calculator .top-strip::before { content: "ROTA DE CONQUISTA / ULISSES" !important; color: var(--ulisses-signal) !important; }
+.fiorati-embedded-calculator .result-card { background: var(--ulisses-electric) !important; border-color: var(--ulisses-electric) !important; }
+
+/* Visão master: centro de comando da jornada de cada rota. */
+.leader-command-hero::before {
+  content: "ESTRATÉGIA DE ROTAS";
+  position: absolute;
+  right: 2rem;
+  top: 1.65rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: rgba(6, 132, 73, .62);
+}
+
+.leader-command > section:nth-child(2) article:last-child {
+  position: relative;
+  overflow: hidden;
+}
+
+.leader-command > section:nth-child(2) article:last-child::after {
+  content: "";
+  position: absolute;
+  right: -1.2rem;
+  bottom: -1.2rem;
+  width: 5.4rem;
+  height: 5.4rem;
+  border: 1px solid rgba(6, 33, 23, .25);
+  border-radius: 50%;
+  box-shadow: 0 0 0 .75rem rgba(6, 33, 23, .08), 0 0 0 1.6rem rgba(6, 33, 23, .04);
+}
+
+.fiorati-embedded-calculator .clients-table-wrap,
+.fiorati-embedded-calculator .matrix-board,
+.fiorati-embedded-calculator .parameter-card {
+  border-color: var(--ulisses-line) !important;
+  box-shadow: 0 16px 36px rgba(8, 37, 28, .06) !important;
+}
+
+@media (max-width: 1024px) {
+  aside::before { display: none; }
+}
+
+@media (max-width: 640px) {
+  header { min-height: 70px; }
+  .ledger-surface::after { width: 11rem; height: 11rem; }
+}
+
+.ulisses-origin-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(56, 255, 130, .28);
+  background: radial-gradient(circle at 92% 8%, rgba(56, 255, 130, .29), transparent 12rem), linear-gradient(120deg, #08251c 0%, #12382b 62%, #0c3023 100%);
+  box-shadow: 0 18px 36px rgba(8, 37, 28, .15);
+}
+.ulisses-origin-card::after { content: ""; position: absolute; right: -5rem; bottom: -7rem; width: 19rem; height: 19rem; border: 1px solid rgba(118, 255, 176, .2); border-radius: 50%; box-shadow: 0 0 0 1.25rem rgba(118, 255, 176, .035), 0 0 0 3rem rgba(118, 255, 176, .025); }
+.ulisses-origin-kicker { display: inline-flex; align-items: center; gap: 5px; color: #76ffb0; font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.ulisses-origin-pill { border: 1px solid rgba(118, 255, 176, .34); border-radius: 999px; padding: 3px 8px; color: #effff4; font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: .08em; }
+.ulisses-open-source { display: flex; max-width: 18rem; gap: 8px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 12px; background: rgba(255, 255, 255, .08); padding: 10px; color: rgba(245, 255, 248, .92); font-size: 11px; line-height: 1.35; }
+.ulisses-open-source svg { flex: 0 0 auto; color: #76ffb0; }
+
+@media (max-width: 640px) {
+  .ulisses-open-source { max-width: none; }
+  .ulisses-origin-card h3 { font-size: 1.2rem; }
+}
