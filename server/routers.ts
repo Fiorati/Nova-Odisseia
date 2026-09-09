@@ -124,8 +124,9 @@ export const monthlyFinalCardInputSchema = z.object({
 export const appRouter = router({
   system: systemRouter,
   identity: router({
-    configuration: publicProcedure.query(() => ({ title: process.env.VITE_APP_TITLE ?? "" })),
-  }),
+    configuration: publicProcedure.query(() => ({
+  title: process.env.VITE_APP_TITLE ?? "Nova Odisseia: Fiorati",
+})),
   auth: router({
     me: publicProcedure.query(({ ctx }) => ctx.user),
     register: publicProcedure.input(directAccountSchema).mutation(async ({ ctx, input }) => {
