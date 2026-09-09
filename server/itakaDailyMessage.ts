@@ -23,8 +23,8 @@ function getSaoPauloCalendarDate(now = new Date()): Date {
 
 const messages: ItakaDailyMessage[] = ITAKA_MESSAGES_DATA.map((item) => ({
   dayOfYear: item.dayOfYear,
-  motivational: item.motivational,
-  odysseySummary: item.odysseySummary,
+  phrase: item.motivational,
+passage: item.odysseySummary,
   citation: item.citation,
   theme: item.theme,
 }));
