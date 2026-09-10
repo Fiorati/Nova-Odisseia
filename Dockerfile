@@ -16,4 +16,4 @@ COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=build /app/client/public ./client/public
 COPY --from=build /app/scripts ./scripts
 EXPOSE 3000
-CMD ["sh", "-c", "pnpm run db:migrate && pnpm run start:prod"]
+CMD ["pnpm", "run", "start:prod"]
