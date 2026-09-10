@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && corepack prepare pnpm@10.4.1 --activate && pnpm install --frozen-lockfile --prod=false
+RUN corepack enable && corepack prepare pnpm@10.4.1 --activate && pnpm install --frozen-lockfile --prod=false=false
 COPY . .
 RUN pnpm run check && pnpm run test:unit && pnpm run build
 
