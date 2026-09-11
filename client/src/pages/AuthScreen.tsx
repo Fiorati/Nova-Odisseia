@@ -23,15 +23,117 @@ function PasswordField({ value, onChange, label = "Senha" }: { value: string; on
 }
 
 export default function AuthScreen() {
-  const [mode, setMode] = useState<Mode>("login"); const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [confirmation, setConfirmation] = useState(""); const [code, setCode] = useState(""); const [resetToken, setResetToken] = useState(""); const [leadershipRole, setLeadershipRole] = useState<"none" | "polo" | "distrital">("none");
+  const [mode, setMode] = useState<Mode>("login"); const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [confirmation, setConfirmation] = useState("");const [verificationToken, setVerificationToken] = useState("");  const [code, setCode] = useState(""); const [resetToken, setResetToken] = useState(""); const [leadershipRole, setLeadershipRole] = useState<"none" | "polo" | "distrital">("none");
   const utils = trpc.useUtils();
-  const register = trpc.auth.register.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); toast.success("Conta criada. Sua odisseia começou."); }, onError: error => toast.error(error.message) });
+  const requestRegistrationCode = trpc.auth.requestRegistrationCode.useMutation({
+  onSuccess: () => {
+    setMode("register-verify");
+    toast.success("Código enviado. Verifique seu e-mail corporativo.");
+  },
+  onError: error => toast.error(error.message),
+});
+
+const verifyRegistrationCode = trpc.auth.verifyRegistrationCode.useMutation({
+  onSuccess: result => {
+    setConfirmation(result.verificationToken);
+    setMode("register-password");
+    toast.success("E-mail confirmado. Agora defina sua senha.");
+  },
+  onError: error => toast.error(error.message),
+});
+
+const completeRegistration = trpc.auth.completeRegistration.useMutation({
+  onSuccess: async () => {
+    await utils.auth.me.invalidate();
+    toast.success("Conta criada. Sua Odisseia começou.");
+  },
+  onError: error => toast.error(error.message),
+});
   const login = trpc.auth.login.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); toast.success("Acesso confirmado."); }, onError: error => toast.error(error.message) });
   const requestReset = trpc.auth.requestPasswordReset.useMutation({ onSuccess: () => { setMode("reset-verify"); toast.success("Se o endereço tiver uma conta, enviamos um código de confirmação."); }, onError: error => toast.error(error.message) });
   const verifyReset = trpc.auth.verifyPasswordReset.useMutation({ onSuccess: result => { setResetToken(result.resetToken); setMode("reset-new"); toast.success("Código confirmado. Defina a nova senha."); }, onError: error => toast.error(error.message) });
   const resetPassword = trpc.auth.resetPassword.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); toast.success("Senha atualizada com segurança."); }, onError: error => toast.error(error.message) });
-  const pending = register.isPending || login.isPending || requestReset.isPending || verifyReset.isPending || resetPassword.isPending; const resetFlow = mode.startsWith("reset");
-  const submit = (event: React.FormEvent) => { event.preventDefault(); if (mode === "register") register.mutate({ name, email, password, leadershipRole }); if (mode === "login") login.mutate({ email, password }); if (mode === "reset-request") requestReset.mutate({ email }); if (mode === "reset-verify") verifyReset.mutate({ email, code }); if (mode === "reset-new") { if (password !== confirmation) return toast.error("A confirmação de senha não coincide."); resetPassword.mutate({ email, password, resetToken }); } };
+  const requestRegistrationCode = trpc.auth.requestRegistrationCode.useMutation({
+  onSuccess: () => {
+    setMode("register-verify");
+    toast.success("Código enviado. Verifique seu e-mail corporativo.");
+  },
+  onError: error => toast.error(error.message),
+});
+
+const verifyRegistrationCode = trpc.auth.verifyRegistrationCode.useMutation({
+  onSuccess: result => {
+    setConfirmation(result.verificationToken);
+    setMode("register-password");
+    toast.success("E-mail confirmado. Agora defina sua senha.");
+  },
+  onError: error => toast.error(error.message),
+});
+
+const completeRegistration = trpc.auth.completeRegistration.useMutation({
+  onSuccess: async () => {
+    await utils.auth.me.invalidate();
+    toast.success("Conta criada. Sua Odisseia começou.");
+  },
+  onError: error => toast.error(error.message),
+}); const resetFlow = mode.startsWith("reset");
+  const submit = (event: React.FormEvent) => {
+  event.preventDefault();
+
+  if (mode === "register") {
+    requestRegistrationCode.mutate({
+      name,
+      email,
+      leadershipRole,
+    });
+  }
+
+  if (mode === "register-verify") {
+    verifyRegistrationCode.mutate({
+      email,
+      code,
+    });
+  }
+
+  if (mode === "register-password") {
+    if (password !== confirmation) {
+      return toast.error("A confirmação de senha não coincide.");
+    }
+
+    completeRegistration.mutate({
+      email,
+      password,
+      verificationToken: confirmation,
+    });
+  }
+
+  if (mode === "login") {
+    login.mutate({
+      email,
+      password,
+    });
+  }
+
+  if (mode === "reset-request") {
+    requestReset.mutate({ email });
+  }
+
+  if (mode === "reset-verify") {
+    verifyReset.mutate({ email, code });
+  }
+
+  if (mode === "reset-new") {
+    if (password !== confirmation) {
+      return toast.error("A confirmação de senha não coincide.");
+    }
+
+    resetPassword.mutate({
+      email,
+      password,
+      resetToken,
+    });
+  }
+};
   const heading = mode === "login" ? "Bom ter você de volta." : mode === "register" ? "Comece sua odisseia." : mode === "reset-request" ? "Vamos recuperar seu acesso." : mode === "reset-verify" ? "Confirme o código." : "Defina uma nova senha.";
   const helper = mode === "login" ? "Entre com o e-mail e a senha cadastrados." : mode === "register" ? "O cadastro é exclusivo para e-mails corporativos @stone.com.br, exceto acessos Master autorizados." : mode === "reset-request" ? "Informe seu e-mail para receber um código de redefinição." : mode === "reset-verify" ? "Digite o código de seis números enviado ao seu e-mail." : "Use uma senha com pelo menos oito caracteres.";
   return <div className="min-h-screen bg-[#f4f3ec] p-5 text-emerald-950"><div className="mx-auto grid min-h-[calc(100vh-40px)] max-w-6xl overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_24px_70px_rgba(16,52,38,.12)] md:grid-cols-[1.12fr_.88fr]">
