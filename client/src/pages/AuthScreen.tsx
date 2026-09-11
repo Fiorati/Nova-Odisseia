@@ -35,7 +35,7 @@ export default function AuthScreen() {
 
 const verifyRegistrationCode = trpc.auth.verifyRegistrationCode.useMutation({
   onSuccess: result => {
-    setConfirmation(result.verificationToken);
+    setVerificationToken(result.verificationToken);
     setMode("register-password");
     toast.success("E-mail confirmado. Agora defina sua senha.");
   },
@@ -101,10 +101,10 @@ const completeRegistration = trpc.auth.completeRegistration.useMutation({
     }
 
     completeRegistration.mutate({
-      email,
-      password,
-      verificationToken: confirmation,
-    });
+  email,
+  password,
+  verificationToken,
+});
   }
 
   if (mode === "login") {
