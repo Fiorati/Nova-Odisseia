@@ -1,7 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Eye, EyeOff, KeyRound, LockKeyhole, MailCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LockKeyhole,
+  MailCheck,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,154 +21,599 @@ type Mode =
   | "reset-verify"
   | "reset-new";
 
-function PasswordField({ value, onChange, label = "Senha" }: { value: string; onChange: (value: string) => void; label?: string }) {
+function PasswordField({
+  value,
+  onChange,
+  label = "Senha",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label?: string;
+}) {
   const [visible, setVisible] = useState(false);
-  return <label className="grid gap-1.5 text-xs font-medium text-emerald-900">
-    {label}
-    <div className="relative"><Input value={value} onChange={event => onChange(event.target.value)} type={visible ? "text" : "password"} minLength={8} placeholder="Mínimo de 8 caracteres" required className="pr-10" /><button type="button" onClick={() => setVisible(current => !current)} className="absolute right-2 top-2.5 text-emerald-700" aria-label="Mostrar ou ocultar senha">{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>
-  </label>;
+
+  return (
+    <label className="grid gap-1.5 text-xs font-medium text-emerald-900">
+      {label}
+
+      <div className="relative">
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          type={visible ? "text" : "password"}
+          minLength={8}
+          placeholder="Mínimo de 8 caracteres"
+          required
+          className="pr-10"
+        />
+
+        <button
+          type="button"
+          onClick={() => setVisible((current) => !current)}
+          className="absolute right-2 top-2.5 text-emerald-700"
+          aria-label="Mostrar ou ocultar senha"
+        >
+          {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </div>
+    </label>
+  );
 }
 
 export default function AuthScreen() {
-  const [mode, setMode] = useState<Mode>("login"); const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [confirmation, setConfirmation] = useState("");const [verificationToken, setVerificationToken] = useState("");  const [code, setCode] = useState(""); const [resetToken, setResetToken] = useState(""); const [leadershipRole, setLeadershipRole] = useState<"none" | "polo" | "distrital">("none");
+  const [mode, setMode] = useState<Mode>("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
+  const [code, setCode] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [leadershipRole, setLeadershipRole] = useState<
+    "none" | "polo" | "distrital"
+  >("none");
+
   const utils = trpc.useUtils();
-  const requestRegistrationCode = trpc.auth.requestRegistrationCode.useMutation({
-  onSuccess: () => {
-    setMode("register-verify");
-    toast.success("Código enviado. Verifique seu e-mail corporativo.");
-  },
-  onError: error => toast.error(error.message),
-});
 
-const verifyRegistrationCode = trpc.auth.verifyRegistrationCode.useMutation({
-  onSuccess: result => {
-    setVerificationToken(result.verificationToken);
-    setMode("register-password");
-    toast.success("E-mail confirmado. Agora defina sua senha.");
-  },
-  onError: error => toast.error(error.message),
-});
+  const requestRegistrationCode =
+    trpc.auth.requestRegistrationCode.useMutation({
+      onSuccess: () => {
+        setCode("");
+        setMode("register-verify");
+        toast.success(
+          "Código enviado. Verifique seu e-mail corporativo."
+        );
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
-const completeRegistration = trpc.auth.completeRegistration.useMutation({
-  onSuccess: async () => {
-    await utils.auth.me.invalidate();
-    toast.success("Conta criada. Sua Odisseia começou.");
-  },
-  onError: error => toast.error(error.message),
-});
-  const login = trpc.auth.login.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); toast.success("Acesso confirmado."); }, onError: error => toast.error(error.message) });
-  const requestReset = trpc.auth.requestPasswordReset.useMutation({ onSuccess: () => { setMode("reset-verify"); toast.success("Se o endereço tiver uma conta, enviamos um código de confirmação."); }, onError: error => toast.error(error.message) });
-  const verifyReset = trpc.auth.verifyPasswordReset.useMutation({ onSuccess: result => { setResetToken(result.resetToken); setMode("reset-new"); toast.success("Código confirmado. Defina a nova senha."); }, onError: error => toast.error(error.message) });
-  const resetPassword = trpc.auth.resetPassword.useMutation({ onSuccess: async () => { await utils.auth.me.invalidate(); toast.success("Senha atualizada com segurança."); }, onError: error => toast.error(error.message) });
+  const verifyRegistrationCode =
+    trpc.auth.verifyRegistrationCode.useMutation({
+      onSuccess: (result) => {
+        setVerificationToken(result.verificationToken);
+        setCode("");
+        setMode("register-password");
+        toast.success(
+          "E-mail confirmado. Agora defina sua senha."
+        );
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
+  const completeRegistration =
+    trpc.auth.completeRegistration.useMutation({
+      onSuccess: async () => {
+        await utils.auth.me.invalidate();
+        toast.success(
+          "Conta criada. Sua Odisseia começou."
+        );
+      },
+      onError: (error) => toast.error(error.message),
+    });
+
+  const login = trpc.auth.login.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+      toast.success("Acesso confirmado.");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const requestReset = trpc.auth.requestPasswordReset.useMutation({
+    onSuccess: () => {
+      setCode("");
+      setMode("reset-verify");
+      toast.success(
+        "Se o endereço tiver uma conta, enviamos um código de confirmação."
+      );
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const verifyReset = trpc.auth.verifyPasswordReset.useMutation({
+    onSuccess: (result) => {
+      setResetToken(result.resetToken);
+      setCode("");
+      setMode("reset-new");
+      toast.success(
+        "Código confirmado. Defina a nova senha."
+      );
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const resetPassword = trpc.auth.resetPassword.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+      toast.success(
+        "Senha atualizada com segurança."
+      );
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const pending =
+    requestRegistrationCode.isPending ||
+    verifyRegistrationCode.isPending ||
+    completeRegistration.isPending ||
+    login.isPending ||
+    requestReset.isPending ||
+    verifyReset.isPending ||
+    resetPassword.isPending;
 
   const resetFlow = mode.startsWith("reset");
+
   const submit = (event: React.FormEvent) => {
-  event.preventDefault();
+    event.preventDefault();
 
-  if (mode === "register") {
-    requestRegistrationCode.mutate({
-      name,
-      email,
-      leadershipRole,
-    });
-  }
+    if (mode === "register") {
+      requestRegistrationCode.mutate({
+        name,
+        email,
+        leadershipRole,
+      });
 
-  if (mode === "register-verify") {
-    verifyRegistrationCode.mutate({
-      email,
-      code,
-    });
-  }
-
-  if (mode === "register-password") {
-    if (password !== confirmation) {
-      return toast.error("A confirmação de senha não coincide.");
+      return;
     }
 
-    completeRegistration.mutate({
-  email,
-  password,
-  verificationToken,
-});
-  }
+    if (mode === "register-verify") {
+      verifyRegistrationCode.mutate({
+        email,
+        code,
+      });
 
-  if (mode === "login") {
-    login.mutate({
-      email,
-      password,
-    });
-  }
-
-  if (mode === "reset-request") {
-    requestReset.mutate({ email });
-  }
-
-  if (mode === "reset-verify") {
-    verifyReset.mutate({ email, code });
-  }
-
-  if (mode === "reset-new") {
-    if (password !== confirmation) {
-      return toast.error("A confirmação de senha não coincide.");
+      return;
     }
 
-    resetPassword.mutate({
-      email,
-      password,
-      resetToken,
-    });
-  }
-};
+    if (mode === "register-password") {
+      if (password !== confirmation) {
+        return toast.error(
+          "A confirmação de senha não coincide."
+        );
+      }
+
+      if (!verificationToken) {
+        return toast.error(
+          "A confirmação do e-mail não foi validada. Solicite um novo código."
+        );
+      }
+
+      completeRegistration.mutate({
+        email,
+        password,
+        verificationToken,
+      });
+
+      return;
+    }
+
+    if (mode === "login") {
+      login.mutate({
+        email,
+        password,
+      });
+
+      return;
+    }
+
+    if (mode === "reset-request") {
+      requestReset.mutate({ email });
+
+      return;
+    }
+
+    if (mode === "reset-verify") {
+      verifyReset.mutate({
+        email,
+        code,
+      });
+
+      return;
+    }
+
+    if (mode === "reset-new") {
+      if (password !== confirmation) {
+        return toast.error(
+          "A confirmação de senha não coincide."
+        );
+      }
+
+      if (!resetToken) {
+        return toast.error(
+          "A confirmação para redefinição de senha não foi validada."
+        );
+      }
+
+      resetPassword.mutate({
+        email,
+        password,
+        resetToken,
+      });
+    }
+  };
+
   const heading =
-  mode === "login"
-    ? "Bom ter você de volta."
-    : mode === "register"
-      ? "Comece sua odisseia."
-      : mode === "register-verify"
-        ? "Confirme seu e-mail."
-        : mode === "register-password"
-          ? "Defina sua senha."
-          : mode === "reset-request"
-            ? "Vamos recuperar seu acesso."
-            : mode === "reset-verify"
-              ? "Confirme o código."
-              : "Defina uma nova senha.";
-
-const helper =
-  mode === "login"
-    ? "Entre com o e-mail e a senha cadastrados."
-    : mode === "register"
-      ? "O cadastro é exclusivo para e-mails corporativos @stone.com.br, exceto acessos Master autorizados."
-      : mode === "register-verify"
-        ? "Digite o código de seis números enviado ao seu e-mail."
-        : mode === "register-password"
-          ? "Seu e-mail foi confirmado. Agora crie uma senha com pelo menos oito caracteres."
-          : mode === "reset-request"
-            ? "Informe seu e-mail para receber um código de redefinição."
-            : mode === "reset-verify"
-              ? "Digite o código de seis números enviado ao seu e-mail."
-              : "Use uma senha com pelo menos oito caracteres.";
-  return <div className="min-h-screen bg-[#f4f3ec] p-5 text-emerald-950"><div className="mx-auto grid min-h-[calc(100vh-40px)] max-w-6xl overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_24px_70px_rgba(16,52,38,.12)] md:grid-cols-[1.12fr_.88fr]">
-    <section className="relative overflow-hidden bg-[#0e3426] p-8 text-[#f7faed] md:p-14"><div className="absolute -right-32 -top-32 h-96 w-96 rounded-full border border-lime-200/20" /><div className="relative flex h-full flex-col justify-between"><div><div className="flex items-center gap-3"><img className="fiorati-mark" src="/assets/projeto-ulisses-helmet-clean.png" alt="Símbolo da Nova Odisseia: Fiorati" /><p className="font-mono text-[10px] font-semibold tracking-[.18em] text-lime-200">CADERNO OPERACIONAL</p></div><h1 className="mt-4 text-4xl font-bold tracking-[-.07em] md:text-6xl">NOVA<br /><span className="font-mono text-3xl font-medium tracking-[.05em] text-lime-200 md:text-4xl">ODISSEIA · FIORATI</span></h1></div><div className="max-w-md"><p className="font-mono text-[10px] tracking-[.12em] text-lime-200">PLATAFORMA PRIVADA DE EVOLUÇÃO</p><h2 className="mt-3 text-2xl leading-tight tracking-[-.05em]">Organize a rota. Desenvolva repertório. Execute fora da curva.</h2><p className="mt-4 text-sm leading-6 text-emerald-100/80">Sua conta concentra planejamento, metas, simulações, PSV, RMR e desenvolvimento. Cada profissional acessa somente os próprios registros.</p></div><div className="grid grid-cols-3 gap-3 border-t border-white/15 pt-6 text-xs text-emerald-100/80"><span><b className="block text-lg text-lime-200">10</b>visitas/dia</span><span><b className="block text-lg text-lime-200">2</b>propostas/dia</span><span><b className="block text-lg text-lime-200">300k</b>TPV/mês</span></div></div></section>
-    <section className="flex items-center p-7 md:p-12"><div className="mx-auto w-full max-w-sm">{!resetFlow && <div className="flex rounded-lg bg-[#f0f3ed] p-1"><button className={`flex-1 rounded-md px-3 py-2 text-sm ${mode === "login" ? "bg-white font-semibold text-emerald-900 shadow-sm" : "text-emerald-700"}`} onClick={() => setMode("login")}>Entrar</button><button className={`flex-1 rounded-md px-3 py-2 text-sm ${mode === "register" ? "bg-white font-semibold text-emerald-900 shadow-sm" : "text-emerald-700"}`} onClick={() => setMode("register")}>Criar acesso</button></div>}{resetFlow && <button className="flex items-center gap-2 text-xs font-medium text-emerald-700 hover:text-emerald-950" onClick={() => { setMode("login"); setCode(""); setResetToken(""); }}><ArrowLeft size={15} /> Voltar para entrar</button>}<div className="mt-9"><p className="font-mono text-[10px] font-semibold tracking-[.12em] text-emerald-600">{resetFlow ? "RECUPERAÇÃO DE ACESSO" : "ACESSO INDIVIDUAL"}</p><h2 className="mt-2 text-3xl font-semibold tracking-[-.05em]">{heading}</h2><p className="mt-3 text-sm leading-6 text-emerald-800/70">{helper}</p></div>
-      <form className="mt-8 space-y-4" onSubmit={submit}>{mode === "register" && <><label className="grid gap-1.5 text-xs font-medium text-emerald-900">Nome completo<Input value={name} onChange={event => setName(event.target.value)} placeholder="Como quer aparecer no ranking" required /></label><fieldset className="rounded-lg border border-emerald-200 bg-emerald-50 p-3"><legend className="px-1 text-xs font-semibold text-emerald-900">Função na Nova Odisseia</legend><p className="mb-2 text-[11px] text-emerald-800/70">Selecione sua atuação. Funções de gestão e escopo são provisionados somente por administração autorizada.</p><div className="flex flex-wrap gap-3 text-xs"><label><input type="radio" checked={leadershipRole === "none"} onChange={() => setLeadershipRole("none")} /> Agente</label><label><input type="radio" checked={leadershipRole === "polo"} onChange={() => setLeadershipRole("polo")} /> Dono de Polo</label><label><input type="radio" checked={leadershipRole === "distrital"} onChange={() => setLeadershipRole("distrital")} /> Distrital</label></div></fieldset></>}{mode !== "reset-new" && <label className="grid gap-1.5 text-xs font-medium text-emerald-900">E-mail<Input value={email} onChange={event => setEmail(event.target.value)} type="email" placeholder="voce@stone.com.br" required /></label>}{(mode === "register-verify" || mode === "reset-verify") && <label className="grid gap-1.5 text-xs font-medium text-emerald-900">Código de confirmação<Input value={code} onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" placeholder="000000" required /></label>}{(mode === "login" || mode === "register-password" || mode === "reset-new") && <PasswordField value={password} onChange={setPassword} label={mode === "reset-new" ? "Nova senha" : "Senha"} />} />}{(mode === "register-password" || mode === "reset-new") && <PasswordField value={confirmation} onChange={setConfirmation} label={mode === "reset-new" ? "Confirmar nova senha" : "Confirmar senha"} />}{mode === "reset-request" && <div className="rounded-lg bg-emerald-50 p-3 text-xs leading-5 text-emerald-800"><MailCheck className="mb-1 text-emerald-600" size={17} /> O código expira em 15 minutos e pode ser utilizado uma única vez.</div>}<Button className="mt-2 w-full bg-[#0e3426] text-white hover:bg-[#174c35]" type="submit" disabled={pending}>
-  {pending
-    ? "Aguarde..."
-    : mode === "login"
-      ? "Entrar no meu painel"
+    mode === "login"
+      ? "Bom ter você de volta."
       : mode === "register"
-        ? "Enviar código"
+        ? "Comece sua odisseia."
         : mode === "register-verify"
-          ? "Confirmar e-mail"
+          ? "Confirme seu e-mail."
           : mode === "register-password"
-            ? "Criar minha conta"
+            ? "Defina sua senha."
             : mode === "reset-request"
-              ? "Enviar código"
+              ? "Vamos recuperar seu acesso."
               : mode === "reset-verify"
-                ? "Confirmar código"
-                : "Atualizar senha"}
-</Button>
-      </form>{mode === "login" && <button onClick={() => setMode("reset-request")} className="mt-4 flex w-full items-center justify-center gap-2 text-xs font-semibold text-emerald-700 hover:text-emerald-950"><KeyRound size={15} /> Esqueci minha senha</button>}<p className="mt-7 flex gap-2 text-xs leading-5 text-emerald-700/70"><LockKeyhole size={15} className="mt-0.5 shrink-0" /> Metas, simulações, PSV e RMR permanecem privados por usuário. Para e-mails Stone, o envio de códigos requer domínio de e-mail verificado.</p></div></section>
-  </div></div>;
+                ? "Confirme o código."
+                : "Defina uma nova senha.";
+
+  const helper =
+    mode === "login"
+      ? "Entre com o e-mail e a senha cadastrados."
+      : mode === "register"
+        ? "O cadastro é exclusivo para e-mails corporativos @stone.com.br, exceto acessos Master autorizados."
+        : mode === "register-verify"
+          ? "Digite o código de seis números enviado ao seu e-mail."
+          : mode === "register-password"
+            ? "Seu e-mail foi confirmado. Agora crie uma senha com pelo menos oito caracteres."
+            : mode === "reset-request"
+              ? "Informe seu e-mail para receber um código de redefinição."
+              : mode === "reset-verify"
+                ? "Digite o código de seis números enviado ao seu e-mail."
+                : "Use uma senha com pelo menos oito caracteres.";
+
+  return (
+    <div className="min-h-screen bg-[#f4f3ec] p-5 text-emerald-950">
+      <div className="mx-auto grid min-h-[calc(100vh-40px)] max-w-6xl overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_24px_70px_rgba(16,52,38,.12)] md:grid-cols-[1.12fr_.88fr]">
+        <section className="relative overflow-hidden bg-[#0e3426] p-8 text-[#f7faed] md:p-14">
+          <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full border border-lime-200/20" />
+
+          <div className="relative flex h-full flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <img
+                  className="fiorati-mark"
+                  src="/assets/projeto-ulisses-helmet-clean.png"
+                  alt="Símbolo da Nova Odisseia: Fiorati"
+                />
+
+                <p className="font-mono text-[10px] font-semibold tracking-[.18em] text-lime-200">
+                  CADERNO OPERACIONAL
+                </p>
+              </div>
+
+              <h1 className="mt-4 text-4xl font-bold tracking-[-.07em] md:text-6xl">
+                NOVA
+                <br />
+                <span className="font-mono text-3xl font-medium tracking-[.05em] text-lime-200 md:text-4xl">
+                  ODISSEIA · FIORATI
+                </span>
+              </h1>
+            </div>
+
+            <div className="max-w-md">
+              <p className="font-mono text-[10px] tracking-[.12em] text-lime-200">
+                PLATAFORMA PRIVADA DE EVOLUÇÃO
+              </p>
+
+              <h2 className="mt-3 text-2xl leading-tight tracking-[-.05em]">
+                Organize a rota. Desenvolva repertório. Execute fora da curva.
+              </h2>
+
+              <p className="mt-4 text-sm leading-6 text-emerald-100/80">
+                Sua conta concentra planejamento, metas, simulações, PSV, RMR
+                e desenvolvimento. Cada profissional acessa somente os
+                próprios registros.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 border-t border-white/15 pt-6 text-xs text-emerald-100/80">
+              <span>
+                <b className="block text-lg text-lime-200">10</b>
+                visitas/dia
+              </span>
+
+              <span>
+                <b className="block text-lg text-lime-200">2</b>
+                propostas/dia
+              </span>
+
+              <span>
+                <b className="block text-lg text-lime-200">300k</b>
+                TPV/mês
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex items-center p-7 md:p-12">
+          <div className="mx-auto w-full max-w-sm">
+            {!resetFlow && (
+              <div className="flex rounded-lg bg-[#f0f3ed] p-1">
+                <button
+                  type="button"
+                  className={`flex-1 rounded-md px-3 py-2 text-sm ${
+                    mode === "login"
+                      ? "bg-white font-semibold text-emerald-900 shadow-sm"
+                      : "text-emerald-700"
+                  }`}
+                  onClick={() => {
+                    setMode("login");
+                    setCode("");
+                    setVerificationToken("");
+                  }}
+                >
+                  Entrar
+                </button>
+
+                <button
+                  type="button"
+                  className={`flex-1 rounded-md px-3 py-2 text-sm ${
+                    mode === "register"
+                      ? "bg-white font-semibold text-emerald-900 shadow-sm"
+                      : "text-emerald-700"
+                  }`}
+                  onClick={() => {
+                    setMode("register");
+                    setCode("");
+                    setVerificationToken("");
+                    setPassword("");
+                    setConfirmation("");
+                  }}
+                >
+                  Criar acesso
+                </button>
+              </div>
+            )}
+
+            {resetFlow && (
+              <button
+                type="button"
+                className="flex items-center gap-2 text-xs font-medium text-emerald-700 hover:text-emerald-950"
+                onClick={() => {
+                  setMode("login");
+                  setCode("");
+                  setResetToken("");
+                  setPassword("");
+                  setConfirmation("");
+                }}
+              >
+                <ArrowLeft size={15} />
+                Voltar para entrar
+              </button>
+            )}
+
+            <div className="mt-9">
+              <p className="font-mono text-[10px] font-semibold tracking-[.12em] text-emerald-600">
+                {resetFlow
+                  ? "RECUPERAÇÃO DE ACESSO"
+                  : "ACESSO INDIVIDUAL"}
+              </p>
+
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-.05em]">
+                {heading}
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-emerald-800/70">
+                {helper}
+              </p>
+            </div>
+
+            <form
+              className="mt-8 space-y-4"
+              onSubmit={submit}
+            >
+              {mode === "register" && (
+                <>
+                  <label className="grid gap-1.5 text-xs font-medium text-emerald-900">
+                    Nome completo
+
+                    <Input
+                      value={name}
+                      onChange={(event) =>
+                        setName(event.target.value)
+                      }
+                      placeholder="Como quer aparecer no ranking"
+                      required
+                    />
+                  </label>
+
+                  <fieldset className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <legend className="px-1 text-xs font-semibold text-emerald-900">
+                      Função na Nova Odisseia
+                    </legend>
+
+                    <p className="mb-2 text-[11px] text-emerald-800/70">
+                      Selecione sua atuação. Funções de gestão e escopo são
+                      provisionados somente por administração autorizada.
+                    </p>
+
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      <label>
+                        <input
+                          type="radio"
+                          checked={leadershipRole === "none"}
+                          onChange={() =>
+                            setLeadershipRole("none")
+                          }
+                        />{" "}
+                        Agente
+                      </label>
+
+                      <label>
+                        <input
+                          type="radio"
+                          checked={leadershipRole === "polo"}
+                          onChange={() =>
+                            setLeadershipRole("polo")
+                          }
+                        />{" "}
+                        Dono de Polo
+                      </label>
+
+                      <label>
+                        <input
+                          type="radio"
+                          checked={leadershipRole === "distrital"}
+                          onChange={() =>
+                            setLeadershipRole("distrital")
+                          }
+                        />{" "}
+                        Distrital
+                      </label>
+                    </div>
+                  </fieldset>
+                </>
+              )}
+
+              {mode !== "reset-new" && (
+                <label className="grid gap-1.5 text-xs font-medium text-emerald-900">
+                  E-mail
+
+                  <Input
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(event.target.value)
+                    }
+                    type="email"
+                    placeholder="voce@stone.com.br"
+                    required
+                    disabled={
+                      mode === "register-verify" ||
+                      mode === "register-password"
+                    }
+                  />
+                </label>
+              )}
+
+              {(mode === "register-verify" ||
+                mode === "reset-verify") && (
+                <label className="grid gap-1.5 text-xs font-medium text-emerald-900">
+                  Código de confirmação
+
+                  <Input
+                    value={code}
+                    onChange={(event) =>
+                      setCode(
+                        event.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 6)
+                      )
+                    }
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    required
+                    autoFocus
+                  />
+                </label>
+              )}
+
+              {(mode === "login" ||
+                mode === "register-password" ||
+                mode === "reset-new") && (
+                <PasswordField
+                  value={password}
+                  onChange={setPassword}
+                  label={
+                    mode === "reset-new"
+                      ? "Nova senha"
+                      : "Senha"
+                  }
+                />
+              )}
+
+              {(mode === "register-password" ||
+                mode === "reset-new") && (
+                <PasswordField
+                  value={confirmation}
+                  onChange={setConfirmation}
+                  label={
+                    mode === "reset-new"
+                      ? "Confirmar nova senha"
+                      : "Confirmar senha"
+                  }
+                />
+              )}
+
+              {mode === "reset-request" && (
+                <div className="rounded-lg bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
+                  <MailCheck
+                    className="mb-1 text-emerald-600"
+                    size={17}
+                  />
+                  O código expira em 15 minutos e pode ser utilizado uma
+                  única vez.
+                </div>
+              )}
+
+              <Button
+                className="mt-2 w-full bg-[#0e3426] text-white hover:bg-[#174c35]"
+                type="submit"
+                disabled={pending}
+              >
+                {pending
+                  ? "Aguarde..."
+                  : mode === "login"
+                    ? "Entrar no meu painel"
+                    : mode === "register"
+                      ? "Enviar código"
+                      : mode === "register-verify"
+                        ? "Confirmar e-mail"
+                        : mode === "register-password"
+                          ? "Criar minha conta"
+                          : mode === "reset-request"
+                            ? "Enviar código"
+                            : mode === "reset-verify"
+                              ? "Confirmar código"
+                              : "Atualizar senha"}
+              </Button>
+            </form>
+
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={() => setMode("reset-request")}
+                className="mt-4 flex w-full items-center justify-center gap-2 text-xs font-semibold text-emerald-700 hover:text-emerald-950"
+              >
+                <KeyRound size={15} />
+                Esqueci minha senha
+              </button>
+            )}
+
+            <p className="mt-7 flex gap-2 text-xs leading-5 text-emerald-700/70">
+              <LockKeyhole
+                size={15}
+                className="mt-0.5 shrink-0"
+              />
+
+              Metas, simulações, PSV e RMR permanecem privados por usuário.
+              Para e-mails Stone, o envio de códigos requer domínio de e-mail
+              verificado.
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 }
