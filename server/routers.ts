@@ -130,19 +130,7 @@ export const appRouter = router({
 }),
 auth: router({
     me: publicProcedure.query(({ ctx }) => ctx.user),
-    register: publicProcedure.input(directAccountSchema).mutation(async ({ ctx, input }) => {
-      const email = normalizedEmail(input.email);
-      if (!isAllowedRegistrationEmail(email) || email === "sistemaulisses@gmail.com") {
-        throw new Error("Apenas é possível viajar na Odisseia com e-mail corporativo Stone");
-      }
-      const exists = await getUserByEmail(email);
-      if (exists) throw new Error("Já existe uma conta com este e-mail.");
-      const credentials = await createPassword(input.password);
-      const user = await createEmailAccount({ name: input.name, email, openId: `email_${randomUUID().replaceAll("-", "")}`, leadershipRole: input.leadershipRole, ...credentials });
-      if (!user) throw new Error("Não foi possível criar a conta.");
-      await setSession(ctx, user.openId, user.name ?? input.name);
-      return { user };
-    }),
+   
     requestRegistrationCode: publicProcedure.input(accountSchema).mutation(async ({ input }) => {
       const email = normalizedEmail(input.email);
       if (!isAllowedRegistrationEmail(email)) throw new Error("Novos cadastros são exclusivos para e-mails @stone.com.br.");
