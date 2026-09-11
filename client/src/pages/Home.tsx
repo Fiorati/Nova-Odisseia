@@ -65,11 +65,429 @@ function AgentDashboard({ data, onView }: { data: { latestGoal: { targetVariable
 }
 
 export default function Home() {
-  const { user, loading, logout } = useAuth(); const [view, setView] = useState<View>(() => { const value = new URLSearchParams(window.location.search).get("view"); return ["painel", "calculadora", "periodo", "nordica", "psv", "psv-ritual", "rmr", "ranking", "perfil", "lideranca", "card-final", "carteiras", LIST_INTELLIGENT_VIEW, "super-pipe", "prospeccao", "campanhas", "spartacus"].includes(value ?? "") ? value as View : "painel"; }); const dashboard = trpc.agent.dashboard.useQuery(undefined, { enabled: !!user }); const saveSimulation = trpc.simulation.save.useMutation({ onSuccess: () => toast.success("Simulação salva no histórico."), onError: error => toast.error(error.message) });
-  if (loading) return <div className="grid min-h-screen place-items-center bg-[#f4f3ec] font-mono text-sm text-emerald-700">CARREGANDO ACESSO...</div>;
-  if (!user) return <AuthScreen />;
-  const data = dashboard.data; const role = data?.profile?.leadershipRole ?? "none"; const isLeader = role !== "none" && !(user.role === "admin" && view === "psv-ritual"); const currentVariable = data?.latestGoal?.actualVariable ?? data?.simulations?.[0]?.finalVariable ?? 0;
-  const nav = isLeader ? [["painel", Gauge, "Gestão do time"], ["super-pipe", Layers3, "Super Pipe"], ["campanhas", Megaphone, "Campanhas"], ["spartacus", BookOpen, "SPARTACUS"], ["carteiras", FolderKanban, "Carteiras"], [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"], ["ranking", Trophy, "Troféus"], ["perfil", Users, "Meu perfil"]] as const : [["painel", Gauge, "Meu painel"], ["periodo", Target, "Período"], ["nordica", Medal, "Estratégia"], ["prospeccao", SearchCheck, "Cavalo de Tróia"], ["calculadora", Calculator, "Calculadora RV"], ["psv", ClipboardCheck, "PSV semanal"], ["psv-ritual", ClipboardList, "Ritual PSV"], ["spartacus", BookOpen, "SPARTACUS"], ["carteiras", FolderKanban, "Carteiras"], [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"], ["rmr", BarChart3, "RMR"], ["card-final", Flag, "Card final"], ["ranking", Trophy, "Troféus"], ["perfil", Users, "Meu perfil"]] as const;
-  const content = () => { if (view === "spartacus") return <SpartacusPanel />; if (isListIntelligentView(view)) return <RoutePortfoliosPanel initialTab="route" focusListIntelligent />; if (isLeader && view === "painel") return <LeadershipPanel />; if (isLeader && view === "super-pipe") return <SuperPipePanel />; if (isLeader && view === "campanhas") return <EngagementCampaignsPanel />; if (view === "prospeccao") return <ProspectionPanel />; if (view === "nordica" && user.role === "admin") return <NordicStrategyPanel onOpenPeriod={() => setView("periodo")} />; if (view === "calculadora") return isLeader ? <LeadershipPanel /> : <LegacyCalculator storageKey={`fiorati-rv-${user.id}`} onSaveSimulation={saveSimulation.mutate} />; if (view === "periodo") return isLeader ? <LeadershipPanel /> : <QuickPeriodPanel onOpenPsv={() => setView("psv")} />; if (view === "nordica") return isLeader ? <LeadershipPanel /> : <NordicStrategyPanel onOpenPeriod={() => setView("periodo")} />; if (view === "psv") return isLeader ? <LeadershipPanel /> : <MatrixPsvPanel profile={data?.profile ?? null} currentVariable={currentVariable} latestDetailsJson={data?.simulations?.[0]?.detailsJson} />; if (view === "psv-ritual") return isLeader ? <LeadershipPanel /> : <PsvRitualPanel />; if (view === "rmr") return isLeader ? <LeadershipPanel /> : <RmrActionPlanPanel defaultGoal={data?.profile?.defaultGoalTpv ?? 300000} lastVariable={currentVariable} />; if (view === "card-final") return isLeader ? <LeadershipPanel /> : <MonthlyFinalCardPanel />; if (view === "carteiras") return <RoutePortfoliosPanel />; if (view === "ranking") return <RankingPanel />; if (view === "perfil") return <ProfilePanel profile={data?.profile ?? null} />; if (view === "lideranca") return <LeadershipPanel />; return data ? <AgentDashboard data={data} onView={setView} /> : null; };
-  return <div className="min-h-screen bg-[#f4f3ec] text-emerald-950"><div className="flex min-h-screen"><aside className="hidden w-64 shrink-0 flex-col bg-[#0e3426] p-5 text-white lg:flex"><div className="flex items-center gap-3 px-2"><img className="fiorati-mark" src="/assets/projeto-ulisses-helmet-clean.png" alt="Símbolo da Nova Odisseia" /><div><p className="font-mono text-[9px] tracking-[.14em] text-emerald-200">CADERNO OPERACIONAL</p><b className="block text-lg leading-none">NOVA <span className="font-mono text-sm text-lime-200">ODISSEIA · FIORATI</span></b></div></div><nav className="mt-10 space-y-1">{nav.map(([key, Icon, label]) => <button key={key} onClick={() => setView(key)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition ${view === key ? "bg-lime-200 font-semibold text-emerald-950" : "text-emerald-100/70 hover:bg-white/10 hover:text-white"}`}><Icon size={17} />{label}</button>)}</nav><div className="mt-auto rounded-xl border border-white/15 bg-white/5 p-4"><p className="font-mono text-[9px] tracking-[.12em] text-lime-200">{isLeader ? "GESTÃO" : "PRIVACIDADE"}</p><p className="mt-2 text-xs leading-5 text-emerald-100/70">{isLeader ? "A visão é limitada ao seu polo ou distrito. Metas individuais não aparecem para liderança." : "Cada conta preserva seus dados privados; o ranking compartilha somente os campos autorizados."}</p></div><button onClick={() => logout()} className="mt-4 flex items-center gap-2 px-3 py-2 text-xs text-emerald-100/60 hover:text-white"><LogOut size={15} /> Sair</button></aside><main className="min-w-0 flex-1"><header className="sticky top-0 z-20 flex items-center justify-between border-b border-emerald-100 bg-[#f4f3ec]/95 px-5 py-4 backdrop-blur lg:px-9"><button className="flex items-center gap-2 font-semibold lg:hidden" onClick={() => setView("painel")}><img className="fiorati-mark !h-5 !w-5" src="/assets/projeto-ulisses-helmet-clean.png" alt="" /> NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {isLeader ? "Espaço de gestão" : "Espaço privado do agente"}</div><div className="text-right"><b className="block text-sm">{data?.profile?.displayName || user.name || "Agente"}</b><span className="text-xs text-emerald-700/60">{role === "polo" ? "Dono de Polo" : role === "distrital" ? "Distrital" : "Agente"}</span></div></header><div className="mx-auto max-w-7xl p-5 pb-24 lg:p-9">{dashboard.isLoading ? <div className="rounded-xl border border-emerald-100 bg-white p-8 text-sm text-emerald-700">Carregando seus registros...</div> : content()}</div></main></div><nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-emerald-100 bg-white p-2 lg:hidden">{nav.slice(0, 5).map(([key, Icon, label]) => <button key={key} onClick={() => setView(key)} className={`grid place-items-center gap-1 rounded-md px-2 py-1 text-[9px] ${view === key ? "text-emerald-700" : "text-emerald-700/50"}`}><Icon size={17} /><span>{label.split(" ")[0]}</span></button>)}</nav></div>;
+  const { user, loading, logout } = useAuth();
+
+  const [view, setView] = useState<View>(() => {
+    const value = new URLSearchParams(window.location.search).get("view");
+
+    return [
+      "painel",
+      "calculadora",
+      "periodo",
+      "nordica",
+      "psv",
+      "psv-ritual",
+      "rmr",
+      "ranking",
+      "perfil",
+      "lideranca",
+      "card-final",
+      "carteiras",
+      LIST_INTELLIGENT_VIEW,
+      "super-pipe",
+      "prospeccao",
+      "campanhas",
+      "spartacus",
+    ].includes(value ?? "")
+      ? (value as View)
+      : "painel";
+  });
+
+  const dashboard = trpc.agent.dashboard.useQuery(undefined, {
+    enabled: !!user,
+  });
+
+  const saveSimulation = trpc.simulation.save.useMutation({
+    onSuccess: () => toast.success("Simulação salva no histórico."),
+    onError: (error) => toast.error(error.message),
+  });
+
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#f4f3ec] font-mono text-sm text-emerald-700">
+        CARREGANDO ACESSO...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  const data = dashboard.data;
+
+  const role = data?.profile?.leadershipRole ?? "none";
+
+  const isLeader =
+    role !== "none" &&
+    !(user.role === "admin" && view === "psv-ritual");
+
+  const currentVariable =
+    data?.latestGoal?.actualVariable ??
+    data?.simulations?.[0]?.finalVariable ??
+    0;
+
+  /*
+   * Navegação centralizada.
+   *
+   * Mantemos o mesmo modelo atual de navegação por estado,
+   * mas centralizamos a mudança de seção para que todos os
+   * elementos utilizem exatamente o mesmo comportamento.
+   */
+  const navigateToView = (nextView: View) => {
+    setView(nextView);
+  };
+
+  /*
+   * Navegação imediata para mouse, touch e outros ponteiros.
+   *
+   * pointerdown acontece no momento em que o usuário pressiona
+   * o botão, antes do click tradicional.
+   *
+   * Para mouse, aceitamos apenas o botão esquerdo.
+   * Para touch/pen, qualquer pointerdown válido navega.
+   */
+  const handleNavigationPointerDown = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    nextView: View,
+  ) => {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    navigateToView(nextView);
+  };
+
+  /*
+   * Mantém a navegação acessível pelo teclado.
+   *
+   * Como a navegação principal ocorre no pointerdown, precisamos
+   * tratar Enter/Espaço explicitamente para usuários de teclado.
+   */
+  const handleNavigationKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    nextView: View,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      navigateToView(nextView);
+    }
+  };
+
+  const nav = isLeader
+    ? [
+        ["painel", Gauge, "Gestão do time"],
+        ["super-pipe", Layers3, "Super Pipe"],
+        ["campanhas", Megaphone, "Campanhas"],
+        ["spartacus", BookOpen, "SPARTACUS"],
+        ["carteiras", FolderKanban, "Carteiras"],
+        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
+        ["ranking", Trophy, "Troféus"],
+        ["perfil", Users, "Meu perfil"],
+      ] as const
+    : [
+        ["painel", Gauge, "Meu painel"],
+        ["periodo", Target, "Período"],
+        ["nordica", Medal, "Estratégia"],
+        ["prospeccao", SearchCheck, "Cavalo de Tróia"],
+        ["calculadora", Calculator, "Calculadora RV"],
+        ["psv", ClipboardCheck, "PSV semanal"],
+        ["psv-ritual", ClipboardList, "Ritual PSV"],
+        ["spartacus", BookOpen, "SPARTACUS"],
+        ["carteiras", FolderKanban, "Carteiras"],
+        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
+        ["rmr", BarChart3, "RMR"],
+        ["card-final", Flag, "Card final"],
+        ["ranking", Trophy, "Troféus"],
+        ["perfil", Users, "Meu perfil"],
+      ] as const;
+
+  const content = () => {
+    if (view === "spartacus") {
+      return <SpartacusPanel />;
+    }
+
+    if (isListIntelligentView(view)) {
+      return (
+        <RoutePortfoliosPanel
+          initialTab="route"
+          focusListIntelligent
+        />
+      );
+    }
+
+    if (isLeader && view === "painel") {
+      return <LeadershipPanel />;
+    }
+
+    if (isLeader && view === "super-pipe") {
+      return <SuperPipePanel />;
+    }
+
+    if (isLeader && view === "campanhas") {
+      return <EngagementCampaignsPanel />;
+    }
+
+    if (view === "prospeccao") {
+      return <ProspectionPanel />;
+    }
+
+    if (view === "nordica" && user.role === "admin") {
+      return (
+        <NordicStrategyPanel
+          onOpenPeriod={() => navigateToView("periodo")}
+        />
+      );
+    }
+
+    if (view === "calculadora") {
+      return isLeader ? (
+        <LeadershipPanel />
+      ) : (
+        <LegacyCalculator
+          storageKey={`fiorati-rv-${user.id}`}
+          onSaveSimulation={saveSimulation.mutate}
+        />
+      );
+    }
+
+    if (view === "periodo") {
+      return isLeader ? (
+        <LeadershipPanel />
+      ) : (
+        <QuickPeriodPanel
+          onOpenPsv={() => navigateToView("psv")}
+        />
+      );
+    }
+
+    if (view === "nordica") {
+      return isLeader ? (
+        <LeadershipPanel />
+      ) : (
+        <NordicStrategyPanel
+          onOpenPeriod={() => navigateToView("periodo")}
+        />
+      );
+    }
+
+    if (view === "psv") {
+      return isLeader ? (
+        <LeadershipPanel />
+      ) : (
+        <MatrixPsvPanel
+          profile={data?.profile ?? null}
+          currentVariable={currentVariable}
+          latestDetailsJson={data?.simulations?.[0]?.detailsJson}
+        />
+      );
+    }
+
+    if (view === "psv-ritual") {
+      return isLeader ? (
+        <LeadershipPanel />
+      ) : (
+        <PsvRitualPanel />
+      );
+    }
+
+    if (view === "rmr") {
+      return isLeader ? (
+        <LeadershipPanel />
+      ) : (
+        <RmrActionPlanPanel
+          defaultGoal={data?.profile?.defaultGoalTpv ?? 300000}
+          lastVariable={currentVariable}
+        />
+      );
+    }
+
+    if (view === "card-final") {
+      return isLeader ? (
+        <LeadershipPanel />
+      ) : (
+        <MonthlyFinalCardPanel />
+      );
+    }
+
+    if (view === "carteiras") {
+      return <RoutePortfoliosPanel />;
+    }
+
+    if (view === "ranking") {
+      return <RankingPanel />;
+    }
+
+    if (view === "perfil") {
+      return (
+        <ProfilePanel
+          profile={data?.profile ?? null}
+        />
+      );
+    }
+
+    if (view === "lideranca") {
+      return <LeadershipPanel />;
+    }
+
+    return data ? (
+      <AgentDashboard
+        data={data}
+        onView={navigateToView}
+      />
+    ) : null;
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f4f3ec] text-emerald-950">
+      <div className="flex min-h-screen">
+
+        {/* SIDEBAR DESKTOP */}
+        <aside className="hidden w-64 shrink-0 flex-col bg-[#0e3426] p-5 text-white lg:flex">
+
+          <div className="flex items-center gap-3 px-2">
+            <img
+              className="fiorati-mark"
+              src="/assets/projeto-ulisses-helmet-clean.png"
+              alt="Símbolo da Nova Odisseia"
+            />
+
+            <div>
+              <p className="font-mono text-[9px] tracking-[.14em] text-emerald-200">
+                CADERNO OPERACIONAL
+              </p>
+
+              <b className="block text-lg leading-none">
+                NOVA{" "}
+                <span className="font-mono text-sm text-lime-200">
+                  ODISSEIA · FIORATI
+                </span>
+              </b>
+            </div>
+          </div>
+
+          <nav className="mt-10 space-y-1">
+            {nav.map(([key, Icon, label]) => (
+              <button
+                key={key}
+                type="button"
+                onPointerDown={(event) =>
+                  handleNavigationPointerDown(event, key)
+                }
+                onKeyDown={(event) =>
+                  handleNavigationKeyDown(event, key)
+                }
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition ${
+                  view === key
+                    ? "bg-lime-200 font-semibold text-emerald-950"
+                    : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icon size={17} />
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="mt-auto rounded-xl border border-white/15 bg-white/5 p-4">
+            <p className="font-mono text-[9px] tracking-[.12em] text-lime-200">
+              {isLeader ? "GESTÃO" : "PRIVACIDADE"}
+            </p>
+
+            <p className="mt-2 text-xs leading-5 text-emerald-100/70">
+              {isLeader
+                ? "A visão é limitada ao seu polo ou distrito. Metas individuais não aparecem para liderança."
+                : "Cada conta preserva seus dados privados; o ranking compartilha somente os campos autorizados."}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="mt-4 flex items-center gap-2 px-3 py-2 text-xs text-emerald-100/60 hover:text-white"
+          >
+            <LogOut size={15} />
+            Sair
+          </button>
+        </aside>
+
+        {/* CONTEÚDO PRINCIPAL */}
+        <main className="min-w-0 flex-1">
+
+          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-emerald-100 bg-[#f4f3ec]/95 px-5 py-4 backdrop-blur lg:px-9">
+
+            <button
+              type="button"
+              className="flex items-center gap-2 font-semibold lg:hidden"
+              onClick={() => navigateToView("painel")}
+            >
+              <img
+                className="fiorati-mark !h-5 !w-5"
+                src="/assets/projeto-ulisses-helmet-clean.png"
+                alt=""
+              />
+              NOVA ODISSEIA
+            </button>
+
+            <div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {isLeader
+                ? "Espaço de gestão"
+                : "Espaço privado do agente"}
+            </div>
+
+            <div className="text-right">
+              <b className="block text-sm">
+                {data?.profile?.displayName ||
+                  user.name ||
+                  "Agente"}
+              </b>
+
+              <span className="text-xs text-emerald-700/60">
+                {role === "polo"
+                  ? "Dono de Polo"
+                  : role === "distrital"
+                    ? "Distrital"
+                    : "Agente"}
+              </span>
+            </div>
+          </header>
+
+          <div className="mx-auto max-w-7xl p-5 pb-24 lg:p-9">
+            {dashboard.isLoading ? (
+              <div className="rounded-xl border border-emerald-100 bg-white p-8 text-sm text-emerald-700">
+                Carregando seus registros...
+              </div>
+            ) : (
+              content()
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* NAVEGAÇÃO MOBILE */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-emerald-100 bg-white p-2 lg:hidden">
+        {nav.slice(0, 5).map(([key, Icon, label]) => (
+          <button
+            key={key}
+            type="button"
+            onPointerDown={(event) =>
+              handleNavigationPointerDown(event, key)
+            }
+            onKeyDown={(event) =>
+              handleNavigationKeyDown(event, key)
+            }
+            className={`grid place-items-center gap-1 rounded-md px-2 py-1 text-[9px] ${
+              view === key
+                ? "text-emerald-700"
+                : "text-emerald-700/50"
+            }`}
+          >
+            <Icon size={17} />
+            <span>{label.split(" ")[0]}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
 }
