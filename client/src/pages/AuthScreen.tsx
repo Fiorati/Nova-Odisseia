@@ -5,7 +5,14 @@ import { ArrowLeft, Eye, EyeOff, KeyRound, LockKeyhole, MailCheck } from "lucide
 import { useState } from "react";
 import { toast } from "sonner";
 
-type Mode = "login" | "register" | "reset-request" | "reset-verify" | "reset-new";
+type Mode =
+  | "login"
+  | "register"
+  | "register-verify"
+  | "register-password"
+  | "reset-request"
+  | "reset-verify"
+  | "reset-new";
 
 function PasswordField({ value, onChange, label = "Senha" }: { value: string; onChange: (value: string) => void; label?: string }) {
   const [visible, setVisible] = useState(false);
