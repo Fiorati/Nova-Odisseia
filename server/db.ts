@@ -683,8 +683,40 @@ export async function updateProfile(userId: number, input: { displayName: string
       throw new Error("O escopo organizacional de uma liderança é definido por um administrador autorizado e não pode ser alterado pelo próprio perfil.");
     }
   }
-  const organization = prepareOrganizationValues(input);
-  await db.insert(agentProfiles).values({ userId, ...input, leadershipRole, defaultGoalNewClients, ...organization }).onDuplicateKeyUpdate({ set: { ...input, leadershipRole, defaultGoalNewClients, ...organization } });
+const organization = existing
+  ? {
+      regional: existing.regional,
+      district: existing.district,
+      polo: existing.polo,
+      route: existing.route,
+    }
+  : {
+      regional: "",
+      district: "",
+      polo: "",
+      route: "",
+    };
+
+await db.insert(agentProfiles).values({
+  userId,
+  displayName: input.displayName,
+  targetVariable: input.targetVariable,
+  defaultGoalTpv: input.defaultGoalTpv,
+  defaultGoalNewClients,
+  profileVisibleInRanking: input.profileVisibleInRanking,
+  leadershipRole,
+  ...organization,
+}).onDuplicateKeyUpdate({
+  set: {
+    displayName: input.displayName,
+    targetVariable: input.targetVariable,
+    defaultGoalTpv: input.defaultGoalTpv,
+    defaultGoalNewClients,
+    profileVisibleInRanking: input.profileVisibleInRanking,
+    leadershipRole,
+    ...organization,
+  },
+});  
 }
 
 export async function getPrivatePlanHistory(userId: number) {
