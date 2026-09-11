@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { verifyPassword } from "./credentials";
-import { createVerificationCode, createVerificationToken, isAllowedRegistrationEmail, SYSTEM_ADMIN_EMAIL } from "./registration";
+import {
+  createVerificationCode,
+  createVerificationToken,
+  isAllowedRegistrationEmail,
+  SYSTEM_ADMIN_EMAIL,
+} from "./registration";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
@@ -15,13 +20,35 @@ describe("regras de cadastro confirmado", () => {
   it("gera código e token apenas verificáveis pelos hashes persistidos", async () => {
     const code = await createVerificationCode();
     const token = await createVerificationToken();
-    await expect(verifyPassword(code.code, code.passwordSalt, code.passwordHash)).resolves.toBe(true);
-    await expect(verifyPassword("000000", code.passwordSalt, code.passwordHash)).resolves.toBe(false);
-    await expect(verifyPassword(token.token, token.passwordSalt, token.passwordHash)).resolves.toBe(true);
+
+    await expect(
+      verifyPassword(code.code, code.passwordSalt, code.passwordHash)
+    ).resolves.toBe(true);
+
+    await expect(
+      verifyPassword("000000", code.passwordSalt, code.passwordHash)
+    ).resolves.toBe(false);
+
+    await expect(
+      verifyPassword(token.token, token.passwordSalt, token.passwordHash)
+    ).resolves.toBe(true);
   });
 
-  it("informa a mensagem temática ao bloquear um domínio não corporativo", async () => {
-    const caller = appRouter.createCaller({ user: null, req: {} as TrpcContext["req"], res: {} as TrpcContext["res"] });
-    await expect(caller.auth.register({ name: "Agente Externo", email: "agente@gmail.com", password: "senha-segura", leadershipRole: "none" })).rejects.toThrow("Apenas é possível viajar na Odisseia com e-mail corporativo Stone");
+  it("bloqueia o início do cadastro para domínio não corporativo", async () => {
+    const caller = appRouter.createCaller({
+      user: null,
+      req: {} as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    });
+
+    await expect(
+      caller.auth.requestRegistrationCode({
+        name: "Agente Externo",
+        email: "agente@gmail.com",
+        leadershipRole: "none",
+      })
+    ).rejects.toThrow(
+      "Novos cadastros são exclusivos para e-mails @stone.com.br."
+    );
   });
 });
