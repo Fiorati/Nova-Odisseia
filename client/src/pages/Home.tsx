@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
 import LegacyCalculator from "./LegacyCalculator";
 import LeadershipPanel from "./LeadershipPanel";
+import TeamManagementPanel from "./TeamManagementPanel";
 import MatrixPsvPanel from "./MatrixPsvPanel";
 import PsvRitualPanel from "./PsvRitualPanel";
 import MonthlyFinalCardPanel from "./MonthlyFinalCardPanel";
@@ -26,7 +27,7 @@ import { isListIntelligentView, LIST_INTELLIGENT_VIEW } from "@shared/listIntell
 import "./platform.css";
 import "./ulisses-theme.css";
 
-type View = "painel" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "spartacus";
+type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "spartacus";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
@@ -72,6 +73,7 @@ export default function Home() {
 
     return [
       "painel",
+      "time",
       "calculadora",
       "periodo",
       "nordica",
@@ -177,6 +179,7 @@ export default function Home() {
   const nav = isLeader
     ? [
         ["painel", Gauge, "Gestão do time"],
+        ["time", Users, "Perfil do time"],
         ["super-pipe", Layers3, "Super Pipe"],
         ["campanhas", Megaphone, "Campanhas"],
         ["spartacus", BookOpen, "SPARTACUS"],
@@ -187,6 +190,7 @@ export default function Home() {
       ] as const
     : [
         ["painel", Gauge, "Meu painel"],
+      ["time", Users, "Gestão do Time"],
         ["periodo", Target, "Período"],
         ["nordica", Medal, "Estratégia"],
         ["prospeccao", SearchCheck, "Cavalo de Tróia"],
@@ -205,6 +209,10 @@ export default function Home() {
   const content = () => {
     if (view === "spartacus") {
       return <SpartacusPanel />;
+    }
+
+    if (view === "time") {
+      return <TeamManagementPanel />;
     }
 
     if (isListIntelligentView(view)) {

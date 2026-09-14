@@ -35,6 +35,9 @@ import {
   importPoloPortfolio,
   importRoutePortfolio,
   listRouteAssignmentsForLeader,
+  listTeamProfiles,
+  getTeamDailyPromises,
+  listTeamSchedules,
   listSpartacusPdis,
   getSpartacusProgressSummary,
   updateSpartacusSkillProgress,
@@ -55,6 +58,10 @@ import {
   savePasswordResetChallenge,
   replaceEmailPassword,
   updateProfile,
+  updateTeamProfile,
+  saveTeamDailyPromise,
+  saveTeamSchedule,
+  deactivateTeamSchedule,
   removePipelineLead,
   removeNordicActivationPlan,
   removeNordicMicroRoute,
@@ -255,6 +262,27 @@ auth: router({
     leadership: protectedProcedure.input(z.object({ role: z.enum(["none", "polo", "distrital"]) })).mutation(async ({ ctx, input }) => {
       await setLeadershipRole(ctx.user.id, input.role);
       return { success: true };
+    }),
+  }),
+  team: router({
+    list: protectedProcedure.query(({ ctx }) => listTeamProfiles(ctx.user.id)),
+    promises: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive().optional(), promiseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })).query(({ ctx, input }) => getTeamDailyPromises(ctx.user.id, input.targetUserId ?? ctx.user.id, input.promiseDate)),
+    savePromise: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive().optional(), promiseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), proposals: z.number().int().min(0).max(100000), newClients: z.number().int().min(0).max(100000), newClientsTpv: z.number().min(0).max(1_000_000_000), notes: z.string().max(4000).nullable().optional() })).mutation(({ ctx, input }) => saveTeamDailyPromise(ctx.user.id, input.targetUserId ?? ctx.user.id, input)),
+    schedules: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive().optional() })).query(({ ctx, input }) => listTeamSchedules(ctx.user.id, input.targetUserId)),
+    saveSchedule: protectedProcedure.input(z.object({ id: z.number().int().positive().optional(), scopeType: z.enum(["user", "polo", "district", "regional"]), scopeId: z.number().int().positive().nullable().optional(), dupla: z.string().max(120).nullable().optional(), weekday: z.number().int().min(0).max(6), startTime: z.string().regex(/^\d{2}:\d{2}$/), endTime: z.string().regex(/^\d{2}:\d{2}$/), activity: z.string().trim().min(2).max(160), description: z.string().max(4000).nullable().optional(), active: z.boolean().optional() })).mutation(({ ctx, input }) => saveTeamSchedule(ctx.user.id, input)),
+    deactivateSchedule: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deactivateTeamSchedule(ctx.user.id, input.id)),
+    updateProfile: protectedProcedure.input(z.object({
+      targetUserId: z.number().int().positive(),
+      about: z.string().max(4000).nullable().optional(),
+      strengths: z.string().max(4000).nullable().optional(),
+      developmentAreas: z.string().max(4000).nullable().optional(),
+      careerObjective: z.string().max(4000).nullable().optional(),
+      currentFocus: z.string().max(4000).nullable().optional(),
+      personalCommitment: z.string().max(4000).nullable().optional(),
+      professionalCommitment: z.string().max(4000).nullable().optional(),
+    })).mutation(({ ctx, input }) => {
+      const { targetUserId, ...profile } = input;
+      return updateTeamProfile(ctx.user.id, targetUserId, profile);
     }),
   }),
   monthlyCard: router({

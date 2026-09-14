@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   agentProfiles,
+  agentTeamProfiles,
   emailCredentials,
   emailVerificationChallenges,
   engagementCampaigns,
@@ -25,6 +26,8 @@ import {
   spartacusPdis,
   spartacusSkillProgress,
   simulations,
+  teamDailyPromises,
+  teamSchedules,
   userNotifications,
   users,
   type InsertUser,
@@ -42,6 +45,7 @@ import { monthlyKpiPoints, sortByGlobalKpi, sortByNewClients, sortByTpv } from "
 import { tioPatinhasAlias } from "../shared/tioPatinhas";
 import { calculateSalesPipeline, listSalesPipeFilterOptions, type SalesPipeFilters, type SalesPipeEntry } from "../shared/salesPipeline";
 import { buildSpartacusPdi, type SpartacusPlanInput } from "../shared/spartacus";
+import { canAccessTeamMember, canEditTeamProfile, type TeamAccessIdentity } from "../shared/teamAccess";
 import { storagePut } from "./storage";
 import { createPassword } from "./credentials";
 import { isSystemAdminEmail, SYSTEM_ADMIN_EMAIL, TEST_ADMIN_EMAIL } from "./registration";
@@ -325,6 +329,193 @@ export async function assignRouteOwner(userId: number, input: { route: string; a
   return { route, assignedUserId: target?.id ?? null };
 }
 export async function listRouteAssignmentsForLeader(userId: number) { const db = await getDb(); const [profile, actor] = await Promise.all([db.select().from(agentProfiles).where(eq(agentProfiles.userId, userId)).limit(1).then(rows => rows[0]), db.select().from(users).where(eq(users.id, userId)).limit(1).then(rows => rows[0])]); if (!profile || (profile.leadershipRole === "none" && actor?.role !== "admin")) throw new Error("Acesso exclusivo para liderança."); const rows = await db.select().from(routeAssignments).orderBy(routeAssignments.route); return actor?.role === "admin" ? rows : rows.filter(row => profile.leadershipRole === "distrital" ? normalizeOrganizationKey(row.district) === normalizeOrganizationKey(profile.district) : normalizeOrganizationKey(row.polo) === normalizeOrganizationKey(profile.polo)); }
+
+function teamIdentity(user: typeof users.$inferSelect, profile: typeof agentProfiles.$inferSelect): TeamAccessIdentity {
+  return { id: user.id, role: user.role, leadershipRole: profile.leadershipRole, regional: profile.regional, district: profile.district, polo: profile.polo };
+}
+
+async function assertTeamProfileAccess(actorUserId: number, targetUserId: number) {
+  const db = await getDb();
+  const [actorRows, targetRows] = await Promise.all([
+    db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, actorUserId)).limit(1),
+    db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, targetUserId)).limit(1),
+  ]);
+  const actor = actorRows[0]; const target = targetRows[0];
+  if (!actor || !target || !canAccessTeamMember(teamIdentity(actor.user, actor.profile), teamIdentity(target.user, target.profile))) {
+    throw new Error("Agente fora do seu escopo de Gestão do Time.");
+  }
+  return { db, actor, target };
+}
+
+async function assertTeamManagementAccess(actorUserId: number, targetUserId: number) {
+  const access = await assertTeamProfileAccess(actorUserId, targetUserId);
+  if (!canEditTeamProfile(teamIdentity(access.actor.user, access.actor.profile), teamIdentity(access.target.user, access.target.profile))) {
+    throw new Error("Você não pode administrar este agente.");
+  }
+  return access;
+}
+
+export async function listTeamProfiles(actorUserId: number) {
+  const db = await getDb();
+  const rows = await db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).orderBy(agentProfiles.displayName).limit(500);
+  const actor = rows.find(row => row.user.id === actorUserId);
+  if (!actor) throw new Error("Perfil do usuário não encontrado.");
+  const actorIdentity = teamIdentity(actor.user, actor.profile);
+  const visible = rows.filter(row => canAccessTeamMember(actorIdentity, teamIdentity(row.user, row.profile)));
+  const userIds = visible.map(row => row.user.id);
+  const [teamProfiles, assignments] = await Promise.all([
+    userIds.length ? db.select().from(agentTeamProfiles).where(inArray(agentTeamProfiles.userId, userIds)) : [],
+    userIds.length ? db.select().from(routeAssignments).where(inArray(routeAssignments.userId, userIds)) : [],
+  ]);
+  return visible.map(row => ({
+    userId: row.user.id,
+    email: row.user.email,
+    displayName: row.profile.displayName,
+    leadershipRole: row.profile.leadershipRole,
+    regional: row.profile.regional,
+    district: row.profile.district,
+    polo: row.profile.polo,
+    route: row.profile.route,
+    formalRoutes: assignments.filter(assignment => assignment.userId === row.user.id).map(assignment => assignment.route),
+    teamProfile: teamProfiles.find(profile => profile.userId === row.user.id) ?? null,
+  }));
+}
+
+export async function updateTeamProfile(actorUserId: number, targetUserId: number, input: {
+  about?: string | null;
+  strengths?: string | null;
+  developmentAreas?: string | null;
+  careerObjective?: string | null;
+  currentFocus?: string | null;
+  personalCommitment?: string | null;
+  professionalCommitment?: string | null;
+}) {
+  const { db, target } = await assertTeamManagementAccess(actorUserId, targetUserId);
+  const values = {
+    userId: targetUserId,
+    about: input.about ?? null,
+    strengths: input.strengths ?? null,
+    developmentAreas: input.developmentAreas ?? null,
+    careerObjective: input.careerObjective ?? null,
+    currentFocus: input.currentFocus ?? null,
+    personalCommitment: input.personalCommitment ?? null,
+    professionalCommitment: input.professionalCommitment ?? null,
+  };
+  await db.insert(agentTeamProfiles).values(values).onDuplicateKeyUpdate({ set: { ...values, updatedAt: new Date() } });
+  return (await db.select().from(agentTeamProfiles).where(eq(agentTeamProfiles.userId, targetUserId)).limit(1))[0] ?? null;
+}
+
+export async function getTeamDailyPromises(actorUserId: number, targetUserId: number, promiseDate?: string) {
+  const { db } = await assertTeamProfileAccess(actorUserId, targetUserId);
+  return db.select().from(teamDailyPromises).where(and(
+    eq(teamDailyPromises.userId, targetUserId),
+    ...(promiseDate ? [eq(teamDailyPromises.promiseDate, promiseDate)] : []),
+  )).orderBy(desc(teamDailyPromises.promiseDate)).limit(60);
+}
+
+export async function saveTeamDailyPromise(actorUserId: number, targetUserId: number, input: {
+  promiseDate: string;
+  proposals: number;
+  newClients: number;
+  newClientsTpv: number;
+  notes?: string | null;
+}) {
+  const { db } = await assertTeamManagementAccess(actorUserId, targetUserId);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.promiseDate)) throw new Error("Informe a data no formato AAAA-MM-DD.");
+  const values = {
+    userId: targetUserId,
+    promiseDate: input.promiseDate,
+    proposals: Math.max(0, Math.floor(input.proposals)),
+    newClients: Math.max(0, Math.floor(input.newClients)),
+    newClientsTpv: Math.max(0, input.newClientsTpv),
+    notes: input.notes?.trim().slice(0, 4000) || null,
+  };
+  await db.insert(teamDailyPromises).values(values).onDuplicateKeyUpdate({ set: { ...values, updatedAt: new Date() } });
+  return (await db.select().from(teamDailyPromises).where(and(eq(teamDailyPromises.userId, targetUserId), eq(teamDailyPromises.promiseDate, input.promiseDate))).limit(1))[0] ?? null;
+}
+
+async function canAccessScheduleScope(actorUserId: number, schedule: typeof teamSchedules.$inferSelect) {
+  const db = await getDb();
+  const [actorRow, ownerRow] = await Promise.all([
+    db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, actorUserId)).limit(1),
+    schedule.scopeId ? db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, schedule.scopeId)).limit(1) : [],
+  ]);
+  const actor = actorRow[0]; const owner = ownerRow[0];
+  if (!actor) return false;
+  if (actor.user.role === "admin") return true;
+  if (!owner) return false;
+  if (actor.user.id === owner.user.id) return true;
+  if (schedule.scopeType === "user") return canAccessTeamMember(teamIdentity(actor.user, actor.profile), teamIdentity(owner.user, owner.profile));
+  if (schedule.scopeType === "polo") return owner.profile.leadershipRole === "polo" && normalizeOrganizationKey(actor.profile.polo) === normalizeOrganizationKey(owner.profile.polo);
+  if (schedule.scopeType === "district") return owner.profile.leadershipRole === "distrital" && normalizeOrganizationKey(actor.profile.district) === normalizeOrganizationKey(owner.profile.district);
+  if (schedule.scopeType === "regional") return owner.profile.leadershipRole === "distrital" && normalizeOrganizationKey(actor.profile.regional) === normalizeOrganizationKey(owner.profile.regional);
+  return false;
+}
+
+async function assertScheduleManagementAccess(actorUserId: number, schedule: typeof teamSchedules.$inferSelect) {
+  if (schedule.scopeType !== "user" || !schedule.scopeId) {
+    const db = await getDb();
+    const [actor] = await db.select().from(users).where(eq(users.id, actorUserId)).limit(1);
+    if (actor?.role === "admin") return { db, actor };
+    throw new Error("Somente administradores podem administrar rotinas sem agente responsável.");
+  }
+  return assertTeamManagementAccess(actorUserId, schedule.scopeId);
+}
+
+export async function listTeamSchedules(actorUserId: number, targetUserId?: number) {
+  const db = await getDb();
+  const rows = await db.select().from(teamSchedules).orderBy(teamSchedules.weekday, teamSchedules.startTime).limit(500);
+  const filtered = targetUserId ? rows.filter(row => row.scopeType === "user" && row.scopeId === targetUserId) : rows;
+  const allowed = [] as typeof rows;
+  for (const row of filtered) if (await canAccessScheduleScope(actorUserId, row)) allowed.push(row);
+  return allowed;
+}
+
+export async function saveTeamSchedule(actorUserId: number, input: {
+  id?: number;
+  scopeType: "user" | "polo" | "district" | "regional";
+  scopeId?: number | null;
+  dupla?: string | null;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  activity: string;
+  description?: string | null;
+  active?: boolean;
+}) {
+  const db = await getDb();
+  const actor = (await db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, actorUserId)).limit(1))[0];
+  if (!actor) throw new Error("Perfil do usuário não encontrado.");
+  const requestedScopeId = input.scopeId ?? actorUserId;
+  const scopeOwner = (await db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, requestedScopeId)).limit(1))[0];
+  if (!scopeOwner) throw new Error("Responsável pelo escopo não encontrado.");
+  const isAdmin = actor.user.role === "admin";
+  if (!isAdmin) await assertTeamManagementAccess(actorUserId, requestedScopeId);
+  if (!isAdmin && input.scopeType !== "user") throw new Error("Líderes devem configurar rotinas vinculadas a um agente real.");
+  if (!Number.isInteger(input.weekday) || input.weekday < 0 || input.weekday > 6) throw new Error("Informe um dia da semana válido.");
+  if (!/^\d{2}:\d{2}$/.test(input.startTime) || !/^\d{2}:\d{2}$/.test(input.endTime)) throw new Error("Informe horários válidos.");
+  const existing = input.id ? (await db.select().from(teamSchedules).where(eq(teamSchedules.id, input.id)).limit(1))[0] : null;
+  if (input.id && !existing) throw new Error("Rotina não encontrada.");
+  if (existing) {
+    await assertScheduleManagementAccess(actorUserId, existing);
+  }
+  const scopeType = existing && !isAdmin ? existing.scopeType : input.scopeType;
+  const scopeId = existing && !isAdmin ? existing.scopeId : requestedScopeId;
+  const values = { scopeType, scopeId, dupla: input.dupla?.trim().slice(0, 120) || null, weekday: input.weekday, startTime: input.startTime, endTime: input.endTime, activity: input.activity.trim().slice(0, 160), description: input.description?.trim().slice(0, 4000) || null, active: input.active ?? existing?.active ?? true };
+  if (!values.activity) throw new Error("Informe a atividade da rotina.");
+  if (input.id) await db.update(teamSchedules).set({ ...values, updatedAt: new Date() }).where(eq(teamSchedules.id, input.id));
+  else await db.insert(teamSchedules).values(values);
+  return listTeamSchedules(actorUserId, input.scopeType === "user" ? scopeId ?? undefined : undefined);
+}
+
+export async function deactivateTeamSchedule(actorUserId: number, id: number) {
+  const db = await getDb();
+  const schedule = (await db.select().from(teamSchedules).where(eq(teamSchedules.id, id)).limit(1))[0];
+  if (!schedule) throw new Error("Rotina fora do seu escopo.");
+  await assertScheduleManagementAccess(actorUserId, schedule);
+  await db.update(teamSchedules).set({ active: false, updatedAt: new Date() }).where(eq(teamSchedules.id, id));
+  return { success: true };
+}
 
 export async function getDashboard(userId: number) {
   const db = await getDb();

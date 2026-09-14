@@ -15,7 +15,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "test:unit": "vitest run --exclude \"**/*.integration.test.ts\"",
-    "test:integration": "vitest run --include \"**/*.integration.test.ts\"",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {

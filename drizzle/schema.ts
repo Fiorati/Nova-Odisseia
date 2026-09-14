@@ -404,5 +404,52 @@ export const prospectionSources = mysqlTable("prospection_sources", {
   accessedAt: timestamp("accessedAt").defaultNow().notNull(),
 }, table => ({ dossierIndex: index("prospection_sources_dossier_idx").on(table.dossierId) }));
 
+export const agentTeamProfiles = mysqlTable("agent_team_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  about: text("about"),
+  strengths: text("strengths"),
+  developmentAreas: text("developmentAreas"),
+  careerObjective: text("careerObjective"),
+  currentFocus: text("currentFocus"),
+  personalCommitment: text("personalCommitment"),
+  professionalCommitment: text("professionalCommitment"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ userUnique: uniqueIndex("agent_team_profiles_user_unique").on(table.userId) }));
+
+export const teamDailyPromises = mysqlTable("team_daily_promises", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  promiseDate: varchar("promiseDate", { length: 10 }).notNull(),
+  proposals: int("proposals").notNull().default(0),
+  newClients: int("newClients").notNull().default(0),
+  newClientsTpv: double("newClientsTpv").notNull().default(0),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({
+  userDateUnique: uniqueIndex("team_daily_promises_user_date_unique").on(table.userId, table.promiseDate),
+  userIndex: index("team_daily_promises_user_idx").on(table.userId),
+}));
+
+export const teamSchedules = mysqlTable("team_schedules", {
+  id: int("id").autoincrement().primaryKey(),
+  scopeType: varchar("scopeType", { length: 20 }).notNull(),
+  scopeId: int("scopeId"),
+  dupla: varchar("dupla", { length: 120 }),
+  weekday: int("weekday").notNull(),
+  startTime: varchar("startTime", { length: 5 }).notNull(),
+  endTime: varchar("endTime", { length: 5 }).notNull(),
+  activity: varchar("activity", { length: 160 }).notNull(),
+  description: text("description"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({
+  scopeIndex: index("team_schedules_scope_idx").on(table.scopeType, table.scopeId),
+  weekdayIndex: index("team_schedules_weekday_idx").on(table.weekday),
+}));
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
