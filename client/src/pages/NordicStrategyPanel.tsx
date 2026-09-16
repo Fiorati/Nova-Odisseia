@@ -4,14 +4,19 @@ import { trpc } from "@/lib/trpc";
 import { gapToTarget, weeklyPace } from "@shared/nordic";
 import {
   CalendarPlus,
+  Check,
   CheckCircle2,
   Flame,
   ListChecks,
   MapPinned,
+  Pencil,
   Plus,
   Sparkles,
+  Trash2,
   Upload,
+  X,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -46,9 +51,117 @@ type SpartaLead = {
   clientName: string;
   projectedTpv: number;
   stage: string;
-  temperature: string;
+  temperature: "frio" | "quente";
   helpRequest: string;
 };
+
+export function selectImageFiles(
+  files: FileList | File[] | null | undefined,
+  maxFiles = 8,
+) {
+  const images = Array.from(files ?? []).filter(file =>
+    file.type.startsWith("image/")
+  );
+
+  return images.slice(0, maxFiles);
+}
+
+export function removeItemById<T extends { id: number }>(items: T[], id: number) {
+  return items.filter(item => item.id !== id);
+}
+
+function normalizeSpreadsheetValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+  if (typeof value === "string") return value.trim();
+  return String(value).trim();
+}
+
+function parseSpreadsheetNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const text = normalizeSpreadsheetValue(value)
+    .replace(/R\$\s*/gi, "")
+    .replace(/\s+/g, "")
+    .replace(".", "")
+    .replace(",", ".");
+
+  if (!text) return 0;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function spreadsheetStage(value: unknown): string {
+  const text = normalizeSpreadsheetValue(value).toLowerCase();
+  if (!text) return "Mapeado";
+  if (text.includes("qualific")) return "Qualificando";
+  if (text.includes("negoci")) return "Negociando";
+  if (text.includes("fech")) return "Fechamento";
+  if (text.includes("perd")) return "Perdido";
+  if (text.includes("cred")) return "Credenciado";
+  if (text.includes("ativ")) return "Ativado";
+  if (text.includes("mape")) return "Mapeado";
+  return "Mapeado";
+}
+
+function spreadsheetTemperature(value: unknown): "frio" | "quente" {
+  const text = normalizeSpreadsheetValue(value).toLowerCase();
+  return text.includes("quente") || text.includes("hot") || text.includes("alta")
+    ? "quente"
+    : "frio";
+}
+
+export async function parseSpreadsheetLeads(file: File | Blob | null | undefined) {
+  if (!file) return [] as Array<SpartaLead>;
+
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    defval: "",
+    raw: false,
+  });
+
+  const candidates: SpartaLead[] = rows
+    .map((row, index) => {
+      const clientName =
+        normalizeSpreadsheetValue(row["Nome"]) ||
+        normalizeSpreadsheetValue(row["nome"]) ||
+        normalizeSpreadsheetValue(row["Nome da loja"]) ||
+        normalizeSpreadsheetValue(row["Loja"]) ||
+        normalizeSpreadsheetValue(row["Cliente"]) ||
+        "";
+
+      const projectedTpv =
+        parseSpreadsheetNumber(row["TPV"]) ||
+        parseSpreadsheetNumber(row["tpv"]) ||
+        parseSpreadsheetNumber(row["TPV2"]) ||
+        parseSpreadsheetNumber(row["último tpv"]) ||
+        parseSpreadsheetNumber(row["ultimo tpv"]) ||
+        parseSpreadsheetNumber(row["Valor"]) ||
+        0;
+
+      if (!clientName || projectedTpv <= 0) return null;
+
+      return {
+        id: -Date.now() - index,
+        clientName,
+        projectedTpv,
+        stage: spreadsheetStage(
+          row["Status"] || row["status"] || row["Etapa"] || row["etapa"]
+        ),
+        temperature: spreadsheetTemperature(
+          row["Status"] ||
+            row["status"] ||
+            row["Temperatura"] ||
+            row["temperatura"]
+        ),
+        helpRequest: "",
+      } satisfies SpartaLead;
+    })
+    .filter((row): row is SpartaLead => row !== null);
+
+  return candidates;
+}
+
 const spartaStages = [
   "Mapeado",
   "Planejado",
@@ -68,12 +181,13 @@ function SpartaFunnel({
     clientName: string;
     projectedTpv: number;
     stage: string;
-    temperature: string;
+    temperature: "frio" | "quente";
   }>;
 }) {
-  const [imageName, setImageName] = useState("");
+  const [imageNames, setImageNames] = useState<string[]>([]);
   const [manualName, setManualName] = useState("");
   const [manualTpv, setManualTpv] = useState(0);
+  const [importedCount, setImportedCount] = useState(0);
   const [rows, setRows] = useState<SpartaLead[]>(() =>
     leads.map(lead => ({ ...lead, helpRequest: "" }))
   );
@@ -102,6 +216,33 @@ function SpartaFunnel({
     setManualName("");
     setManualTpv(0);
   };
+
+  const removeRow = (id: number) => {
+    setRows(current => removeItemById(current, id));
+  };
+
+  const handleSpreadsheetImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const imported = await parseSpreadsheetLeads(file);
+      if (!imported.length) {
+        toast.error("A planilha não contém colunas de Nome e TPV válidas.");
+        event.currentTarget.value = "";
+        return;
+      }
+
+      setRows(current => [...imported, ...current]);
+      setImportedCount(imported.length);
+      toast.success(`${imported.length} cliente(s) importado(s) para o funil.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível importar a planilha.");
+    } finally {
+      event.currentTarget.value = "";
+    }
+  };
+
   return (
     <article className="rounded-xl border border-emerald-100 bg-white p-5">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -113,21 +254,19 @@ function SpartaFunnel({
             Funil anexado, ação acompanhada.
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-emerald-800/65">
-            Anexe um print do Super Pipe para manter a leitura operacional no
-            mesmo lugar. Os registros autorizados do funil já aparecem abaixo; a
-            transcrição automática será conectada ao processamento de imagem.
+            Anexe até 8 imagens do Super Pipe para manter a leitura operacional
+            no mesmo lugar. Os registros autorizados do funil já aparecem abaixo;
+            a transcrição automática será conectada ao processamento de imagem.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[#0e3426] px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-900">
-            <Upload size={15} /> Anexar funil
+            <Upload size={15} /> Importar planilha
             <input
               className="sr-only"
               type="file"
-              accept="image/*"
-              onChange={event =>
-                setImageName(event.target.files?.[0]?.name ?? "")
-              }
+              accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={handleSpreadsheetImport}
             />
           </label>
           <Button variant="outline" onClick={addManual}>
@@ -135,10 +274,10 @@ function SpartaFunnel({
           </Button>
         </div>
       </div>
-      {imageName && (
+      {importedCount > 0 && (
         <p className="mt-3 rounded-lg bg-lime-50 p-3 text-xs text-emerald-900">
-          Print recebido: <b>{imageName}</b>. Revise a lista abaixo antes de
-          avançar cada oportunidade.
+          Planilha importada: <b>{importedCount}</b> cliente(s) incluído(s) no funil.
+          Ajuste etapa, temperatura e pedidos de ajuda abaixo antes de prosseguir.
         </p>
       )}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -167,6 +306,14 @@ function SpartaFunnel({
                 {brl.format(row.projectedTpv)} · {tierLabel(row.projectedTpv)}
               </span>
             </div>
+            <button
+              type="button"
+              aria-label={`Remover ${row.clientName} do funil`}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100"
+              onClick={() => removeRow(row.id)}
+            >
+              <Trash2 size={16} />
+            </button>
             <button
               type="button"
               aria-label={`Marcar ${row.clientName} como ${row.temperature === "quente" ? "frio" : "quente"}`}
@@ -225,7 +372,7 @@ function SpartaFunnel({
         ))}
         {!rows.length && (
           <p className="rounded-lg bg-[#f6f8f2] p-5 text-sm text-emerald-700/65">
-            Anexe um print ou adicione o primeiro cliente do funil.
+            Importe uma planilha ou adicione o primeiro cliente do funil.
           </p>
         )}
       </div>
@@ -275,6 +422,30 @@ export default function NordicStrategyPanel({
   });
   const completeActivation = trpc.nordic.saveActivation.useMutation({
     onSuccess: refresh,
+    onError: error => toast.error(error.message),
+  });
+  const removeActivation = trpc.nordic.removeActivation.useMutation({
+    onSuccess: () => {
+      refresh();
+      toast.success("Ativação removida do checklist.");
+    },
+    onError: error => toast.error(error.message),
+  });
+  const [editingActivationId, setEditingActivationId] = useState<
+    number | null
+  >(null);
+  const [editActivationDraft, setEditActivationDraft] = useState({
+    clientName: "",
+    realTpv: 0,
+    projectedTpv: 0,
+    estimatedVariable: 0,
+  });
+  const updateActivation = trpc.nordic.saveActivation.useMutation({
+    onSuccess: () => {
+      refresh();
+      setEditingActivationId(null);
+      toast.success("Ativação atualizada.");
+    },
     onError: error => toast.error(error.message),
   });
   const items = strategy.data?.activationPlans ?? [];
@@ -645,7 +816,7 @@ export default function NordicStrategyPanel({
           clientName: lead.clientName,
           projectedTpv: lead.projectedTpv,
           stage: lead.stage || "Mapeado",
-          temperature: lead.temperature || "frio",
+          temperature: lead.temperature === "quente" ? "quente" : "frio",
         }))}
       />
 
@@ -755,65 +926,198 @@ export default function NordicStrategyPanel({
                 <th className="pb-3">D+15</th>
                 <th className="pb-3">D+30</th>
                 <th className="pb-3">RV</th>
+                <th className="sticky right-0 bg-white pb-3 pl-3 text-right">
+                  Ação
+                </th>
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
-                <tr className="border-b border-emerald-50" key={item.id}>
-                  <td className="py-3 font-semibold">
-                    {item.clientName}
-                    <small className="block font-normal text-emerald-700/60">
-                      {item.status}
-                    </small>
-                  </td>
-                  <td className="py-3 font-mono">{brl.format(item.realTpv)}</td>
-                  <td className="py-3 font-mono">
-                    {brl.format(item.projectedTpv)}
-                  </td>
-                  <td className="py-3">
-                    <input
-                      type="checkbox"
-                      checked={item.productsReady}
-                      onChange={e =>
-                        completeActivation.mutate({
-                          ...item,
-                          productsReady: e.target.checked,
-                          notes: item.notes ?? undefined,
-                        })
-                      }
-                    />
-                  </td>
-                  <td className="py-3">
-                    <input
-                      type="checkbox"
-                      checked={item.d15Complete}
-                      onChange={e =>
-                        completeActivation.mutate({
-                          ...item,
-                          d15Complete: e.target.checked,
-                          notes: item.notes ?? undefined,
-                        })
-                      }
-                    />
-                  </td>
-                  <td className="py-3">
-                    <input
-                      type="checkbox"
-                      checked={item.d30Complete}
-                      onChange={e =>
-                        completeActivation.mutate({
-                          ...item,
-                          d30Complete: e.target.checked,
-                          notes: item.notes ?? undefined,
-                        })
-                      }
-                    />
-                  </td>
-                  <td className="py-3 font-mono">
-                    {brl.format(item.estimatedVariable)}
-                  </td>
-                </tr>
-              ))}
+              {items.map(item => {
+                const isEditing = editingActivationId === item.id;
+                return (
+                  <tr className="border-b border-emerald-50" key={item.id}>
+                    <td className="py-3 font-semibold">
+                      {isEditing ? (
+                        <Input
+                          className="h-8 text-xs"
+                          value={editActivationDraft.clientName}
+                          onChange={e =>
+                            setEditActivationDraft(draft => ({
+                              ...draft,
+                              clientName: e.target.value,
+                            }))
+                          }
+                        />
+                      ) : (
+                        <>
+                          {item.clientName}
+                          <small className="block font-normal text-emerald-700/60">
+                            {item.status}
+                          </small>
+                        </>
+                      )}
+                    </td>
+                    <td className="py-3 font-mono">
+                      {isEditing ? (
+                        <Input
+                          className="h-8 w-28 text-xs"
+                          type="number"
+                          value={editActivationDraft.realTpv}
+                          onChange={e =>
+                            setEditActivationDraft(draft => ({
+                              ...draft,
+                              realTpv: Number(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                      ) : (
+                        brl.format(item.realTpv)
+                      )}
+                    </td>
+                    <td className="py-3 font-mono">
+                      {isEditing ? (
+                        <Input
+                          className="h-8 w-28 text-xs"
+                          type="number"
+                          value={editActivationDraft.projectedTpv}
+                          onChange={e =>
+                            setEditActivationDraft(draft => ({
+                              ...draft,
+                              projectedTpv: Number(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                      ) : (
+                        brl.format(item.projectedTpv)
+                      )}
+                    </td>
+                    <td className="py-3">
+                      <input
+                        type="checkbox"
+                        checked={item.productsReady}
+                        onChange={e =>
+                          completeActivation.mutate({
+                            ...item,
+                            productsReady: e.target.checked,
+                            notes: item.notes ?? undefined,
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="py-3">
+                      <input
+                        type="checkbox"
+                        checked={item.d15Complete}
+                        onChange={e =>
+                          completeActivation.mutate({
+                            ...item,
+                            d15Complete: e.target.checked,
+                            notes: item.notes ?? undefined,
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="py-3">
+                      <input
+                        type="checkbox"
+                        checked={item.d30Complete}
+                        onChange={e =>
+                          completeActivation.mutate({
+                            ...item,
+                            d30Complete: e.target.checked,
+                            notes: item.notes ?? undefined,
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="py-3 font-mono">
+                      {isEditing ? (
+                        <Input
+                          className="h-8 w-24 text-xs"
+                          type="number"
+                          value={editActivationDraft.estimatedVariable}
+                          onChange={e =>
+                            setEditActivationDraft(draft => ({
+                              ...draft,
+                              estimatedVariable: Number(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                      ) : (
+                        brl.format(item.estimatedVariable)
+                      )}
+                    </td>
+                    <td className="sticky right-0 bg-white py-3 pl-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              aria-label={`Salvar ${item.clientName}`}
+                              disabled={
+                                updateActivation.isPending ||
+                                !editActivationDraft.clientName.trim()
+                              }
+                              className="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 hover:bg-emerald-100"
+                              onClick={() =>
+                                updateActivation.mutate({
+                                  ...item,
+                                  clientName: editActivationDraft.clientName,
+                                  realTpv: editActivationDraft.realTpv,
+                                  projectedTpv:
+                                    editActivationDraft.projectedTpv,
+                                  estimatedVariable:
+                                    editActivationDraft.estimatedVariable,
+                                  notes: item.notes ?? undefined,
+                                })
+                              }
+                            >
+                              <Check size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Cancelar edição"
+                              className="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-white p-2 text-emerald-700/70 hover:bg-emerald-50"
+                              onClick={() => setEditingActivationId(null)}
+                            >
+                              <X size={15} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              aria-label={`Editar ${item.clientName}`}
+                              className="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 hover:bg-emerald-100"
+                              onClick={() => {
+                                setEditingActivationId(item.id);
+                                setEditActivationDraft({
+                                  clientName: item.clientName,
+                                  realTpv: item.realTpv,
+                                  projectedTpv: item.projectedTpv,
+                                  estimatedVariable: item.estimatedVariable,
+                                });
+                              }}
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Remover ${item.clientName} do checklist`}
+                              className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100"
+                              onClick={() =>
+                                removeActivation.mutate({ id: item.id })
+                              }
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {!items.length && (
                 <tr>
                   <td

@@ -3,7 +3,35 @@ services:
     name: nova-odisseia
     runtime: docker
     dockerfilePath: ./Dockerfile
+    plan: starter
     healthCheckPath: /healthz
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_EMAIL_DOMAIN
+        value: stone.com.br
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: Nova Odisseia <fiorati@novaodisseia.com>
+      - key: SYSTEM_ADMIN_EMAIL
+        value: fiorati@novaodisseia.com
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://api.openai.com/v1

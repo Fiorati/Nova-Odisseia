@@ -176,8 +176,8 @@ export default function Home() {
 
   const nav = isLeader
     ? [
-        ["painel", Gauge, "Gestão do time"],
-        ["time", Users, "Perfil do time"],
+        ["painel", Gauge, "Gestão"],
+        ["time", Users, "Gestão"],
         ["super-pipe", Layers3, "Super Pipe"],
         ["campanhas", Megaphone, "Campanhas"],
         ["psv", ClipboardCheck, "Plano semanal"],
@@ -187,8 +187,8 @@ export default function Home() {
         ["perfil", Users, "Meu perfil"],
       ] as const
     : [
-        ["painel", Gauge, "Meu painel"],
-      ["time", Users, "Gestão do Time"],
+        ["painel", Gauge, "Gestão"],
+        ["time", Users, "Gestão"],
         ["periodo", Target, "Período"],
         ["nordica", Medal, "Estratégia"],
         ["prospeccao", SearchCheck, "Cavalo de Tróia"],

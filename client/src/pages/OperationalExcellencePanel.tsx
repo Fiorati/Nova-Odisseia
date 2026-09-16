@@ -7,6 +7,17 @@ import { Check, Mail, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+export function selectImageFiles(
+  files: FileList | File[] | null | undefined,
+  maxFiles = 8,
+) {
+  const images = Array.from(files ?? []).filter(file =>
+    file.type.startsWith("image/")
+  );
+
+  return images.slice(0, maxFiles);
+}
+
 type ExcellenceKind =
   | "sparring"
   | "lista"
@@ -70,7 +81,7 @@ export default function OperationalExcellencePanel() {
   const saveRecord = trpc.onda.save.useMutation({ onSuccess: () => toast.success("Acompanhamento salvo."), onError: error => toast.error(error.message) });
   const remind = trpc.onda.remind.useMutation({ onSuccess: () => toast.success("Lembrete enviado por e-mail."), onError: error => toast.error(error.message) });
   const [delegated, setDelegated] = useState<number | "">("");
-  const [fileName, setFileName] = useState("");
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<number, RowState>>({});
   const members = team.data ?? [];
   const activeKind = kinds.find(item => item.id === kind)!;
@@ -88,7 +99,7 @@ export default function OperationalExcellencePanel() {
     update(id, { reminder: true });
     remind.mutate({ targetUserId: id, kind: activeKind.label });
   };
-  const saveRow = (id: number) => saveRecord.mutate({ targetUserId: id, kind, payload: getRow(id), sourceFileName: fileName });
+  const saveRow = (id: number) => saveRecord.mutate({ targetUserId: id, kind, payload: getRow(id), sourceFileName: fileNames.join(", ") || "" });
   const isChecklist = kind === "ativacao" || kind === "onboarding";
   return (
     <div className="space-y-6">
@@ -137,9 +148,12 @@ export default function OperationalExcellencePanel() {
                 className="sr-only"
                 type="file"
                 accept="image/*"
-                onChange={event =>
-                  setFileName(event.target.files?.[0]?.name ?? "")
-                }
+                multiple
+                onChange={event => {
+                  const files = selectImageFiles(event.target.files, 8);
+                  setFileNames(files.map(file => file.name));
+                  event.currentTarget.value = "";
+                }}
               />
             </label>
             <label className="grid gap-1 text-[10px] text-emerald-700">
@@ -162,10 +176,10 @@ export default function OperationalExcellencePanel() {
             </label>
           </div>
         </div>
-        {fileName && (
+        {fileNames.length > 0 && (
           <p className="mt-3 rounded-lg bg-lime-50 p-3 text-xs text-emerald-900">
-            Arquivo recebido: <b>{fileName}</b>. Revise os registros gerados
-            antes de salvar.
+            Prints recebidos ({fileNames.length}/8): <b>{fileNames.join(", ")}</b>.
+            Revise os registros gerados antes de salvar.
           </p>
         )}
         <div className="mt-5 overflow-x-auto">
