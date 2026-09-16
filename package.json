@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
-    "start:prod": "NODE_ENV=production node dist/index.js",
+    "start:prod": "pnpm run db:migrate && NODE_ENV=production node dist/index.js",
     "db:migrate": "drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "test:unit": "vitest run --exclude \"**/*.integration.test.ts\"",
