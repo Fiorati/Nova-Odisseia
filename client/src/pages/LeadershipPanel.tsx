@@ -72,12 +72,7 @@ function GlobalAdminPanel() {
   );
   const [form, setForm] = useState({
     displayName: "",
-    leadershipRole: "none" as
-      | "none"
-      | "polo"
-      | "interino"
-      | "distrital"
-      | "sdr",
+    leadershipRole: "none" as "none" | "polo" | "distrital",
     regional: "",
     district: "",
     polo: "",
