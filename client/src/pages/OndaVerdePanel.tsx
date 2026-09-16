@@ -39,7 +39,7 @@ export default function OndaVerdePanel() {
   };
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl bg-[#0e3426] p-6 text-white md:p-8">
+      <section className="rounded-2xl bg-[#002b1d] p-6 text-white md:p-8">
         <p className="font-mono text-[10px] tracking-[.14em] text-lime-200">
           ONDA VERDE
         </p>
@@ -122,7 +122,7 @@ export default function OndaVerdePanel() {
             />
           </label>
         </div>
-        <Button className="mt-4 bg-[#0e3426]" disabled={saveDuo.isPending} onClick={addDuo}>
+        <Button className="mt-4 bg-[#002b1d]" disabled={saveDuo.isPending} onClick={addDuo}>
           <Plus size={16} /> Criar dupla
         </Button>
       </section>

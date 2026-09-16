@@ -40,7 +40,7 @@ export default function RouteAssignmentsPanel({ enabled }: { enabled: boolean })
         <label className="grid gap-1 text-xs font-medium text-emerald-950">Regional <Input value={form.regional} onChange={event => setForm(current => ({ ...current, regional: event.target.value }))} placeholder="Opcional" /></label>
         <label className="grid gap-1 text-xs font-medium text-emerald-950">Distrito <Input value={form.district} onChange={event => setForm(current => ({ ...current, district: event.target.value }))} placeholder="Opcional" /></label>
         <label className="grid gap-1 text-xs font-medium text-emerald-950">Polo <Input value={form.polo} onChange={event => setForm(current => ({ ...current, polo: event.target.value }))} placeholder="Opcional" /></label>
-        <div className="flex items-end"><Button className="w-full bg-[#0e3426]" disabled={assign.isPending || !form.route.trim() || !form.agentEmail.trim()} onClick={() => assign.mutate(form)}>{assign.isPending ? <RefreshCw className="animate-spin" size={16} /> : <Route size={16} />} {assign.isPending ? "Salvando..." : "Atribuir rota"}</Button></div>
+        <div className="flex items-end"><Button className="w-full bg-[#002b1d]" disabled={assign.isPending || !form.route.trim() || !form.agentEmail.trim()} onClick={() => assign.mutate(form)}>{assign.isPending ? <RefreshCw className="animate-spin" size={16} /> : <Route size={16} />} {assign.isPending ? "Salvando..." : "Atribuir rota"}</Button></div>
       </div>
 
       <div className="mt-5 overflow-x-auto">

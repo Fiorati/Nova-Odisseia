@@ -283,7 +283,7 @@ export default function AuthScreen() {
   return (
     <div className="min-h-screen bg-[#f4f3ec] p-5 text-emerald-950">
       <div className="mx-auto grid min-h-[calc(100vh-40px)] max-w-6xl overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_24px_70px_rgba(16,52,38,.12)] md:grid-cols-[1.12fr_.88fr]">
-        <section className="relative overflow-hidden bg-[#0e3426] p-8 text-[#f7faed] md:p-14">
+        <section className="relative overflow-hidden bg-[#002b1d] p-8 text-[#f7faed] md:p-14">
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full border border-lime-200/20" />
 
           <div className="relative flex h-full flex-col justify-between">
@@ -560,7 +560,7 @@ export default function AuthScreen() {
               )}
 
               <Button
-                className="mt-2 w-full bg-[#0e3426] text-white hover:bg-[#174c35]"
+                className="mt-2 w-full bg-[#002b1d] text-white hover:bg-[#014a30]"
                 type="submit"
                 disabled={pending}
               >

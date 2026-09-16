@@ -21,7 +21,7 @@ const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
 function NovaOdisseiaIntro() {
   return (
-    <section className="relative overflow-hidden rounded-xl bg-[#0e3426] p-6 text-white">
+    <section className="relative overflow-hidden rounded-xl bg-[#002b1d] p-6 text-white">
       <div className="absolute -right-10 -top-18 h-44 w-44 rounded-full border-[22px] border-lime-200/15" />
       <div className="relative">
         <p className="font-mono text-[10px] font-semibold tracking-[.15em] text-lime-200">

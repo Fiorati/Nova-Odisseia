@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import {
   agentProfiles,
   agentTeamProfiles,
+  bestPracticePosts,
   emailCredentials,
   emailVerificationChallenges,
   engagementCampaigns,
@@ -584,6 +585,31 @@ export async function removePsvDemand(userId: number, id: number) {
   const db = await getDb();
   await db.delete(psvDemands).where(and(eq(psvDemands.id, id), eq(psvDemands.userId, userId)));
   return { success: true };
+}
+
+export async function listBestPracticePosts() {
+  const db = await getDb();
+  return db.select().from(bestPracticePosts).orderBy(desc(bestPracticePosts.createdAt)).limit(100);
+}
+
+export async function createBestPracticePost(userId: number, authorName: string, input: { title: string; content: string }) {
+  const db = await getDb();
+  const title = cleanPortfolioText(input.title, 160);
+  const content = cleanPortfolioText(input.content, 4000);
+  if (!title) throw new Error("Informe um título para a boa prática.");
+  if (!content) throw new Error("Descreva a boa prática antes de publicar.");
+  await db.insert(bestPracticePosts).values({ authorUserId: userId, authorName: authorName || "Agente", title, content });
+  return listBestPracticePosts();
+}
+
+export async function removeBestPracticePost(userId: number, isAdmin: boolean, id: number) {
+  const db = await getDb();
+  if (isAdmin) {
+    await db.delete(bestPracticePosts).where(eq(bestPracticePosts.id, id));
+  } else {
+    await db.delete(bestPracticePosts).where(and(eq(bestPracticePosts.id, id), eq(bestPracticePosts.authorUserId, userId)));
+  }
+  return listBestPracticePosts();
 }
 
 async function canAccessScheduleScope(actorUserId: number, schedule: typeof teamSchedules.$inferSelect) {

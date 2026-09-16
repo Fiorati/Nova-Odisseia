@@ -223,6 +223,15 @@ export const psvDemands = mysqlTable("psv_demands", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => ({ userDueDateIndex: index("psv_demands_user_due_date_idx").on(table.userId, table.dueDate) }));
 
+export const bestPracticePosts = mysqlTable("best_practice_posts", {
+  id: int("id").autoincrement().primaryKey(),
+  authorUserId: int("authorUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  authorName: varchar("authorName", { length: 160 }).notNull(),
+  title: varchar("title", { length: 160 }).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({ createdAtIndex: index("best_practice_posts_created_at_idx").on(table.createdAt) }));
+
 export const engagementCampaigns = mysqlTable("engagement_campaigns", {
   id: int("id").autoincrement().primaryKey(),
   ownerUserId: int("ownerUserId").notNull().references(() => users.id, { onDelete: "cascade" }),

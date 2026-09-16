@@ -67,6 +67,9 @@ import {
   deactivateTeamSchedule,
   removePipelineLead,
   listPsvDemands,
+  listBestPracticePosts,
+  createBestPracticePost,
+  removeBestPracticePost,
   savePsvDemand,
   removePsvDemand,
   removeNordicActivationPlan,
@@ -375,6 +378,11 @@ auth: router({
     list: protectedProcedure.query(({ ctx }) => listEngagementCampaigns(ctx.user.id)),
     create: protectedProcedure.input(campaignInputSchema).mutation(({ ctx, input }) => createEngagementCampaign(ctx.user.id, input)),
     update: protectedProcedure.input(campaignInputSchema.extend({ id: z.number().int().positive() })).mutation(({ ctx, input }) => { const { id, ...campaign } = input; return updateEngagementCampaign(ctx.user.id, id, campaign); }),
+  }),
+  bestPractices: router({
+    list: protectedProcedure.query(() => listBestPracticePosts()),
+    create: protectedProcedure.input(z.object({ title: z.string().trim().min(2).max(160), content: z.string().trim().min(2).max(4000) })).mutation(({ ctx, input }) => createBestPracticePost(ctx.user.id, ctx.user.name ?? "Agente", input)),
+    remove: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => removeBestPracticePost(ctx.user.id, ctx.user.role === "admin", input.id)),
   }),
   psv: router({
     demands: protectedProcedure.query(({ ctx }) => listPsvDemands(ctx.user.id)),

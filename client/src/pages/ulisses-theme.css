@@ -1,11 +1,11 @@
 :root {
-  --ulisses-electric: #00e66a;
+  --ulisses-electric: #00d47e;
   --ulisses-signal: #38ff82;
-  --ulisses-moss: #12382b;
-  --ulisses-deep: #08251c;
+  --ulisses-moss: #002b1d;
+  --ulisses-deep: #002b1d;
   --ulisses-ink: #102019;
   --ulisses-mist: #f4f7f2;
-  --ulisses-line: rgba(18, 56, 43, .14);
+  --ulisses-line: rgba(0, 43, 29, .16);
 }
 
 body {
@@ -21,9 +21,9 @@ aside {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 116% 9%, rgba(56, 255, 130, .48), transparent 12rem),
-    radial-gradient(circle at -20% 80%, rgba(0, 230, 106, .22), transparent 16rem),
-    linear-gradient(170deg, #102f24 0%, #08251c 48%, #061b15 100%) !important;
+    radial-gradient(circle at 116% 9%, rgba(0, 212, 126, .48), transparent 12rem),
+    radial-gradient(circle at -20% 80%, rgba(0, 212, 126, .22), transparent 16rem),
+    linear-gradient(170deg, #063a27 0%, #002b1d 48%, #001a11 100%) !important;
 }
 
 aside::before {
@@ -97,23 +97,23 @@ main article.rounded-xl {
 
 .text-lime-200, .text-lime-100 { color: var(--ulisses-signal) !important; }
 
-.bg-\[\#0e3426\], .bg-emerald-900 { background-color: var(--ulisses-moss) !important; }
+.bg-\[\#002b1d\], .bg-emerald-900 { background-color: var(--ulisses-moss) !important; }
 .bg-\[\#f4f3ec\], .bg-\[\#f5f8f2\], .bg-\[\#f6f8f2\] { background-color: var(--ulisses-mist) !important; }
 .text-emerald-950 { color: var(--ulisses-ink) !important; }
 .text-emerald-600 { color: #068449 !important; }
 
-button.bg-\[\#0e3426\], .bg-\[\#0e3426\] button, button.bg-emerald-900 {
+button.bg-\[\#002b1d\], .bg-\[\#002b1d\] button, button.bg-emerald-900 {
   background: linear-gradient(115deg, #0b2f23, #16523c) !important;
   color: #f5fff8 !important;
   border: 1px solid rgba(56, 255, 130, .22) !important;
   box-shadow: 0 10px 22px rgba(8, 37, 28, .18);
 }
 
-button.bg-\[\#0e3426\]:hover, button.bg-emerald-900:hover { background: linear-gradient(115deg, #16523c, #1b6248) !important; }
+button.bg-\[\#002b1d\]:hover, button.bg-emerald-900:hover { background: linear-gradient(115deg, #16523c, #1b6248) !important; }
 button:active { transform: scale(.98); }
-.bg-\[\#0e3426\] .text-emerald-100\/70,
+.bg-\[\#002b1d\] .text-emerald-100\/70,
 .bg-emerald-900 .text-emerald-100\/70 { color: rgba(237, 255, 243, .88) !important; }
-.bg-\[\#0e3426\] .text-lime-200,
+.bg-\[\#002b1d\] .text-lime-200,
 .bg-emerald-900 .text-lime-200 { color: #76ffb0 !important; }
 
 input, select, textarea {

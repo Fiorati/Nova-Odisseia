@@ -103,7 +103,7 @@ export default function OperationalExcellencePanel() {
   const isChecklist = kind === "ativacao" || kind === "onboarding";
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl bg-[#0e3426] p-6 text-white md:p-8">
+      <section className="rounded-2xl bg-[#002b1d] p-6 text-white md:p-8">
         <p className="font-mono text-[10px] tracking-[.14em] text-lime-200">
           EXCELÊNCIA OPERACIONAL
         </p>
@@ -142,7 +142,7 @@ export default function OperationalExcellencePanel() {
             </h3>
           </div>
           <div className="flex flex-wrap gap-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[#0e3426] px-3 py-2 text-xs font-semibold text-white">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[#002b1d] px-3 py-2 text-xs font-semibold text-white">
               <UploadCloud size={15} /> Anexar print
               <input
                 className="sr-only"

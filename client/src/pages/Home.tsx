@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
-import { BarChart3, Calculator, CheckCircle2, ClipboardCheck, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
+import { BarChart3, Calculator, CheckCircle2, ClipboardCheck, Crown, Flag, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Target, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
@@ -14,26 +14,65 @@ import UnifiedPsvPanel from "./UnifiedPsvPanel";
 import MonthlyFinalCardPanel from "./MonthlyFinalCardPanel";
 import NordicStrategyPanel from "./NordicStrategyPanel";
 import QuickPeriodPanel from "./QuickPeriodPanel";
-import RoutePortfoliosPanel from "./RoutePortfoliosPanel";
 import SuperPipePanel from "./SuperPipePanel";
 import ProspectionPanel from "./ProspectionPanel";
 import RmrActionPlanPanel from "./RmrActionPlanPanel";
 import EngagementCampaignsPanel from "./EngagementCampaignsPanel";
 import SkillsDashboard from "./SkillsDashboard";
 import ItakaDailyWelcome from "./ItakaDailyWelcome";
-import { isListIntelligentView, LIST_INTELLIGENT_VIEW } from "@shared/listIntelligentNavigation";
+import BestPracticesFeed from "./BestPracticesFeed";
 import "./platform.css";
 import "./ulisses-theme.css";
 
-type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "spartacus";
+type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "super-pipe" | "prospeccao" | "campanhas" | "spartacus";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 const monthKey = () => new Date().toISOString().slice(0, 7);
 
-function Metric({ label, value, helper, accent = false }: { label: string; value: string; helper: string; accent?: boolean }) {
-  return <>{label === "RV REALIZADA" && <article className="relative overflow-hidden rounded-xl border border-lime-300 bg-[#0e3426] p-6 text-white md:col-span-2 xl:col-span-4"><div className="absolute -right-9 -top-14 h-44 w-44 rounded-full border-[22px] border-lime-200/15" /><div className="relative"><p className="font-mono text-[10px] font-semibold tracking-[.15em] text-lime-200">NOVA ODISSEIA: FIORATI</p><h2 className="mt-2 text-2xl font-semibold tracking-[-.05em]">Uma plataforma para transformar profissionais em Outliers.</h2><p className="mt-2 max-w-4xl text-sm leading-6 text-emerald-100/75">Organize a rota, planeje prioridades, proteja o foco e transforme dados em planos de ação. A jornada desenvolve raciocínio rápido, adaptabilidade, persuasão e comunicação excepcional com prática deliberada.</p><div className="mt-4 flex flex-wrap gap-2">{["Organização", "Planejamento", "Foco", "Planos de ação", "Raciocínio rápido", "Adaptabilidade", "Persuasão", "Comunicação"].map(item => <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-emerald-50" key={item}>{item}</span>)}</div></div></article>}<article className={`rounded-xl border p-5 ${accent ? "border-lime-300 bg-lime-300 text-emerald-950" : "border-emerald-100 bg-white"}`}><p className="font-mono text-[10px] font-semibold tracking-[.12em] opacity-70">{label}</p><strong className="mt-3 block text-3xl tracking-tight">{value}</strong><p className="mt-2 text-xs opacity-70">{helper}</p></article>{label === "CONQUISTAS" && <div className="md:col-span-2 xl:col-span-4"><SkillsDashboard onOpenSpartacus={() => { window.history.replaceState({}, "", "?view=spartacus"); window.location.reload(); }} /></div>}</>;
+function KpiGauge({ label, value, helper, progressPercent, icon: Icon }: { label: string; value: string; helper: string; progressPercent: number; icon: typeof Target }) {
+  const clamped = Math.max(0, Math.min(progressPercent, 100));
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - clamped / 100);
+  return (
+    <article className="relative overflow-hidden rounded-xl border border-[#00d47e]/25 bg-[#002b1d] p-5 text-white">
+      <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#00d47e]/10 blur-2xl" />
+      <div className="relative flex items-center gap-4">
+        <svg
+          className="shrink-0 -rotate-90"
+          width="88"
+          height="88"
+          viewBox="0 0 96 96"
+        >
+          <circle cx="48" cy="48" r={radius} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="8" />
+          <circle
+            cx="48"
+            cy="48"
+            r={radius}
+            fill="none"
+            stroke="#00d47e"
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            style={{ filter: "drop-shadow(0 0 6px rgba(0,212,126,.85))", transition: "stroke-dashoffset .6s ease" }}
+          />
+        </svg>
+        <div className="absolute left-0 grid w-[88px] place-items-center">
+          <Icon className="text-[#00d47e]" size={20} />
+        </div>
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] font-semibold tracking-[.12em] text-[#8fe6bd]">{label}</p>
+          <strong className="mt-1 block truncate text-2xl tracking-tight">{value}</strong>
+          <p className="mt-1 text-xs text-emerald-100/70">{helper}</p>
+        </div>
+      </div>
+    </article>
+  );
 }
+
+
 
 function ProfilePanel({ profile }: { profile: { displayName: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients: number; profileVisibleInRanking: boolean; leadershipRole: LeadershipRole; regional: string; district: string; polo: string; route: string } | null }) {
   const utils = trpc.useUtils();
@@ -42,14 +81,14 @@ function ProfilePanel({ profile }: { profile: { displayName: string; targetVaria
   const save = trpc.agent.profile.useMutation({ onSuccess: async () => { await utils.agent.dashboard.invalidate(); toast.success("Perfil atualizado."); }, onError: error => toast.error(error.message) });
   const isLeader = form.leadershipRole !== "none";
   const functionLabel = form.leadershipRole === "polo" ? "Dono de Polo" : form.leadershipRole === "distrital" ? "Distrital" : "Agente";
-  return <div className="max-w-4xl space-y-6"><section><p className="font-mono text-[10px] font-semibold tracking-[.14em] text-emerald-600">PERFIL E HIERARQUIA</p><h2 className="mt-2 text-3xl font-semibold tracking-[-.055em]">Seu perfil e escopo operacional.</h2><p className="mt-2 text-sm text-emerald-800/65">Funções de liderança e seus escopos são provisionados por administração autorizada para proteger informações de outros agentes.</p></section><section className="rounded-xl border border-emerald-100 bg-white p-6"><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1 text-xs">Nome de exibição<Input value={form.displayName} onChange={e => setForm(current => ({ ...current, displayName: e.target.value }))} /></label><div className="grid gap-1 text-xs"><span>Função</span><p className="rounded-md border border-emerald-100 bg-[#f5f8f2] px-3 py-2 text-sm font-semibold text-emerald-900">{functionLabel}</p></div>{!isLeader && <label className="grid gap-1 text-xs">RV alvo mensal<Input type="number" value={form.targetVariable} onChange={e => setForm(current => ({ ...current, targetVariable: Number(e.target.value) || 0 }))} /></label>}<label className="grid gap-1 text-xs">{isLeader ? "Meta coletiva padrão de TPV" : "Meta padrão de TPV"}<Input type="number" value={form.defaultGoalTpv} onChange={e => setForm(current => ({ ...current, defaultGoalTpv: Number(e.target.value) || 0 }))} /></label>{isLeader && <label className="grid gap-1 text-xs">Meta coletiva de novos clientes<Input type="number" value={form.defaultGoalNewClients} onChange={e => setForm(current => ({ ...current, defaultGoalNewClients: Number(e.target.value) || 0 }))} /></label>}<label className="grid gap-1 text-xs">Regional<Input value={form.regional} disabled={isLeader} onChange={e => setForm(current => ({ ...current, regional: e.target.value }))} placeholder="Ex.: Regional SP" /></label><label className="grid gap-1 text-xs">Distrito<Input value={form.district} disabled={isLeader} onChange={e => setForm(current => ({ ...current, district: e.target.value }))} placeholder="Ex.: Distrito SP Norte" /></label><label className="grid gap-1 text-xs">Polo<Input value={form.polo} disabled={isLeader} onChange={e => setForm(current => ({ ...current, polo: e.target.value }))} placeholder="Ex.: Polo Vila Medeiros" /></label><label className="grid gap-1 text-xs">Rota<Input value={form.route} disabled={isLeader} onChange={e => setForm(current => ({ ...current, route: e.target.value }))} placeholder="Ex.: Rota 04" /></label></div>{isLeader && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">Para corrigir função, regional, distrito, polo ou rota, solicite a atualização a um administrador autorizado.</p>}<label className="mt-5 flex items-center justify-between rounded-lg bg-[#f5f8f2] p-4 text-sm"><span><b className="block">Participar do ranking</b><small className="text-emerald-700/65">A classificação pública mostra somente nome, polo, distrito e pontos.</small></span><input type="checkbox" checked={form.profileVisibleInRanking} onChange={e => setForm(current => ({ ...current, profileVisibleInRanking: e.target.checked }))} className="h-4 w-4 accent-emerald-700" /></label><Button className="mt-5 bg-[#0e3426]" disabled={save.isPending} onClick={() => save.mutate(form)}><CheckCircle2 size={16} /> {save.isPending ? "Salvando..." : "Salvar perfil"}</Button></section></div>;
+  return <div className="max-w-4xl space-y-6"><section><p className="font-mono text-[10px] font-semibold tracking-[.14em] text-emerald-600">PERFIL E HIERARQUIA</p><h2 className="mt-2 text-3xl font-semibold tracking-[-.055em]">Seu perfil e escopo operacional.</h2><p className="mt-2 text-sm text-emerald-800/65">Funções de liderança e seus escopos são provisionados por administração autorizada para proteger informações de outros agentes.</p></section><section className="rounded-xl border border-emerald-100 bg-white p-6"><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1 text-xs">Nome de exibição<Input value={form.displayName} onChange={e => setForm(current => ({ ...current, displayName: e.target.value }))} /></label><div className="grid gap-1 text-xs"><span>Função</span><p className="rounded-md border border-emerald-100 bg-[#f5f8f2] px-3 py-2 text-sm font-semibold text-emerald-900">{functionLabel}</p></div>{!isLeader && <label className="grid gap-1 text-xs">RV alvo mensal<Input type="number" value={form.targetVariable} onChange={e => setForm(current => ({ ...current, targetVariable: Number(e.target.value) || 0 }))} /></label>}<label className="grid gap-1 text-xs">{isLeader ? "Meta coletiva padrão de TPV" : "Meta padrão de TPV"}<Input type="number" value={form.defaultGoalTpv} onChange={e => setForm(current => ({ ...current, defaultGoalTpv: Number(e.target.value) || 0 }))} /></label>{isLeader && <label className="grid gap-1 text-xs">Meta coletiva de novos clientes<Input type="number" value={form.defaultGoalNewClients} onChange={e => setForm(current => ({ ...current, defaultGoalNewClients: Number(e.target.value) || 0 }))} /></label>}<label className="grid gap-1 text-xs">Regional<Input value={form.regional} disabled={isLeader} onChange={e => setForm(current => ({ ...current, regional: e.target.value }))} placeholder="Ex.: Regional SP" /></label><label className="grid gap-1 text-xs">Distrito<Input value={form.district} disabled={isLeader} onChange={e => setForm(current => ({ ...current, district: e.target.value }))} placeholder="Ex.: Distrito SP Norte" /></label><label className="grid gap-1 text-xs">Polo<Input value={form.polo} disabled={isLeader} onChange={e => setForm(current => ({ ...current, polo: e.target.value }))} placeholder="Ex.: Polo Vila Medeiros" /></label><label className="grid gap-1 text-xs">Rota<Input value={form.route} disabled={isLeader} onChange={e => setForm(current => ({ ...current, route: e.target.value }))} placeholder="Ex.: Rota 04" /></label></div>{isLeader && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">Para corrigir função, regional, distrito, polo ou rota, solicite a atualização a um administrador autorizado.</p>}<label className="mt-5 flex items-center justify-between rounded-lg bg-[#f5f8f2] p-4 text-sm"><span><b className="block">Participar do ranking</b><small className="text-emerald-700/65">A classificação pública mostra somente nome, polo, distrito e pontos.</small></span><input type="checkbox" checked={form.profileVisibleInRanking} onChange={e => setForm(current => ({ ...current, profileVisibleInRanking: e.target.checked }))} className="h-4 w-4 accent-emerald-700" /></label><Button className="mt-5 bg-[#002b1d]" disabled={save.isPending} onClick={() => save.mutate(form)}><CheckCircle2 size={16} /> {save.isPending ? "Salvando..." : "Salvar perfil"}</Button></section></div>;
 }
 
 function RmrPanel({ defaultGoal, lastVariable }: { defaultGoal: number; lastVariable: number }) {
   const [periodLabel, setPeriodLabel] = useState("Análise mensal"); const [workingDays, setWorkingDays] = useState(20); const [salesTasks, setSalesTasks] = useState(0); const [proposals, setProposals] = useState(0); const [closedClients, setClosedClients] = useState(0); const [closedTpv, setClosedTpv] = useState(0); const [goalTpv, setGoalTpv] = useState(defaultGoal); const [variableValue, setVariableValue] = useState(lastVariable);
   const calculated = useMemo(() => calculateRmrKpi({ workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv }), [workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv]);
   const save = trpc.rmr.save.useMutation({ onSuccess: result => toast.success(result.pointsAwarded ? `RMR registrada. +${result.pointsAwarded} pontos por KPI mensal.` : "RMR registrada. A pontuação deste KPI já foi concedida neste mês."), onError: error => toast.error(error.message) });
-  return <div className="space-y-6"><section><p className="font-mono text-[10px] font-semibold tracking-[.14em] text-emerald-600">RMR / REVISÃO MENSAL</p><h2 className="mt-2 text-3xl font-semibold tracking-[-.055em]">Indicadores para corrigir a rota.</h2><p className="mt-2 text-sm text-emerald-800/65">A RMR usa tarefas, propostas e TPV para calcular o KPI global. O período rápido ajuda a preparar este registro.</p></section><section className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]"><article className="rounded-xl border border-emerald-100 bg-white p-5"><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1 text-xs sm:col-span-2">Período<Input value={periodLabel} onChange={e => setPeriodLabel(e.target.value)} /></label><label className="grid gap-1 text-xs">Dias úteis<Input type="number" value={workingDays} onChange={e => setWorkingDays(Number(e.target.value) || 1)} /></label><label className="grid gap-1 text-xs">Tarefas de venda<Input type="number" value={salesTasks} onChange={e => setSalesTasks(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">Propostas<Input type="number" value={proposals} onChange={e => setProposals(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">Clientes fechados<Input type="number" value={closedClients} onChange={e => setClosedClients(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">TPV novo<Input type="number" value={closedTpv} onChange={e => setClosedTpv(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">Meta TPV<Input type="number" value={goalTpv} onChange={e => setGoalTpv(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs sm:col-span-2">RV do período<Input type="number" value={variableValue} onChange={e => setVariableValue(Number(e.target.value) || 0)} /></label></div><Button className="mt-5 bg-[#0e3426]" disabled={save.isPending} onClick={() => save.mutate({ periodLabel, workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv, variableValue })}><CheckCircle2 size={16} /> Registrar RMR</Button></article><article className="rounded-xl bg-[#f6f8f2] p-6"><p className="font-mono text-[10px] tracking-[.12em] text-emerald-600">KPI GLOBAL</p><strong className="mt-3 block text-5xl tracking-[-.08em]">{percent.format(calculated.globalKpi)}%</strong><p className="mt-2 text-sm text-emerald-800/65">Acima de 80%: 20 pts; de 100% a 150%: 40 pts; acima de 150%: 100 pts. A pontuação é concedida uma vez por mês.</p><div className="mt-6 space-y-3 text-sm"><div className="flex justify-between"><span>Tarefas</span><b>{percent.format(calculated.taskScore * 100)}%</b></div><div className="flex justify-between"><span>Propostas</span><b>{percent.format(calculated.proposalScore * 100)}%</b></div><div className="flex justify-between"><span>TPV</span><b>{percent.format(calculated.tpvScore * 100)}%</b></div></div></article></section></div>;
+  return <div className="space-y-6"><section><p className="font-mono text-[10px] font-semibold tracking-[.14em] text-emerald-600">RMR / REVISÃO MENSAL</p><h2 className="mt-2 text-3xl font-semibold tracking-[-.055em]">Indicadores para corrigir a rota.</h2><p className="mt-2 text-sm text-emerald-800/65">A RMR usa tarefas, propostas e TPV para calcular o KPI global. O período rápido ajuda a preparar este registro.</p></section><section className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]"><article className="rounded-xl border border-emerald-100 bg-white p-5"><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1 text-xs sm:col-span-2">Período<Input value={periodLabel} onChange={e => setPeriodLabel(e.target.value)} /></label><label className="grid gap-1 text-xs">Dias úteis<Input type="number" value={workingDays} onChange={e => setWorkingDays(Number(e.target.value) || 1)} /></label><label className="grid gap-1 text-xs">Tarefas de venda<Input type="number" value={salesTasks} onChange={e => setSalesTasks(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">Propostas<Input type="number" value={proposals} onChange={e => setProposals(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">Clientes fechados<Input type="number" value={closedClients} onChange={e => setClosedClients(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">TPV novo<Input type="number" value={closedTpv} onChange={e => setClosedTpv(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs">Meta TPV<Input type="number" value={goalTpv} onChange={e => setGoalTpv(Number(e.target.value) || 0)} /></label><label className="grid gap-1 text-xs sm:col-span-2">RV do período<Input type="number" value={variableValue} onChange={e => setVariableValue(Number(e.target.value) || 0)} /></label></div><Button className="mt-5 bg-[#002b1d]" disabled={save.isPending} onClick={() => save.mutate({ periodLabel, workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv, variableValue })}><CheckCircle2 size={16} /> Registrar RMR</Button></article><article className="rounded-xl bg-[#f6f8f2] p-6"><p className="font-mono text-[10px] tracking-[.12em] text-emerald-600">KPI GLOBAL</p><strong className="mt-3 block text-5xl tracking-[-.08em]">{percent.format(calculated.globalKpi)}%</strong><p className="mt-2 text-sm text-emerald-800/65">Acima de 80%: 20 pts; de 100% a 150%: 40 pts; acima de 150%: 100 pts. A pontuação é concedida uma vez por mês.</p><div className="mt-6 space-y-3 text-sm"><div className="flex justify-between"><span>Tarefas</span><b>{percent.format(calculated.taskScore * 100)}%</b></div><div className="flex justify-between"><span>Propostas</span><b>{percent.format(calculated.proposalScore * 100)}%</b></div><div className="flex justify-between"><span>TPV</span><b>{percent.format(calculated.tpvScore * 100)}%</b></div></div></article></section></div>;
 }
 
 function RankingPanel() {
@@ -60,7 +99,8 @@ function RankingPanel() {
 
 function AgentDashboard({ data, onView }: { data: { latestGoal: { targetVariable: number; targetTpv: number; targetNewClients: number; actualTpv: number; actualVariable: number } | null; profile: { displayName: string; targetVariable: number; defaultGoalTpv: number } | null; points: number; simulations: { finalVariable: number }[] }; onView: (view: View) => void }) {
   const latestGoal = data.latestGoal; const currentVariable = latestGoal?.actualVariable ?? data.simulations[0]?.finalVariable ?? 0; const targetVariable = latestGoal?.targetVariable ?? data.profile?.targetVariable ?? 0; const progress = targetVariable ? Math.min(currentVariable / targetVariable * 100, 100) : 0;
-  return <div className="space-y-6"><ItakaDailyWelcome displayName={data.profile?.displayName || "agente"} /><section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Metric label="RV REALIZADA" value={brl.format(currentVariable)} helper={targetVariable ? `${percent.format(progress)}% da RV alvo` : "Defina sua RV no perfil"} accent /><Metric label="META TPV" value={brl.format(latestGoal?.targetTpv ?? data.profile?.defaultGoalTpv ?? 0)} helper="objetivo mensal" /><Metric label="TPV ATUAL" value={brl.format(latestGoal?.actualTpv ?? 0)} helper="registro mais recente" /><Metric label="CONQUISTAS" value={`${data.points} pts`} helper="PSV e KPI mensal" /></section><section className="grid gap-4 lg:grid-cols-3"><button className="rounded-xl border border-emerald-100 bg-white p-5 text-left transition hover:border-lime-300" onClick={() => onView("periodo")}><Target className="text-emerald-600" /><h3 className="mt-3 font-semibold">Período rápido</h3><p className="mt-1 text-sm text-emerald-700/65">Defina quantidades por tier e acompanhe plano, realizado e GAP.</p></button><button className="rounded-xl border border-emerald-100 bg-white p-5 text-left transition hover:border-lime-300" onClick={() => onView("nordica")}><Medal className="text-emerald-600" /><h3 className="mt-3 font-semibold">Estratégia Nórdica</h3><p className="mt-1 text-sm text-emerald-700/65">Funis, ativações e microrrotas de visita.</p></button><button className="rounded-xl bg-[#0e3426] p-5 text-left text-white" onClick={() => onView("psv")}><ClipboardCheck className="text-lime-200" /><h3 className="mt-3 font-semibold">PSV semanal</h3><p className="mt-1 text-sm text-emerald-100/70">Transforme a meta em próximas oportunidades.</p></button></section></div>;
+  const targetTpv = latestGoal?.targetTpv ?? data.profile?.defaultGoalTpv ?? 0; const actualTpv = latestGoal?.actualTpv ?? 0; const tpvProgress = targetTpv ? Math.min(actualTpv / targetTpv * 100, 100) : 0; const pointsLevelProgress = data.points ? Math.min(data.points % 100 || 100, 100) : 0;
+  return <div className="space-y-6"><ItakaDailyWelcome displayName={data.profile?.displayName || "agente"} /><BestPracticesFeed /><article className="relative overflow-hidden rounded-xl border border-[#00d47e]/25 bg-[#002b1d] p-6 text-white"><div className="absolute -right-9 -top-14 h-44 w-44 rounded-full border-[22px] border-[#00d47e]/15" /><div className="relative"><p className="font-mono text-[10px] font-semibold tracking-[.15em] text-[#8fe6bd]">NOVA ODISSEIA: FIORATI</p><h2 className="mt-2 text-2xl font-semibold tracking-[-.05em]">Uma plataforma para transformar profissionais em Outliers.</h2><p className="mt-2 max-w-4xl text-sm leading-6 text-emerald-100/75">Organize a rota, planeje prioridades, proteja o foco e transforme dados em planos de ação. A jornada desenvolve raciocínio rápido, adaptabilidade, persuasão e comunicação excepcional com prática deliberada.</p><div className="mt-4 flex flex-wrap gap-2">{["Organização", "Planejamento", "Foco", "Planos de ação", "Raciocínio rápido", "Adaptabilidade", "Persuasão", "Comunicação"].map(item => <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-emerald-50" key={item}>{item}</span>)}</div></div></article><section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><KpiGauge label="RV REALIZADA" value={brl.format(currentVariable)} helper={targetVariable ? `${percent.format(progress)}% da RV alvo` : "Defina sua RV no perfil"} progressPercent={progress} icon={Target} /><KpiGauge label="META TPV" value={brl.format(targetTpv)} helper="objetivo mensal" progressPercent={100} icon={Gauge} /><KpiGauge label="TPV ATUAL" value={brl.format(actualTpv)} helper={targetTpv ? `${percent.format(tpvProgress)}% da meta` : "registro mais recente"} progressPercent={tpvProgress} icon={BarChart3} /><KpiGauge label="CONQUISTAS" value={`${data.points} pts`} helper="PSV e KPI mensal" progressPercent={pointsLevelProgress} icon={Trophy} /></section><SkillsDashboard onOpenSpartacus={() => { window.history.replaceState({}, "", "?view=spartacus"); window.location.reload(); }} /><section className="grid gap-4 lg:grid-cols-3"><button className="rounded-xl border border-emerald-100 bg-white p-5 text-left transition hover:border-lime-300" onClick={() => onView("periodo")}><Target className="text-emerald-600" /><h3 className="mt-3 font-semibold">Período rápido</h3><p className="mt-1 text-sm text-emerald-700/65">Defina quantidades por tier e acompanhe plano, realizado e GAP.</p></button><button className="rounded-xl border border-emerald-100 bg-white p-5 text-left transition hover:border-lime-300" onClick={() => onView("nordica")}><Medal className="text-emerald-600" /><h3 className="mt-3 font-semibold">Estratégia Nórdica</h3><p className="mt-1 text-sm text-emerald-700/65">Funis, ativações e microrrotas de visita.</p></button><button className="rounded-xl bg-[#002b1d] p-5 text-left text-white" onClick={() => onView("psv")}><ClipboardCheck className="text-lime-200" /><h3 className="mt-3 font-semibold">PSV semanal</h3><p className="mt-1 text-sm text-emerald-100/70">Transforme a meta em próximas oportunidades.</p></button></section></div>;
 }
 
 export default function Home() {
@@ -82,8 +122,6 @@ export default function Home() {
       "perfil",
       "lideranca",
       "card-final",
-      "carteiras",
-      LIST_INTELLIGENT_VIEW,
       "super-pipe",
       "prospeccao",
       "campanhas",
@@ -181,8 +219,6 @@ export default function Home() {
         ["super-pipe", Layers3, "Super Pipe"],
         ["campanhas", Megaphone, "Campanhas"],
         ["psv", ClipboardCheck, "Plano semanal"],
-        ["carteiras", FolderKanban, "Carteiras"],
-        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
         ["ranking", Trophy, "Troféus"],
         ["perfil", Users, "Meu perfil"],
       ] as const
@@ -194,8 +230,6 @@ export default function Home() {
         ["prospeccao", SearchCheck, "Cavalo de Tróia"],
         ["calculadora", Calculator, "Calculadora RV"],
         ["psv", ClipboardCheck, "Plano semanal"],
-        ["carteiras", FolderKanban, "Carteiras"],
-        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
         ["rmr", BarChart3, "RMR"],
         ["card-final", Flag, "Card final"],
         ["ranking", Trophy, "Troféus"],
@@ -209,15 +243,6 @@ export default function Home() {
 
     if (view === "time") {
       return <TeamManagementPanel />;
-    }
-
-    if (isListIntelligentView(view)) {
-      return (
-        <RoutePortfoliosPanel
-          initialTab="route"
-          focusListIntelligent
-        />
-      );
     }
 
     if (isLeader && view === "painel") {
@@ -302,10 +327,6 @@ export default function Home() {
       );
     }
 
-    if (view === "carteiras") {
-      return <RoutePortfoliosPanel />;
-    }
-
     if (view === "ranking") {
       return <RankingPanel />;
     }
@@ -335,7 +356,7 @@ export default function Home() {
       <div className="flex min-h-screen">
 
         {/* SIDEBAR DESKTOP */}
-        <aside className="hidden w-64 shrink-0 flex-col bg-[#0e3426] p-5 text-white lg:flex">
+        <aside className="hidden w-64 shrink-0 flex-col bg-[#002b1d] p-5 text-white lg:flex">
 
           <div className="flex items-center gap-3 px-2">
             <div>

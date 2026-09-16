@@ -105,14 +105,14 @@ function WeeklyChecklist({ member, canEdit }: { member?: TeamMember; canEdit: bo
   return (
     <section className="rounded-[10px] border border-[#1f3a2e] bg-[#10201a] p-5 text-[#edefe9] shadow-xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-[#3ddc84]">CHECKLIST SEMANAL</p><h3 className="mt-1 text-2xl font-semibold">Painel <span className="text-[#3ddc84]">{member.displayName}</span></h3><p className="mt-1 text-xs text-[#9fb0a6]">{member.polo || "Polo não informado"} · {member.formalRoutes.join(" · ") || member.route || "Rotas não informadas"}</p></div>
+        <div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-[#00d47e]">CHECKLIST SEMANAL</p><h3 className="mt-1 text-2xl font-semibold">Painel <span className="text-[#00d47e]">{member.displayName}</span></h3><p className="mt-1 text-xs text-[#9fb0a6]">{member.polo || "Polo não informado"} · {member.formalRoutes.join(" · ") || member.route || "Rotas não informadas"}</p></div>
         <div className="flex items-center gap-2"><Button variant="outline" className="border-[#1f3a2e] bg-transparent text-[#edefe9]" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft size={16} /></Button><span className="min-w-32 text-center font-mono text-xs text-[#9fb0a6]">{formatWeek(weekStart)}</span><Button variant="outline" className="border-[#1f3a2e] bg-transparent text-[#edefe9]" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight size={16} /></Button></div>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[["TPV REALIZADO", `R$ ${totals.closedTpv.toLocaleString("pt-BR")}`], ["TAREFAS", totals.salesTasks], ["PROPOSTAS", totals.proposals], ["CLIENTES FECHADOS", totals.newClients]].map(([label, value]) => <article key={label} className="rounded-lg border border-[#1f3a2e] bg-[#142a21] p-4"><p className="font-mono text-[10px] text-[#9fb0a6]">{label}</p><strong className="mt-2 block text-2xl">{value}</strong></article>)}
       </div>
-      <div className="mt-6 overflow-x-auto"><table className="w-full min-w-[760px] border-collapse text-left text-xs"><thead><tr className="border-b border-[#1f3a2e] font-mono text-[10px] uppercase text-[#9fb0a6]"><th className="p-3">Dia</th><th className="p-3">Tarefas</th><th className="p-3">Propostas</th><th className="p-3">Clientes</th><th className="p-3">TPV (R$)</th><th className="p-3">Observação</th></tr></thead><tbody>{days.map(day => { const key = dateKey(day); const entry = entries[key] ?? emptyChecklistEntry(); return <tr key={key} className="border-b border-[#1f3a2e]"><td className="p-3 font-semibold">{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}</td>{(["salesTasks", "proposals", "newClients", "closedTpv"] as const).map(field => <td className="p-2" key={field}><Input className="border-[#1f3a2e] bg-[#0b1410] text-[#edefe9]" type="number" min="0" value={entry[field] || ""} disabled={!canEdit || savePromise.isPending} onChange={event => update(key, field, event.target.value)} /></td>)}<td className="p-2"><Input className="min-w-40 border-[#1f3a2e] bg-[#0b1410] text-[#edefe9]" value={entry.notes} disabled={!canEdit || savePromise.isPending} onChange={event => update(key, "notes", event.target.value)} /></td></tr>; })}</tbody><tfoot><tr className="font-semibold text-[#3ddc84]"><td className="p-3">Total semana</td><td className="p-3">{totals.salesTasks}</td><td className="p-3">{totals.proposals}</td><td className="p-3">{totals.newClients}</td><td className="p-3">{totals.closedTpv.toLocaleString("pt-BR")}</td><td /></tr></tfoot></table></div>
-      {canEdit && <Button className="mt-5 bg-[#3ddc84] text-[#0b1410] hover:bg-[#5ce89c]" disabled={savePromise.isPending} onClick={saveWeek}><Save size={16} /> {savePromise.isPending ? "Salvando..." : "Salvar checklist"}</Button>}
+      <div className="mt-6 overflow-x-auto"><table className="w-full min-w-[760px] border-collapse text-left text-xs"><thead><tr className="border-b border-[#1f3a2e] font-mono text-[10px] uppercase text-[#9fb0a6]"><th className="p-3">Dia</th><th className="p-3">Tarefas</th><th className="p-3">Propostas</th><th className="p-3">Clientes</th><th className="p-3">TPV (R$)</th><th className="p-3">Observação</th></tr></thead><tbody>{days.map(day => { const key = dateKey(day); const entry = entries[key] ?? emptyChecklistEntry(); return <tr key={key} className="border-b border-[#1f3a2e]"><td className="p-3 font-semibold">{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}</td>{(["salesTasks", "proposals", "newClients", "closedTpv"] as const).map(field => <td className="p-2" key={field}><Input className="border-[#1f3a2e] bg-[#0b1410] text-[#edefe9]" type="number" min="0" value={entry[field] || ""} disabled={!canEdit || savePromise.isPending} onChange={event => update(key, field, event.target.value)} /></td>)}<td className="p-2"><Input className="min-w-40 border-[#1f3a2e] bg-[#0b1410] text-[#edefe9]" value={entry.notes} disabled={!canEdit || savePromise.isPending} onChange={event => update(key, "notes", event.target.value)} /></td></tr>; })}</tbody><tfoot><tr className="font-semibold text-[#00d47e]"><td className="p-3">Total semana</td><td className="p-3">{totals.salesTasks}</td><td className="p-3">{totals.proposals}</td><td className="p-3">{totals.newClients}</td><td className="p-3">{totals.closedTpv.toLocaleString("pt-BR")}</td><td /></tr></tfoot></table></div>
+      {canEdit && <Button className="mt-5 bg-[#00d47e] text-[#0b1410] hover:bg-[#5ce89c]" disabled={savePromise.isPending} onClick={saveWeek}><Save size={16} /> {savePromise.isPending ? "Salvando..." : "Salvar checklist"}</Button>}
       {savedAt && <span className="ml-3 text-xs text-[#9fb0a6]">Salvo às {savedAt}</span>}
     </section>
   );
@@ -180,7 +180,7 @@ function TeamProfileForm({
       </div>
       {canEdit && (
         <Button
-          className="mt-5 bg-[#0e3426]"
+          className="mt-5 bg-[#002b1d]"
           disabled={save.isPending}
           onClick={() => save.mutate({ targetUserId: member.userId, ...form })}
         >
@@ -277,7 +277,7 @@ function TeamOrganizationForm({
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button className="bg-[#0e3426]" disabled={pending || !form.roles.length} onClick={() => {
+        <Button className="bg-[#002b1d]" disabled={pending || !form.roles.length} onClick={() => {
           const payload = { displayName: form.displayName, roles: form.roles, regional: form.regional, district: form.district, polo: form.polo, routes };
           if (createMode) create.mutate({ ...payload, email: form.email });
           else if (member) update.mutate({ ...payload, targetUserId: member.userId });
