@@ -1,5 +1,6 @@
 import { BookOpen, Compass } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { ItakaDailySeal } from "@/components/emblems";
 
 export default function ItakaDailyWelcome({ displayName }: { displayName: string }) {
   const dailyMessage = trpc.agent.dailyItakaMessage.useQuery();
@@ -9,8 +10,11 @@ export default function ItakaDailyWelcome({ displayName }: { displayName: string
     <section className="ledger-surface relative overflow-hidden rounded-lg border border-emerald-100 bg-white p-6 md:p-8">
       <div className="absolute -right-12 -top-14 h-40 w-40 rounded-full border-[24px] border-emerald-100/70" />
       <div className="relative max-w-4xl">
-        <div className="flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[.16em] text-emerald-600">
-          <Compass size={14} aria-hidden="true" /> ÍTAKA / {dailyMessage.data?.dateLabel ?? "—"}
+        <div className="flex items-center gap-3">
+          <ItakaDailySeal size={32} />
+          <div className="flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[.16em] text-emerald-600">
+            <Compass size={14} aria-hidden="true" /> ÍTAKA / {dailyMessage.data?.dateLabel ?? "—"}
+          </div>
         </div>
         <h2 className="mt-3 text-3xl font-semibold tracking-[-.055em]">Olá, {displayName}.</h2>
         <p className="mt-3 max-w-3xl text-base font-medium leading-7 text-emerald-950">

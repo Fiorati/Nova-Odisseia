@@ -6,6 +6,11 @@
   --ulisses-ink: #102019;
   --ulisses-mist: #f4f7f2;
   --ulisses-line: rgba(0, 43, 29, .16);
+  --stone-gold: #d4af37;
+  --stone-gold-bright: #ffd700;
+  --stone-graphite: #1e252b;
+  --stone-graphite-deep: #12181b;
+  --stone-text-light: #f4f6f8;
 }
 
 body {

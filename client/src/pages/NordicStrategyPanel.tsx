@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { gapToTarget, weeklyPace } from "@shared/nordic";
+import { NordicCompassEmblem } from "@/components/emblems";
 import {
   CalendarPlus,
   Check,
@@ -469,18 +470,21 @@ export default function NordicStrategyPanel({
     <div className="space-y-6">
       <section className="rounded-2xl bg-[#002b1d] p-6 text-white md:p-8">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div>
-            <p className="font-mono text-[10px] font-semibold tracking-[.14em] text-lime-200">
-              ESTRATÉGIA NÓRDICA
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-.06em]">
-              Rotina operacional para transformar plano em cadência.
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-100/75">
-              Conecte o período do mês, os funis de PSV, as ativações e as
-              visitas. Listas derivadas mostram somente dados reais já
-              registrados.
-            </p>
+          <div className="flex items-start gap-4">
+            <NordicCompassEmblem size={48} />
+            <div>
+              <p className="font-mono text-[10px] font-semibold tracking-[.14em] text-lime-200">
+                ESTRATÉGIA NÓRDICA
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-.06em]">
+                Rotina operacional para transformar plano em cadência.
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-100/75">
+                Conecte o período do mês, os funis de PSV, as ativações e as
+                visitas. Listas derivadas mostram somente dados reais já
+                registrados.
+              </p>
+            </div>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <label className="grid gap-1 text-xs text-emerald-100/75">
