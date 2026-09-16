@@ -1,4 +1,4 @@
-export type TeamLeadershipRole = "none" | "polo" | "distrital";
+export type TeamLeadershipRole = "none" | "polo" | "interino" | "distrital" | "sdr";
 
 export type TeamAccessIdentity = {
   id: number;
@@ -16,7 +16,7 @@ function normalize(value: string | null | undefined) {
 export function canAccessTeamMember(actor: TeamAccessIdentity, target: TeamAccessIdentity) {
   if (actor.role === "admin") return true;
   if (actor.id === target.id) return true;
-  if (actor.leadershipRole === "polo") {
+  if (actor.leadershipRole === "polo" || actor.leadershipRole === "interino") {
     return target.leadershipRole === "none" && normalize(actor.polo) === normalize(target.polo);
   }
   if (actor.leadershipRole === "distrital") {

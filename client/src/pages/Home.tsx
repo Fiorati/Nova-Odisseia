@@ -21,14 +21,16 @@ import ProspectionPanel from "./ProspectionPanel";
 import RmrActionPlanPanel from "./RmrActionPlanPanel";
 import EngagementCampaignsPanel from "./EngagementCampaignsPanel";
 import SpartacusPanel from "./SpartacusPanel";
+import MeetingSchedulingPanel from "./MeetingSchedulingPanel";
+import OndaVerdePanel from "./OndaVerdePanel";
+import OperationalExcellencePanel from "./OperationalExcellencePanel";
 import SkillsDashboard from "./SkillsDashboard";
 import ItakaDailyWelcome from "./ItakaDailyWelcome";
-import { isListIntelligentView, LIST_INTELLIGENT_VIEW } from "@shared/listIntelligentNavigation";
 import "./platform.css";
 import "./ulisses-theme.css";
 
-type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "spartacus";
-type LeadershipRole = "none" | "polo" | "distrital";
+type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | "super-pipe" | "prospeccao" | "campanhas" | "spartacus" | "reunioes" | "onda" | "excelencia";
+type LeadershipRole = "none" | "polo" | "interino" | "distrital" | "sdr";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 const monthKey = () => new Date().toISOString().slice(0, 7);
@@ -85,11 +87,13 @@ export default function Home() {
       "lideranca",
       "card-final",
       "carteiras",
-      LIST_INTELLIGENT_VIEW,
       "super-pipe",
       "prospeccao",
       "campanhas",
       "spartacus",
+      "reunioes",
+      "onda",
+      "excelencia",
     ].includes(value ?? "")
       ? (value as View)
       : "painel";
@@ -138,6 +142,9 @@ export default function Home() {
    */
   const navigateToView = (nextView: View) => {
     setView(nextView);
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", nextView);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
   };
 
   /*
@@ -183,8 +190,10 @@ export default function Home() {
         ["super-pipe", Layers3, "Super Pipe"],
         ["campanhas", Megaphone, "Campanhas"],
         ["spartacus", BookOpen, "SPARTACUS"],
-        ["carteiras", FolderKanban, "Carteiras"],
-        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
+        ["carteiras", FolderKanban, "ROTAS"],
+        ["reunioes", Users, "Agendamento"],
+        ["onda", Sparkles, "Onda Verde"],
+        ["excelencia", CheckCircle2, "Excelência operacional"],
         ["ranking", Trophy, "Troféus"],
         ["perfil", Users, "Meu perfil"],
       ] as const
@@ -198,8 +207,10 @@ export default function Home() {
         ["psv", ClipboardCheck, "PSV semanal"],
         ["psv-ritual", ClipboardList, "Ritual PSV"],
         ["spartacus", BookOpen, "SPARTACUS"],
-        ["carteiras", FolderKanban, "Carteiras"],
-        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
+        ["carteiras", FolderKanban, "ROTAS"],
+        ["reunioes", Users, "Agendamento"],
+        ["onda", Sparkles, "Onda Verde"],
+        ["excelencia", CheckCircle2, "Excelência operacional"],
         ["rmr", BarChart3, "RMR"],
         ["card-final", Flag, "Card final"],
         ["ranking", Trophy, "Troféus"],
@@ -215,14 +226,9 @@ export default function Home() {
       return <TeamManagementPanel />;
     }
 
-    if (isListIntelligentView(view)) {
-      return (
-        <RoutePortfoliosPanel
-          initialTab="route"
-          focusListIntelligent
-        />
-      );
-    }
+    if (view === "reunioes") return <MeetingSchedulingPanel />;
+    if (view === "onda") return <OndaVerdePanel />;
+    if (view === "excelencia") return <OperationalExcellencePanel />;
 
     if (isLeader && view === "painel") {
       return <LeadershipPanel />;
@@ -319,7 +325,7 @@ export default function Home() {
     }
 
     if (view === "carteiras") {
-      return <RoutePortfoliosPanel />;
+      return <RoutePortfoliosPanel initialTab="route" />;
     }
 
     if (view === "ranking") {
@@ -390,6 +396,7 @@ export default function Home() {
                     ? "bg-lime-200 font-semibold text-emerald-950"
                     : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
                 }`}
+                aria-current={view === key ? "page" : undefined}
               >
                 <Icon size={17} />
                 {label}
@@ -474,8 +481,8 @@ export default function Home() {
       </div>
 
       {/* NAVEGAÇÃO MOBILE */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-emerald-100 bg-white p-2 lg:hidden">
-        {nav.slice(0, 5).map(([key, Icon, label]) => (
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex gap-1 overflow-x-auto border-t border-emerald-100 bg-white p-2 lg:hidden">
+        {nav.map(([key, Icon, label]) => (
           <button
             key={key}
             type="button"
@@ -485,7 +492,7 @@ export default function Home() {
             onKeyDown={(event) =>
               handleNavigationKeyDown(event, key)
             }
-            className={`grid place-items-center gap-1 rounded-md px-2 py-1 text-[9px] ${
+            className={`grid min-w-[58px] shrink-0 place-items-center gap-1 rounded-md px-2 py-1 text-[9px] ${
               view === key
                 ? "text-emerald-700"
                 : "text-emerald-700/50"

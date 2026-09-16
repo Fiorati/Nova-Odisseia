@@ -63,3 +63,11 @@ export async function sendPasswordResetCode(input: { email: string; name: string
   });
   if (!response.ok) throw new Error("Não foi possível enviar o código de redefinição. Tente novamente em alguns minutos.");
 }
+
+export async function sendOperationalReminder(input: { email: string; name: string; subject: string; text: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) throw new Error("O envio de e-mail ainda não está configurado.");
+  const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [input.email], subject: input.subject, text: `Olá, ${input.name}.\n\n${input.text}\n\nNova Odisseia: Fiorati` }) });
+  if (!response.ok) throw new Error("Não foi possível enviar o lembrete.");
+}

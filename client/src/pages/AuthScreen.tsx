@@ -70,7 +70,7 @@ export default function AuthScreen() {
   const [code, setCode] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [leadershipRole, setLeadershipRole] = useState<
-    "none" | "polo" | "distrital"
+    "none" | "polo" | "interino" | "distrital" | "sdr"
   >("none");
 
   const utils = trpc.useUtils();

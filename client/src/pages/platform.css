@@ -29,64 +29,7 @@ aside .fiorati-mark + div b::after { content: "ODISSEIA: FIORATI"; display: bloc
 header > button { font-size: 0; }
 header > button::after { content: "NOVA ODISSEIA"; font-size: .875rem; }
 
-/* Fiodisseu: mascote decorativo da Nova Odisseia, mantido fora do fluxo de interação. */
+/* Mantém o lockup textual sem renderizar o mascote decorativo. */
 .fiorati-mark {
   display: none !important;
-}
-
-aside > div:first-child,
-header > button {
-  position: relative;
-}
-
-aside > div:first-child::before,
-header > button::before {
-  content: "";
-  display: block;
-  width: 34px;
-  height: 42px;
-  flex: 0 0 34px;
-  background: url("/assets/fiodisseu-mascote-transparent.png") center / contain no-repeat;
-}
-
-header > button::before {
-  position: absolute;
-  left: 0;
-  width: 22px;
-  height: 26px;
-}
-
-header > button {
-  padding-left: 28px;
-}
-
-main::after {
-  content: "";
-  position: fixed;
-  z-index: 10;
-  width: 84px;
-  height: 112px;
-  pointer-events: none;
-  background: url("/assets/fiodisseu-mascote-transparent.png") center bottom / contain no-repeat;
-  filter: drop-shadow(0 8px 10px rgba(14, 52, 38, .18));
-  opacity: 0;
-  transform: translateY(20px) rotate(-2deg);
-  animation: fiodisseu-roam 74s cubic-bezier(.23, 1, .32, 1) infinite;
-}
-
-@keyframes fiodisseu-roam {
-  0%, 7%, 100% { right: 18px; bottom: 76px; opacity: 0; transform: translateY(20px) rotate(-2deg); }
-  9%, 16% { right: 18px; bottom: 76px; opacity: .94; transform: translateY(0) rotate(-2deg); }
-  20%, 34% { left: 18px; top: 90px; right: auto; bottom: auto; opacity: 0; transform: translateY(-16px) rotate(2deg); }
-  36%, 43% { left: 18px; top: 90px; right: auto; bottom: auto; opacity: .94; transform: translateY(0) rotate(2deg); }
-  47%, 68% { left: auto; top: auto; right: 24px; bottom: 76px; opacity: 0; transform: translateY(20px) rotate(-2deg); }
-  70%, 77% { left: auto; top: auto; right: 24px; bottom: 76px; opacity: .94; transform: translateY(0) rotate(-2deg); }
-}
-
-@media (max-width: 640px) {
-  main::after { width: 62px; height: 84px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  main::after { animation: none; opacity: .78; right: 12px; bottom: 68px; }
 }

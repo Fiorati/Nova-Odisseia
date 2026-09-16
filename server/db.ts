@@ -28,6 +28,10 @@ import {
   simulations,
   teamDailyPromises,
   teamSchedules,
+  meetingLeads,
+  meetingPeriodMetrics,
+  operationalRecords,
+  ondaDuos,
   userNotifications,
   users,
   type InsertUser,
@@ -158,7 +162,7 @@ export async function getUserByEmail(email: string) {
   return rows[0] ?? null;
 }
 
-export async function saveEmailVerificationChallenge(input: { email: string; name: string; leadershipRole: "none" | "polo" | "distrital"; codeHash: string; codeSalt: string; expiresAt: Date }) {
+export async function saveEmailVerificationChallenge(input: { email: string; name: string; leadershipRole: "none" | "polo" | "interino" | "distrital" | "sdr"; codeHash: string; codeSalt: string; expiresAt: Date }) {
   const db = await getDb();
   await db.insert(emailVerificationChallenges).values({ ...input, verificationTokenHash: "", verificationTokenSalt: "", attempts: 0 }).onDuplicateKeyUpdate({
     set: { name: input.name, leadershipRole: input.leadershipRole, codeHash: input.codeHash, codeSalt: input.codeSalt, verificationTokenHash: "", verificationTokenSalt: "", expiresAt: input.expiresAt, verifiedAt: null, consumedAt: null, attempts: 0 },
@@ -217,7 +221,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   });
 }
 
-export async function createEmailAccount(input: { name: string; email: string; openId: string; passwordHash: string; passwordSalt: string; leadershipRole?: "none" | "polo" | "distrital"; role?: "user" | "admin" }) {
+export async function createEmailAccount(input: { name: string; email: string; openId: string; passwordHash: string; passwordSalt: string; leadershipRole?: "none" | "polo" | "interino" | "distrital" | "sdr"; role?: "user" | "admin" }) {
   const db = await getDb();
   const role = input.role ?? (isSystemAdminEmail(input.email) ? "admin" : "user");
   const created = await db.insert(users).values({
@@ -292,7 +296,7 @@ export async function listAdminProfiles(adminUserId: number) {
 }
 
 /** Alteração organizacional global, isolada do fluxo de autoedição do perfil comum. */
-export async function updateAdminProfile(adminUserId: number, input: { userId: number; displayName: string; leadershipRole: "none" | "polo" | "distrital"; regional: string; district: string; polo: string; route: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients: number }) {
+export async function updateAdminProfile(adminUserId: number, input: { userId: number; displayName: string; leadershipRole: "none" | "polo" | "interino" | "distrital" | "sdr"; regional: string; district: string; polo: string; route: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients: number }) {
   const db = await assertGlobalAdministrator(adminUserId);
   const [target] = await db.select().from(agentProfiles).where(eq(agentProfiles.userId, input.userId)).limit(1);
   if (!target) throw new Error("Perfil não encontrado.");
@@ -859,7 +863,7 @@ export async function getMonthlyTrophies(monthKey: string) {
   };
 }
 
-export async function updateProfile(userId: number, input: { displayName: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients?: number; profileVisibleInRanking: boolean; leadershipRole?: "none" | "polo" | "distrital"; regional: string; district: string; polo: string; route: string }) {
+export async function updateProfile(userId: number, input: { displayName: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients?: number; profileVisibleInRanking: boolean; leadershipRole?: "none" | "polo" | "interino" | "distrital" | "sdr"; regional: string; district: string; polo: string; route: string }) {
   const db = await getDb();
   const existing = (await db.select().from(agentProfiles).where(eq(agentProfiles.userId, userId)).limit(1))[0];
   const leadershipRole = input.leadershipRole ?? existing?.leadershipRole ?? "none";
@@ -1135,7 +1139,7 @@ export async function updateEngagementCampaign(userId: number, id: number, input
   const campaign = (await actor.db.select().from(engagementCampaigns).where(eq(engagementCampaigns.id, id)).limit(1))[0]; if (!campaign) throw new Error("Campanha não encontrada."); return { ...campaign, projection: await campaignProjection(actor, campaign), editable: true };
 }
 
-export async function setLeadershipRole(userId: number, role: "none" | "polo" | "distrital") {
+export async function setLeadershipRole(userId: number, role: "none" | "polo" | "interino" | "distrital" | "sdr") {
   const db = await getDb();
   const profile = (await db.select().from(agentProfiles).where(eq(agentProfiles.userId, userId)).limit(1))[0];
   if (!profile) throw new Error("Perfil não encontrado.");
@@ -1350,4 +1354,71 @@ export async function createSpartacusPdi(userId: number, input: Omit<SpartacusPl
   const [row] = await db.select().from(spartacusPdis).where(and(eq(spartacusPdis.id, id), eq(spartacusPdis.userId, userId))).limit(1);
   if (!row) throw new Error("PDI não encontrado.");
   return { ...row, plan };
+}
+
+type MeetingStatus = "novo" | "contato" | "agendada" | "realizada" | "cancelada";
+
+export async function listMeetingLeads(userId: number) {
+  const db = await getDb();
+  const visibleIds = (await listTeamProfiles(userId)).map(member => member.userId);
+  if (!visibleIds.length) return [];
+  return db.select().from(meetingLeads).where(inArray(meetingLeads.createdByUserId, visibleIds)).orderBy(desc(meetingLeads.updatedAt)).limit(500);
+}
+
+export async function saveMeetingLead(userId: number, input: { id?: number; cnpj: string; tradeName: string; segment: string; route: string; decisionMaker: string; contact: string; notes?: string | null; status: MeetingStatus }) {
+  const db = await getDb();
+  const [actor] = (await listTeamProfiles(userId)).filter(member => member.userId === userId);
+  if (!actor) throw new Error("Perfil do usuário não encontrado.");
+  const values = { createdByUserId: userId, polo: actor.polo, cnpj: input.cnpj.trim(), tradeName: input.tradeName.trim(), segment: input.segment.trim(), route: input.route.trim(), decisionMaker: input.decisionMaker.trim(), contact: input.contact.trim(), notes: input.notes?.trim() || null, status: input.status };
+  if (!values.tradeName) throw new Error("Informe o nome fantasia.");
+  if (input.id) await db.update(meetingLeads).set({ ...values, updatedAt: new Date() }).where(and(eq(meetingLeads.id, input.id), eq(meetingLeads.createdByUserId, userId)));
+  else await db.insert(meetingLeads).values(values);
+  return { success: true };
+}
+
+export async function getMeetingPeriod(userId: number, periodKey: string) {
+  const db = await getDb();
+  const [row] = await db.select().from(meetingPeriodMetrics).where(and(eq(meetingPeriodMetrics.userId, userId), eq(meetingPeriodMetrics.periodKey, periodKey))).limit(1);
+  return row ?? { userId, periodKey, callsMade: 0, callsAnswered: 0, meetingsBooked: 0, clientsCredited: 0 };
+}
+
+export async function saveMeetingPeriod(userId: number, input: { periodKey: string; callsMade: number; callsAnswered: number; meetingsBooked: number; clientsCredited: number }) {
+  const db = await getDb();
+  const values = { userId, periodKey: input.periodKey, callsMade: Math.max(0, Math.floor(input.callsMade)), callsAnswered: Math.max(0, Math.floor(input.callsAnswered)), meetingsBooked: Math.max(0, Math.floor(input.meetingsBooked)), clientsCredited: Math.max(0, Math.floor(input.clientsCredited)) };
+  await db.insert(meetingPeriodMetrics).values(values).onDuplicateKeyUpdate({ set: { ...values, updatedAt: new Date() } });
+  return getMeetingPeriod(userId, input.periodKey);
+}
+
+export async function listOndaMembers(userId: number) { return listTeamProfiles(userId); }
+
+export async function saveOndaDuo(userId: number, input: { firstUserId: number; secondUserId: number; days: string; meeting: string; plan: string; target: number }) {
+  const db = await getDb();
+  const allowed = new Set((await listTeamProfiles(userId)).map(member => member.userId));
+  if (!allowed.has(input.firstUserId) || !allowed.has(input.secondUserId) || input.firstUserId === input.secondUserId) throw new Error("A dupla precisa estar no seu escopo de Polo.");
+  await db.insert(ondaDuos).values({ createdByUserId: userId, firstUserId: input.firstUserId, secondUserId: input.secondUserId, days: input.days.trim(), meeting: input.meeting.trim(), plan: input.plan.trim(), target: Math.max(1, Math.floor(input.target)) });
+  return { success: true };
+}
+
+export async function listOndaDuos(userId: number) {
+  const db = await getDb();
+  const allowed = new Set((await listTeamProfiles(userId)).map(member => member.userId));
+  if (!allowed.size) return [];
+  return db.select().from(ondaDuos).where(and(eq(ondaDuos.createdByUserId, userId), inArray(ondaDuos.firstUserId, Array.from(allowed)))).orderBy(desc(ondaDuos.createdAt));
+}
+
+export async function listOperationalRecords(userId: number, kind: "sparring" | "lista" | "migracao" | "ativacao" | "onboarding") {
+  const db = await getDb();
+  const targetIds = (await listTeamProfiles(userId)).map(member => member.userId);
+  if (!targetIds.length) return [];
+  const rows = await db.select().from(operationalRecords).where(and(eq(operationalRecords.kind, kind), eq(operationalRecords.ownerUserId, userId), inArray(operationalRecords.targetUserId, targetIds))).limit(500);
+  return rows.map(row => ({ ...row, payload: JSON.parse(row.payloadJson) as Record<string, unknown> }));
+}
+
+export async function saveOperationalRecord(userId: number, input: { targetUserId: number; kind: "sparring" | "lista" | "migracao" | "ativacao" | "onboarding"; payload: Record<string, unknown>; sourceFileName?: string }) {
+  const db = await getDb();
+  const allowed = new Set((await listTeamProfiles(userId)).map(member => member.userId));
+  if (!allowed.has(input.targetUserId)) throw new Error("Agente fora do seu escopo.");
+  const values = { ownerUserId: userId, targetUserId: input.targetUserId, kind: input.kind, payloadJson: JSON.stringify(input.payload), sourceFileName: input.sourceFileName?.trim() ?? "" };
+  await db.insert(operationalRecords).values(values).onDuplicateKeyUpdate({ set: { payloadJson: values.payloadJson, sourceFileName: values.sourceFileName, updatedAt: new Date() } });
+  return { success: true };
 }

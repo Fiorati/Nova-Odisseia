@@ -18,7 +18,7 @@ type TeamMember = {
   userId: number;
   email: string | null;
   displayName: string;
-  leadershipRole: "none" | "polo" | "distrital";
+  leadershipRole: "none" | "polo" | "interino" | "distrital" | "sdr";
   regional: string;
   district: string;
   polo: string;

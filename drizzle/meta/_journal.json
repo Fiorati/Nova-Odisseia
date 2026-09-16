@@ -141,6 +141,27 @@
       "when": 1789419870397,
       "tag": "0019_young_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1789464000000,
+      "tag": "0020_interino_sdr_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1789465000000,
+      "tag": "0021_meeting_scheduling",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1789466000000,
+      "tag": "0022_operations_onda",
+      "breakpoints": true
     }
   ]
 }

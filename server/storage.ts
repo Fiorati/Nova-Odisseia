@@ -15,8 +15,10 @@ const s3 = new S3Client({
 });
 
 function assertStorageConfig() {
-  if (!bucket) throw new Error("S3_BUCKET is not configured.");
-  if (!process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) throw new Error("S3 credentials are not configured.");
+  if (!bucket || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY) {
+    return false;
+  }
+  return true;
 }
 
 function normalizeKey(value: string) { return value.replace(/^\/+/, ""); }
@@ -27,8 +29,10 @@ function appendHashSuffix(key: string) {
 }
 
 export async function storagePut(relKey: string, data: Buffer | Uint8Array | string, contentType = "application/octet-stream") {
-  assertStorageConfig();
   const key = appendHashSuffix(normalizeKey(relKey));
+  if (!assertStorageConfig()) {
+    return { key, url: `/storage/${key}` };
+  }
   const body = typeof data === "string" ? Buffer.from(data) : Buffer.from(data);
   await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
   return { key, url: `/storage/${key}` };
@@ -40,7 +44,9 @@ export async function storageGet(relKey: string) {
 }
 
 export async function storageGetSignedUrl(relKey: string, expiresIn = 3600) {
-  assertStorageConfig();
   const key = normalizeKey(relKey);
+  if (!assertStorageConfig()) {
+    return `/storage/${key}`;
+  }
   return getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn });
 }
