@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Megaphone, Plus, Trash2 } from "lucide-react";
+import { ImagePlus, Megaphone, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -13,11 +13,13 @@ export default function BestPracticesFeed() {
   const feed = trpc.bestPractices.list.useQuery();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [image, setImage] = useState<File | null>(null);
   const create = trpc.bestPractices.create.useMutation({
     onSuccess: async () => {
       await utils.bestPractices.list.invalidate();
       setTitle("");
       setContent("");
+      setImage(null);
       toast.success("Boa prática publicada para toda a plataforma.");
     },
     onError: error => toast.error(error.message),
@@ -58,10 +60,30 @@ export default function BestPracticesFeed() {
         <Button
           className="w-fit bg-[#002b1d]"
           disabled={create.isPending || !title.trim() || !content.trim()}
-          onClick={() => create.mutate({ title, content })}
+          onClick={async () => {
+            const imageDataBase64 = image
+              ? await fileToBase64(image)
+              : undefined;
+            create.mutate({
+              title,
+              content,
+              imageDataBase64,
+              imageMimeType: image?.type,
+              imageFileName: image?.name,
+            });
+          }}
         >
           <Plus size={16} /> Publicar
         </Button>
+        <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-emerald-700">
+          <ImagePlus size={15} /> {image ? image.name : "Anexar imagem"}
+          <input
+            className="sr-only"
+            type="file"
+            accept="image/*"
+            onChange={event => setImage(event.target.files?.[0] ?? null)}
+          />
+        </label>
       </div>
       <div className="mt-5 space-y-3">
         {posts.map(post => (
@@ -91,6 +113,13 @@ export default function BestPracticesFeed() {
             <p className="mt-2 whitespace-pre-line text-sm text-emerald-900/80">
               {post.content}
             </p>
+            {post.imageUrl && (
+              <img
+                className="mt-3 max-h-96 w-full rounded-lg object-cover"
+                src={post.imageUrl}
+                alt="Imagem anexada à boa prática"
+              />
+            )}
           </article>
         ))}
         {!posts.length && (
@@ -101,4 +130,12 @@ export default function BestPracticesFeed() {
       </div>
     </section>
   );
+}
+
+async function fileToBase64(file: File) {
+  const buffer = await file.arrayBuffer();
+  let binary = "";
+  for (const byte of new Uint8Array(buffer))
+    binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
