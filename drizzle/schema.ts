@@ -233,6 +233,34 @@ export const bestPracticePosts = mysqlTable("best_practice_posts", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => ({ createdAtIndex: index("best_practice_posts_created_at_idx").on(table.createdAt) }));
 
+export const meetingLeads = mysqlTable("meeting_leads", {
+  id: int("id").autoincrement().primaryKey(),
+  createdByUserId: int("createdByUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  polo: varchar("polo", { length: 120 }).notNull().default(""),
+  cnpj: varchar("cnpj", { length: 40 }).notNull().default(""),
+  tradeName: varchar("tradeName", { length: 160 }).notNull(),
+  tpv: double("tpv").notNull().default(0),
+  segment: varchar("segment", { length: 160 }).notNull().default(""),
+  route: varchar("route", { length: 120 }).notNull().default(""),
+  decisionMaker: varchar("decisionMaker", { length: 160 }).notNull().default(""),
+  contact: varchar("contact", { length: 160 }).notNull().default(""),
+  notes: text("notes"),
+  status: mysqlEnum("status", ["novo", "contato", "agendada", "realizada", "cancelada"]).notNull().default("novo"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ poloIndex: index("meeting_leads_polo_idx").on(table.polo), creatorIndex: index("meeting_leads_creator_idx").on(table.createdByUserId) }));
+
+export const meetingPeriodMetrics = mysqlTable("meeting_period_metrics", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  periodKey: varchar("periodKey", { length: 7 }).notNull(),
+  callsMade: int("callsMade").notNull().default(0),
+  callsAnswered: int("callsAnswered").notNull().default(0),
+  meetingsBooked: int("meetingsBooked").notNull().default(0),
+  clientsCredited: int("clientsCredited").notNull().default(0),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ userPeriodUnique: uniqueIndex("meeting_period_metrics_user_period_uq").on(table.userId, table.periodKey) }));
+
 export const engagementCampaigns = mysqlTable("engagement_campaigns", {
   id: int("id").autoincrement().primaryKey(),
   ownerUserId: int("ownerUserId").notNull().references(() => users.id, { onDelete: "cascade" }),

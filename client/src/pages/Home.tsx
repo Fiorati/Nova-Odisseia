@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
 import {
   BarChart3,
+  CalendarDays,
   Calculator,
   CheckCircle2,
   ClipboardCheck,
@@ -39,6 +40,7 @@ import SkillsDashboard from "./SkillsDashboard";
 import ItakaDailyWelcome from "./ItakaDailyWelcome";
 import BestPracticesFeed from "./BestPracticesFeed";
 import TaskDescriptionGeneratorPanel from "./TaskDescriptionGeneratorPanel";
+import MeetingSchedulingPanel from "./MeetingSchedulingPanel";
 import {
   ItakaEmblem,
   LaurelTop1,
@@ -64,6 +66,7 @@ type View =
   | "prospeccao"
   | "campanhas"
   | "spartacus"
+  | "reunioes"
   | "descricao-tarefa";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", {
@@ -926,6 +929,7 @@ export default function Home() {
       "campanhas",
       "spartacus",
       "descricao-tarefa",
+      "reunioes",
     ].includes(value ?? "")
       ? (value as View)
       : "painel";
@@ -1019,6 +1023,7 @@ export default function Home() {
         ["campanhas", Megaphone, "Campanhas"],
         ["psv", ClipboardCheck, "Plano semanal"],
         ["descricao-tarefa", FileText, "Descrição da tarefa"],
+        ["reunioes", CalendarDays, "Agendamento de reuniões"],
         ["ranking", Trophy, "Troféus"],
         ["perfil", Users, "Meu perfil"],
       ] as const)
@@ -1031,6 +1036,7 @@ export default function Home() {
         ["calculadora", Calculator, "Calculadora RV"],
         ["psv", ClipboardCheck, "Plano semanal"],
         ["descricao-tarefa", FileText, "Descrição da tarefa"],
+        ["reunioes", CalendarDays, "Agendamento de reuniões"],
         ["rmr", BarChart3, "RMR"],
         ["card-final", Flag, "Card final"],
         ["ranking", Trophy, "Troféus"],
@@ -1054,6 +1060,10 @@ export default function Home() {
 
     if (view === "descricao-tarefa") {
       return <TaskDescriptionGeneratorPanel />;
+    }
+
+    if (view === "reunioes") {
+      return <MeetingSchedulingPanel />;
     }
 
     if (isLeader && view === "painel") {

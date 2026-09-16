@@ -70,6 +70,10 @@ import {
   listBestPracticePosts,
   createBestPracticePost,
   removeBestPracticePost,
+  listMeetingLeads,
+  saveMeetingLead,
+  listMeetingPeriod,
+  saveMeetingPeriod,
   savePsvDemand,
   removePsvDemand,
   removeNordicActivationPlan,
@@ -822,6 +826,24 @@ export const appRouter = router({
       .mutation(({ ctx, input }) =>
         removeBestPracticePost(ctx.user.id, ctx.user.role === "admin", input.id)
       ),
+  }),
+  meetings: router({
+    list: protectedProcedure.query(() => listMeetingLeads()),
+    save: protectedProcedure.input(z.object({
+      id: z.number().int().positive().optional(),
+      polo: z.string().max(120).optional(),
+      cnpj: z.string().max(40),
+      tradeName: z.string().trim().min(2).max(160),
+      tpv: z.number().min(0),
+      segment: z.string().max(160),
+      route: z.string().max(120),
+      decisionMaker: z.string().max(160),
+      contact: z.string().max(160),
+      notes: z.string().max(4000).optional(),
+      status: z.enum(["novo", "contato", "agendada", "realizada", "cancelada"]),
+    })).mutation(({ ctx, input }) => saveMeetingLead(ctx.user.id, input)),
+    period: protectedProcedure.input(z.object({ periodKey: z.string().regex(/^\d{4}-\d{2}$/) })).query(({ ctx, input }) => listMeetingPeriod(ctx.user.id, input.periodKey)),
+    savePeriod: protectedProcedure.input(z.object({ periodKey: z.string().regex(/^\d{4}-\d{2}$/), callsMade: z.number().int().min(0), callsAnswered: z.number().int().min(0), meetingsBooked: z.number().int().min(0), clientsCredited: z.number().int().min(0) })).mutation(({ ctx, input }) => saveMeetingPeriod(ctx.user.id, input)),
   }),
   psv: router({
     demands: protectedProcedure.query(({ ctx }) => listPsvDemands(ctx.user.id)),

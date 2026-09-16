@@ -1,0 +1,1 @@
+ALTER TABLE `meeting_leads` ADD `tpv` double NOT NULL DEFAULT 0;

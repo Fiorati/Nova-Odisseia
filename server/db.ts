@@ -10,6 +10,8 @@ import {
   engagementCampaigns,
   monthlyFinalCards,
   monthlyGoals,
+  meetingLeads,
+  meetingPeriodMetrics,
   nordicActivationPlans,
   nordicMicroRoutes,
   nordicMonthlyPlans,
@@ -1774,6 +1776,65 @@ export async function removeBestPracticePost(
       );
   }
   return listBestPracticePosts();
+}
+
+export async function listMeetingLeads() {
+  const db = await getDb();
+  return db.select().from(meetingLeads).orderBy(desc(meetingLeads.updatedAt)).limit(500);
+}
+
+export async function saveMeetingLead(userId: number, input: {
+  id?: number;
+  polo?: string;
+  cnpj: string;
+  tradeName: string;
+  tpv: number;
+  segment: string;
+  route: string;
+  decisionMaker: string;
+  contact: string;
+  notes?: string;
+  status: "novo" | "contato" | "agendada" | "realizada" | "cancelada";
+}) {
+  const db = await getDb();
+  const values = {
+    createdByUserId: userId,
+    polo: cleanPortfolioText(input.polo, 120),
+    cnpj: cleanPortfolioText(input.cnpj, 40),
+    tradeName: cleanPortfolioText(input.tradeName, 160),
+    tpv: Math.max(input.tpv, 0),
+    segment: cleanPortfolioText(input.segment, 160),
+    route: cleanPortfolioText(input.route, 120),
+    decisionMaker: cleanPortfolioText(input.decisionMaker, 160),
+    contact: cleanPortfolioText(input.contact, 160),
+    notes: cleanPortfolioText(input.notes, 4000) || null,
+    status: input.status,
+  };
+  if (!values.tradeName) throw new Error("Informe o nome do cliente.");
+  if (input.id) {
+    const existing = (await db.select({ id: meetingLeads.id }).from(meetingLeads).where(eq(meetingLeads.id, input.id)).limit(1))[0];
+    if (!existing) throw new Error("Agendamento não encontrado.");
+    await db.update(meetingLeads).set(values).where(eq(meetingLeads.id, input.id));
+  } else {
+    await db.insert(meetingLeads).values(values);
+  }
+  return listMeetingLeads();
+}
+
+export async function listMeetingPeriod(userId: number, periodKey: string) {
+  const db = await getDb();
+  return (await db.select().from(meetingPeriodMetrics).where(and(eq(meetingPeriodMetrics.userId, userId), eq(meetingPeriodMetrics.periodKey, periodKey))).limit(1))[0] ?? {
+    callsMade: 0,
+    callsAnswered: 0,
+    meetingsBooked: 0,
+    clientsCredited: 0,
+  };
+}
+
+export async function saveMeetingPeriod(userId: number, input: { periodKey: string; callsMade: number; callsAnswered: number; meetingsBooked: number; clientsCredited: number }) {
+  const db = await getDb();
+  await db.insert(meetingPeriodMetrics).values({ userId, ...input }).onDuplicateKeyUpdate({ set: input });
+  return listMeetingPeriod(userId, input.periodKey);
 }
 
 async function canAccessScheduleScope(
