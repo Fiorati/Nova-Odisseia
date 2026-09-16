@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
-import { BarChart3, Calculator, CheckCircle2, ClipboardCheck, Crown, Flag, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Target, Trophy, Users } from "lucide-react";
+import { BarChart3, Calculator, CheckCircle2, ClipboardCheck, Crown, FileText, Flag, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Target, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
@@ -21,10 +21,11 @@ import EngagementCampaignsPanel from "./EngagementCampaignsPanel";
 import SkillsDashboard from "./SkillsDashboard";
 import ItakaDailyWelcome from "./ItakaDailyWelcome";
 import BestPracticesFeed from "./BestPracticesFeed";
+import TaskDescriptionGeneratorPanel from "./TaskDescriptionGeneratorPanel";
 import "./platform.css";
 import "./ulisses-theme.css";
 
-type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "super-pipe" | "prospeccao" | "campanhas" | "spartacus";
+type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "super-pipe" | "prospeccao" | "campanhas" | "spartacus" | "descricao-tarefa";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
@@ -126,6 +127,7 @@ export default function Home() {
       "prospeccao",
       "campanhas",
       "spartacus",
+      "descricao-tarefa",
     ].includes(value ?? "")
       ? (value as View)
       : "painel";
@@ -219,6 +221,7 @@ export default function Home() {
         ["super-pipe", Layers3, "Super Pipe"],
         ["campanhas", Megaphone, "Campanhas"],
         ["psv", ClipboardCheck, "Plano semanal"],
+        ["descricao-tarefa", FileText, "Descrição da tarefa"],
         ["ranking", Trophy, "Troféus"],
         ["perfil", Users, "Meu perfil"],
       ] as const
@@ -230,6 +233,7 @@ export default function Home() {
         ["prospeccao", SearchCheck, "Cavalo de Tróia"],
         ["calculadora", Calculator, "Calculadora RV"],
         ["psv", ClipboardCheck, "Plano semanal"],
+        ["descricao-tarefa", FileText, "Descrição da tarefa"],
         ["rmr", BarChart3, "RMR"],
         ["card-final", Flag, "Card final"],
         ["ranking", Trophy, "Troféus"],
@@ -243,6 +247,10 @@ export default function Home() {
 
     if (view === "time") {
       return <TeamManagementPanel />;
+    }
+
+    if (view === "descricao-tarefa") {
+      return <TaskDescriptionGeneratorPanel />;
     }
 
     if (isLeader && view === "painel") {
