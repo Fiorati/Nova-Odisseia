@@ -338,12 +338,6 @@ export default function Home() {
         <aside className="hidden w-64 shrink-0 flex-col bg-[#0e3426] p-5 text-white lg:flex">
 
           <div className="flex items-center gap-3 px-2">
-            <img
-              className="fiorati-mark"
-              src="/assets/projeto-ulisses-helmet-clean.png"
-              alt="Símbolo da Nova Odisseia"
-            />
-
             <div>
               <p className="font-mono text-[9px] tracking-[.14em] text-emerald-200">
                 CADERNO OPERACIONAL
@@ -413,11 +407,6 @@ export default function Home() {
               className="flex items-center gap-2 font-semibold lg:hidden"
               onClick={() => navigateToView("painel")}
             >
-              <img
-                className="fiorati-mark !h-5 !w-5"
-                src="/assets/projeto-ulisses-helmet-clean.png"
-                alt=""
-              />
               NOVA ODISSEIA
             </button>
 

@@ -289,12 +289,6 @@ export default function AuthScreen() {
           <div className="relative flex h-full flex-col justify-between">
             <div>
               <div className="flex items-center gap-3">
-                <img
-                  className="fiorati-mark"
-                  src="/assets/projeto-ulisses-helmet-clean.png"
-                  alt="Símbolo da Nova Odisseia: Fiorati"
-                />
-
                 <p className="font-mono text-[10px] font-semibold tracking-[.18em] text-lime-200">
                   CADERNO OPERACIONAL
                 </p>

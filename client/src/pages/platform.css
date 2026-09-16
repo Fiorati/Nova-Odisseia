@@ -1,4 +1,3 @@
-.fiorati-mark { width: 34px; height: 34px; object-fit: contain; }
 .ledger-surface { background-image: repeating-linear-gradient(0deg, transparent 0, transparent 35px, rgba(22, 107, 64, .05) 36px, transparent 37px); }
 .itaka-passage { background: #073725 !important; border-color: #176b49 !important; box-shadow: inset 0 1px 0 rgba(229, 255, 205, .08), 0 8px 18px rgba(7, 55, 37, .12); }
 .itaka-passage-label { color: #d9f98a !important; }
@@ -21,15 +20,5 @@
 .fiorati-embedded-calculator .rate-evidence.manual { color: #617468; }
 .fiorati-embedded-calculator .rate-evidence { display: block; margin-top: 5px; font-size: 9px; line-height: 1.2; }
 
-/* Mantém a navegação existente e apresenta a assinatura atual da plataforma. */
-aside .fiorati-mark + div b { font-size: 0; }
-aside .fiorati-mark + div b span { display: none; }
-aside .fiorati-mark + div b::before { content: "NOVA"; display: block; font-size: 1.125rem; line-height: 1; }
-aside .fiorati-mark + div b::after { content: "ODISSEIA: FIORATI"; display: block; margin-top: 3px; font-family: "IBM Plex Mono", monospace; font-size: .72rem; color: #d7ef79; }
 header > button { font-size: 0; }
 header > button::after { content: "NOVA ODISSEIA"; font-size: .875rem; }
-
-/* Mantém o lockup textual sem renderizar o mascote decorativo. */
-.fiorati-mark {
-  display: none !important;
-}
