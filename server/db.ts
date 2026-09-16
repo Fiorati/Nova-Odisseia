@@ -12,6 +12,7 @@ import {
   monthlyGoals,
   meetingLeads,
   meetingPeriodMetrics,
+  newsArticles,
   nordicActivationPlans,
   nordicMicroRoutes,
   nordicMonthlyPlans,
@@ -1776,6 +1777,76 @@ export async function removeBestPracticePost(
       );
   }
   return listBestPracticePosts();
+}
+
+const DEFAULT_NEWS_ARTICLES = [
+  {
+    id: -1,
+    authorUserId: 0,
+    authorName: "Nova Odisseia",
+    title: "Nova Odisseia 2.0: a jornada da meta à Ítaka",
+    category: "Atualização da plataforma",
+    content: "A Nova Odisseia 2.0 reúne preparação, prospecção, execução, medição e desenvolvimento em uma rotina única. Comece pelo painel inicial, acompanhe seus indicadores, registre Boas Práticas e use os módulos de PSV, Estratégia, RMR e SPARTACUS para transformar dados em próximas ações.",
+    publishedAt: new Date("2026-09-16T08:00:00Z"),
+  },
+  {
+    id: -2,
+    authorUserId: 0,
+    authorName: "Nova Odisseia",
+    title: "Tutorial: como usar a plataforma no dia a dia",
+    category: "Tutorial",
+    content: "1) Confira a mensagem de Ítaka e os KPIs no painel inicial. 2) Planeje tarefas, propostas e TPV no Plano semanal. 3) Prepare clientes no Cavalo de Tróia e registre visitas na Estratégia Nórdica. 4) Use Gerar descrição da tarefa para documentar a reunião e os próximos passos do MEGA. 5) Registre o resultado no RMR e desenvolva competências no SPARTACUS.",
+    publishedAt: new Date("2026-09-16T09:00:00Z"),
+  },
+  {
+    id: -3,
+    authorUserId: 0,
+    authorName: "Nova Odisseia",
+    title: "Radar do agente Stone: o que observar em uma conversa de negócio",
+    category: "Mercado e vendas",
+    content: "Para conversar com qualidade, entenda o segmento e o fluxo de caixa do cliente, TPV, mix de débito/crédito/PIX, prazo de recebimento, custo de aluguel, conciliação, suporte e concentração no concorrente. Pergunte antes de propor: uma boa recomendação conecta a dor observada ao ecossistema, ao atendimento e ao ganho operacional, sem reduzir a conversa apenas à taxa.",
+    publishedAt: new Date("2026-09-16T10:00:00Z"),
+  },
+];
+
+export async function canManageNews(userId: number) {
+  const db = await getDb();
+  const row = (await db.select({ role: users.role, leadershipRole: agentProfiles.leadershipRole }).from(users).leftJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, userId)).limit(1))[0];
+  return row?.role === "admin" || row?.leadershipRole === "polo";
+}
+
+export async function listNewsArticles() {
+  const db = await getDb();
+  const articles = await db.select().from(newsArticles).orderBy(desc(newsArticles.publishedAt)).limit(100);
+  return [...DEFAULT_NEWS_ARTICLES, ...articles];
+}
+
+export async function saveNewsArticle(userId: number, input: { id?: number; title: string; category: string; content: string }) {
+  if (!(await canManageNews(userId))) throw new Error("Apenas admin e donos de polo podem editar notícias.");
+  const db = await getDb();
+  const values = {
+    authorUserId: userId,
+    authorName: "",
+    title: cleanPortfolioText(input.title, 200),
+    category: cleanPortfolioText(input.category, 80) || "Negócios",
+    content: cleanPortfolioText(input.content, 8000),
+  };
+  const profile = (await db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1))[0];
+  values.authorName = profile?.name || "Editor Nova Odisseia";
+  if (!values.title || !values.content) throw new Error("Informe título e conteúdo da matéria.");
+  if (input.id) {
+    await db.update(newsArticles).set({ ...values, updatedAt: new Date() }).where(eq(newsArticles.id, input.id));
+  } else {
+    await db.insert(newsArticles).values(values);
+  }
+  return listNewsArticles();
+}
+
+export async function removeNewsArticle(userId: number, id: number) {
+  if (!(await canManageNews(userId))) throw new Error("Apenas admin e donos de polo podem remover notícias.");
+  const db = await getDb();
+  await db.delete(newsArticles).where(eq(newsArticles.id, id));
+  return listNewsArticles();
 }
 
 export async function listMeetingLeads() {

@@ -39,6 +39,7 @@ import EngagementCampaignsPanel from "./EngagementCampaignsPanel";
 import SkillsDashboard from "./SkillsDashboard";
 import ItakaDailyWelcome from "./ItakaDailyWelcome";
 import BestPracticesFeed from "./BestPracticesFeed";
+import NewsFeed from "./NewsFeed";
 import TaskDescriptionGeneratorPanel from "./TaskDescriptionGeneratorPanel";
 import MeetingSchedulingPanel from "./MeetingSchedulingPanel";
 import {
@@ -789,6 +790,7 @@ function AgentDashboard({
       <NovaOdisseiaLaunchBanner />
       <ItakaDailyWelcome displayName={data.profile?.displayName || "agente"} />
       <BestPracticesFeed />
+      <NewsFeed />
       <article className="relative overflow-hidden rounded-xl border border-[#00d47e]/25 bg-[#002b1d] p-6 text-white">
         <div className="absolute -right-9 -top-14 h-44 w-44 rounded-full border-[22px] border-[#00d47e]/15" />
         <div className="relative">
@@ -1071,6 +1073,8 @@ export default function Home() {
         <div className="space-y-6">
           <NovaOdisseiaLaunchBanner />
           <LeadershipPanel />
+          <BestPracticesFeed />
+          <NewsFeed />
         </div>
       );
     }

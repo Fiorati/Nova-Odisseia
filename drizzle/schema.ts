@@ -233,6 +233,18 @@ export const bestPracticePosts = mysqlTable("best_practice_posts", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => ({ createdAtIndex: index("best_practice_posts_created_at_idx").on(table.createdAt) }));
 
+export const newsArticles = mysqlTable("news_articles", {
+  id: int("id").autoincrement().primaryKey(),
+  authorUserId: int("authorUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  authorName: varchar("authorName", { length: 160 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  category: varchar("category", { length: 80 }).notNull().default("Negócios"),
+  content: text("content").notNull(),
+  publishedAt: timestamp("publishedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ publishedAtIndex: index("news_articles_published_at_idx").on(table.publishedAt) }));
+
 export const meetingLeads = mysqlTable("meeting_leads", {
   id: int("id").autoincrement().primaryKey(),
   createdByUserId: int("createdByUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
