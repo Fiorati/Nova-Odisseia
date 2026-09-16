@@ -135,7 +135,7 @@ export default function BestPracticesFeed() {
 async function fileToBase64(file: File) {
   const buffer = await file.arrayBuffer();
   let binary = "";
-  for (const byte of new Uint8Array(buffer))
+  for (const byte of Array.from(new Uint8Array(buffer)))
     binary += String.fromCharCode(byte);
   return btoa(binary);
 }
