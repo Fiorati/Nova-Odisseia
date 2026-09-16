@@ -50,4 +50,18 @@ describe("autorização da Gestão do Time", () => {
     expect(canAccessTeamMember(admin, agent)).toBe(true);
     expect(canEditTeamProfile(admin, agent)).toBe(true);
   });
+
+  it("permite ao interino editar pessoas do próprio polo", () => {
+    const interim = identity({ id: 20, teamRoles: ["agente", "interino"] });
+    const agent = identity({ id: 21 });
+    expect(canAccessTeamMember(interim, agent)).toBe(true);
+    expect(canEditTeamProfile(interim, agent)).toBe(true);
+  });
+
+  it("permite ao responsável por agendamento ver o polo inteiro", () => {
+    const scheduler = identity({ id: 30, teamRoles: ["agente", "agendamento"] });
+    const agent = identity({ id: 31 });
+    expect(canAccessTeamMember(scheduler, agent)).toBe(true);
+    expect(canEditTeamProfile(scheduler, agent)).toBe(true);
+  });
 });

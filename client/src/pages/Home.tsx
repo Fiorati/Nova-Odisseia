@@ -3,15 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
-import { BarChart3, BookOpen, Calculator, CheckCircle2, ClipboardCheck, ClipboardList, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
+import { BarChart3, Calculator, CheckCircle2, ClipboardCheck, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
 import LegacyCalculator from "./LegacyCalculator";
 import LeadershipPanel from "./LeadershipPanel";
 import TeamManagementPanel from "./TeamManagementPanel";
-import MatrixPsvPanel from "./MatrixPsvPanel";
-import PsvRitualPanel from "./PsvRitualPanel";
+import UnifiedPsvPanel from "./UnifiedPsvPanel";
 import MonthlyFinalCardPanel from "./MonthlyFinalCardPanel";
 import NordicStrategyPanel from "./NordicStrategyPanel";
 import QuickPeriodPanel from "./QuickPeriodPanel";
@@ -20,17 +19,14 @@ import SuperPipePanel from "./SuperPipePanel";
 import ProspectionPanel from "./ProspectionPanel";
 import RmrActionPlanPanel from "./RmrActionPlanPanel";
 import EngagementCampaignsPanel from "./EngagementCampaignsPanel";
-import SpartacusPanel from "./SpartacusPanel";
-import MeetingSchedulingPanel from "./MeetingSchedulingPanel";
-import OndaVerdePanel from "./OndaVerdePanel";
-import OperationalExcellencePanel from "./OperationalExcellencePanel";
 import SkillsDashboard from "./SkillsDashboard";
 import ItakaDailyWelcome from "./ItakaDailyWelcome";
+import { isListIntelligentView, LIST_INTELLIGENT_VIEW } from "@shared/listIntelligentNavigation";
 import "./platform.css";
 import "./ulisses-theme.css";
 
-type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | "super-pipe" | "prospeccao" | "campanhas" | "spartacus" | "reunioes" | "onda" | "excelencia";
-type LeadershipRole = "none" | "polo" | "interino" | "distrital" | "sdr";
+type View = "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "spartacus";
+type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 const monthKey = () => new Date().toISOString().slice(0, 7);
@@ -87,13 +83,11 @@ export default function Home() {
       "lideranca",
       "card-final",
       "carteiras",
+      LIST_INTELLIGENT_VIEW,
       "super-pipe",
       "prospeccao",
       "campanhas",
       "spartacus",
-      "reunioes",
-      "onda",
-      "excelencia",
     ].includes(value ?? "")
       ? (value as View)
       : "painel";
@@ -142,9 +136,6 @@ export default function Home() {
    */
   const navigateToView = (nextView: View) => {
     setView(nextView);
-    const params = new URLSearchParams(window.location.search);
-    params.set("view", nextView);
-    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
   };
 
   /*
@@ -189,11 +180,9 @@ export default function Home() {
         ["time", Users, "Perfil do time"],
         ["super-pipe", Layers3, "Super Pipe"],
         ["campanhas", Megaphone, "Campanhas"],
-        ["spartacus", BookOpen, "SPARTACUS"],
-        ["carteiras", FolderKanban, "ROTAS"],
-        ["reunioes", Users, "Agendamento"],
-        ["onda", Sparkles, "Onda Verde"],
-        ["excelencia", CheckCircle2, "Excelência operacional"],
+        ["psv", ClipboardCheck, "Plano semanal"],
+        ["carteiras", FolderKanban, "Carteiras"],
+        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
         ["ranking", Trophy, "Troféus"],
         ["perfil", Users, "Meu perfil"],
       ] as const
@@ -204,13 +193,9 @@ export default function Home() {
         ["nordica", Medal, "Estratégia"],
         ["prospeccao", SearchCheck, "Cavalo de Tróia"],
         ["calculadora", Calculator, "Calculadora RV"],
-        ["psv", ClipboardCheck, "PSV semanal"],
-        ["psv-ritual", ClipboardList, "Ritual PSV"],
-        ["spartacus", BookOpen, "SPARTACUS"],
-        ["carteiras", FolderKanban, "ROTAS"],
-        ["reunioes", Users, "Agendamento"],
-        ["onda", Sparkles, "Onda Verde"],
-        ["excelencia", CheckCircle2, "Excelência operacional"],
+        ["psv", ClipboardCheck, "Plano semanal"],
+        ["carteiras", FolderKanban, "Carteiras"],
+        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
         ["rmr", BarChart3, "RMR"],
         ["card-final", Flag, "Card final"],
         ["ranking", Trophy, "Troféus"],
@@ -219,16 +204,21 @@ export default function Home() {
 
   const content = () => {
     if (view === "spartacus") {
-      return <SpartacusPanel />;
+      return <UnifiedPsvPanel profile={data?.profile ?? null} currentVariable={currentVariable} latestDetailsJson={data?.simulations?.[0]?.detailsJson} />;
     }
 
     if (view === "time") {
       return <TeamManagementPanel />;
     }
 
-    if (view === "reunioes") return <MeetingSchedulingPanel />;
-    if (view === "onda") return <OndaVerdePanel />;
-    if (view === "excelencia") return <OperationalExcellencePanel />;
+    if (isListIntelligentView(view)) {
+      return (
+        <RoutePortfoliosPanel
+          initialTab="route"
+          focusListIntelligent
+        />
+      );
+    }
 
     if (isLeader && view === "painel") {
       return <LeadershipPanel />;
@@ -286,23 +276,11 @@ export default function Home() {
     }
 
     if (view === "psv") {
-      return isLeader ? (
-        <LeadershipPanel />
-      ) : (
-        <MatrixPsvPanel
-          profile={data?.profile ?? null}
-          currentVariable={currentVariable}
-          latestDetailsJson={data?.simulations?.[0]?.detailsJson}
-        />
-      );
+      return <UnifiedPsvPanel profile={data?.profile ?? null} currentVariable={currentVariable} latestDetailsJson={data?.simulations?.[0]?.detailsJson} />;
     }
 
     if (view === "psv-ritual") {
-      return isLeader ? (
-        <LeadershipPanel />
-      ) : (
-        <PsvRitualPanel />
-      );
+      return <UnifiedPsvPanel profile={data?.profile ?? null} currentVariable={currentVariable} latestDetailsJson={data?.simulations?.[0]?.detailsJson} />;
     }
 
     if (view === "rmr") {
@@ -325,7 +303,7 @@ export default function Home() {
     }
 
     if (view === "carteiras") {
-      return <RoutePortfoliosPanel initialTab="route" />;
+      return <RoutePortfoliosPanel />;
     }
 
     if (view === "ranking") {
@@ -396,7 +374,6 @@ export default function Home() {
                     ? "bg-lime-200 font-semibold text-emerald-950"
                     : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
                 }`}
-                aria-current={view === key ? "page" : undefined}
               >
                 <Icon size={17} />
                 {label}
@@ -481,8 +458,8 @@ export default function Home() {
       </div>
 
       {/* NAVEGAÇÃO MOBILE */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex gap-1 overflow-x-auto border-t border-emerald-100 bg-white p-2 lg:hidden">
-        {nav.map(([key, Icon, label]) => (
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-emerald-100 bg-white p-2 lg:hidden">
+        {nav.slice(0, 5).map(([key, Icon, label]) => (
           <button
             key={key}
             type="button"
@@ -492,7 +469,7 @@ export default function Home() {
             onKeyDown={(event) =>
               handleNavigationKeyDown(event, key)
             }
-            className={`grid min-w-[58px] shrink-0 place-items-center gap-1 rounded-md px-2 py-1 text-[9px] ${
+            className={`grid place-items-center gap-1 rounded-md px-2 py-1 text-[9px] ${
               view === key
                 ? "text-emerald-700"
                 : "text-emerald-700/50"

@@ -9,6 +9,7 @@ import {
   createSpartacusPdi,
   listAdminProfiles,
   createEmailAccount,
+  activatePendingEmailAccount,
   ensureTestAdminAccount,
   ensureUlissesAdminAccount,
   getEmailVerificationChallenge,
@@ -38,15 +39,6 @@ import {
   listTeamProfiles,
   getTeamDailyPromises,
   listTeamSchedules,
-  listMeetingLeads,
-  saveMeetingLead,
-  getMeetingPeriod,
-  saveMeetingPeriod,
-  listOndaMembers,
-  listOndaDuos,
-  saveOndaDuo,
-  listOperationalRecords,
-  saveOperationalRecord,
   listSpartacusPdis,
   getSpartacusProgressSummary,
   updateSpartacusSkillProgress,
@@ -68,10 +60,15 @@ import {
   replaceEmailPassword,
   updateProfile,
   updateTeamProfile,
+  updateTeamMemberOrganization,
+  createTeamMember,
   saveTeamDailyPromise,
   saveTeamSchedule,
   deactivateTeamSchedule,
   removePipelineLead,
+  listPsvDemands,
+  savePsvDemand,
+  removePsvDemand,
   removeNordicActivationPlan,
   removeNordicMicroRoute,
   saveNordicActivationPlan,
@@ -103,7 +100,7 @@ const campaignInputSchema = z.object({
 const accountSchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome.").max(120),
   email: z.string().trim().email("Informe um e-mail válido."),
-  leadershipRole: z.enum(["none", "polo", "interino", "distrital", "sdr"]).default("none"),
+  leadershipRole: z.enum(["none", "polo", "distrital"]).default("none"),
 });
 const directAccountSchema = accountSchema.extend({ password: passwordSchema });
 
@@ -151,7 +148,7 @@ auth: router({
       const email = normalizedEmail(input.email);
       if (!isAllowedRegistrationEmail(email)) throw new Error("Novos cadastros são exclusivos para e-mails @stone.com.br.");
       const exists = await getUserByEmail(email);
-      if (exists) throw new Error("Já existe uma conta com este e-mail.");
+      if (exists && (exists.loginMethod !== "team-invite" || await getCredentialsForUser(exists.id))) throw new Error("Já existe uma conta com este e-mail.");
       const verification = await createVerificationCode();
       await saveEmailVerificationChallenge({ email, name: input.name, leadershipRole: input.leadershipRole, codeHash: verification.passwordHash, codeSalt: verification.passwordSalt, expiresAt: new Date(Date.now() + 15 * 60 * 1000) });
       await sendRegistrationCode({ email, name: input.name, code: verification.code });
@@ -176,15 +173,10 @@ auth: router({
       if (!challenge?.verifiedAt || challenge.consumedAt || challenge.expiresAt.getTime() < Date.now()) throw new Error("Confirmação inválida ou expirada. Solicite um novo código.");
       if (!(await verifyPassword(input.verificationToken, challenge.verificationTokenSalt, challenge.verificationTokenHash))) throw new Error("Confirmação inválida. Solicite um novo código.");
       const exists = await getUserByEmail(email);
-      if (exists) throw new Error("Já existe uma conta com este e-mail.");
       const credentials = await createPassword(input.password);
-      const user = await createEmailAccount({
-        name: challenge.name,
-        email,
-        openId: `email_${randomUUID().replaceAll("-", "")}`,
-        leadershipRole: challenge.leadershipRole,
-        ...credentials,
-      });
+      const user = exists
+        ? await activatePendingEmailAccount(exists.id, { name: challenge.name, openId: `email_${randomUUID().replaceAll("-", "")}`, ...credentials })
+        : await createEmailAccount({ name: challenge.name, email, openId: `email_${randomUUID().replaceAll("-", "")}`, leadershipRole: challenge.leadershipRole, ...credentials });
       if (!user) throw new Error("Não foi possível criar a conta.");
       await updateEmailVerificationChallenge(email, { consumedAt: new Date() });
       await setSession(ctx, user.openId, user.name ?? challenge.name);
@@ -251,7 +243,7 @@ auth: router({
       defaultGoalTpv: z.number().min(0),
       defaultGoalNewClients: z.number().int().min(0).optional(),
       profileVisibleInRanking: z.boolean(),
-      leadershipRole: z.enum(["none", "polo", "interino", "distrital", "sdr"]).optional(),
+      leadershipRole: z.enum(["none", "polo", "distrital"]).optional(),
       regional: z.string().trim().max(120),
       district: z.string().trim().max(120),
       polo: z.string().trim().max(120),
@@ -268,15 +260,33 @@ auth: router({
       return { success: true };
     }),
     currentGoal: protectedProcedure.input(z.object({ monthKey: z.string().regex(/^\d{4}-\d{2}$/) })).query(({ ctx, input }) => getPrivateGoal(ctx.user.id, input.monthKey)),
-    leadership: protectedProcedure.input(z.object({ role: z.enum(["none", "polo", "interino", "distrital", "sdr"]) })).mutation(async ({ ctx, input }) => {
+    leadership: protectedProcedure.input(z.object({ role: z.enum(["none", "polo", "distrital"]) })).mutation(async ({ ctx, input }) => {
       await setLeadershipRole(ctx.user.id, input.role);
       return { success: true };
     }),
   }),
   team: router({
     list: protectedProcedure.query(({ ctx }) => listTeamProfiles(ctx.user.id)),
+    updateMember: protectedProcedure.input(z.object({
+      targetUserId: z.number().int().positive(),
+      displayName: z.string().trim().min(2).max(120),
+      roles: z.array(z.enum(["agente", "interino", "polo", "distrital", "agendamento"])).min(1).max(5),
+      regional: z.string().trim().max(120),
+      district: z.string().trim().max(120),
+      polo: z.string().trim().max(120),
+      routes: z.array(z.string().trim().min(2).max(120)).max(20),
+    })).mutation(({ ctx, input }) => updateTeamMemberOrganization(ctx.user.id, input.targetUserId, input)),
+    createMember: protectedProcedure.input(z.object({
+      displayName: z.string().trim().min(2).max(120),
+      email: z.string().trim().email(),
+      roles: z.array(z.enum(["agente", "interino", "polo", "distrital", "agendamento"])).min(1).max(5),
+      regional: z.string().trim().max(120),
+      district: z.string().trim().max(120),
+      polo: z.string().trim().max(120),
+      routes: z.array(z.string().trim().min(2).max(120)).max(20),
+    })).mutation(({ ctx, input }) => createTeamMember(ctx.user.id, input)),
     promises: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive().optional(), promiseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })).query(({ ctx, input }) => getTeamDailyPromises(ctx.user.id, input.targetUserId ?? ctx.user.id, input.promiseDate)),
-    savePromise: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive().optional(), promiseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), proposals: z.number().int().min(0).max(100000), newClients: z.number().int().min(0).max(100000), newClientsTpv: z.number().min(0).max(1_000_000_000), notes: z.string().max(4000).nullable().optional() })).mutation(({ ctx, input }) => saveTeamDailyPromise(ctx.user.id, input.targetUserId ?? ctx.user.id, input)),
+    savePromise: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive().optional(), promiseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), salesTasks: z.number().int().min(0).max(100000).optional(), proposals: z.number().int().min(0).max(100000), newClients: z.number().int().min(0).max(100000), newClientsTpv: z.number().min(0).max(1_000_000_000), closedTpv: z.number().min(0).max(1_000_000_000).optional(), notes: z.string().max(4000).nullable().optional() })).mutation(({ ctx, input }) => saveTeamDailyPromise(ctx.user.id, input.targetUserId ?? ctx.user.id, input)),
     schedules: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive().optional() })).query(({ ctx, input }) => listTeamSchedules(ctx.user.id, input.targetUserId)),
     saveSchedule: protectedProcedure.input(z.object({ id: z.number().int().positive().optional(), scopeType: z.enum(["user", "polo", "district", "regional"]), scopeId: z.number().int().positive().nullable().optional(), dupla: z.string().max(120).nullable().optional(), weekday: z.number().int().min(0).max(6), startTime: z.string().regex(/^\d{2}:\d{2}$/), endTime: z.string().regex(/^\d{2}:\d{2}$/), activity: z.string().trim().min(2).max(160), description: z.string().max(4000).nullable().optional(), active: z.boolean().optional() })).mutation(({ ctx, input }) => saveTeamSchedule(ctx.user.id, input)),
     deactivateSchedule: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => deactivateTeamSchedule(ctx.user.id, input.id)),
@@ -293,20 +303,6 @@ auth: router({
       const { targetUserId, ...profile } = input;
       return updateTeamProfile(ctx.user.id, targetUserId, profile);
     }),
-  }),
-  meetings: router({
-    list: protectedProcedure.query(({ ctx }) => listMeetingLeads(ctx.user.id)),
-    save: protectedProcedure.input(z.object({ id: z.number().int().positive().optional(), cnpj: z.string().max(40), tradeName: z.string().trim().min(2).max(160), segment: z.string().max(160), route: z.string().max(120), decisionMaker: z.string().max(160), contact: z.string().max(160), notes: z.string().max(4000).nullable().optional(), status: z.enum(["novo", "contato", "agendada", "realizada", "cancelada"]) })).mutation(({ ctx, input }) => saveMeetingLead(ctx.user.id, input)),
-    period: protectedProcedure.input(z.object({ periodKey: z.string().regex(/^\d{4}-\d{2}$/) })).query(({ ctx, input }) => getMeetingPeriod(ctx.user.id, input.periodKey)),
-    savePeriod: protectedProcedure.input(z.object({ periodKey: z.string().regex(/^\d{4}-\d{2}$/), callsMade: z.number().int().min(0), callsAnswered: z.number().int().min(0), meetingsBooked: z.number().int().min(0), clientsCredited: z.number().int().min(0) })).mutation(({ ctx, input }) => saveMeetingPeriod(ctx.user.id, input)),
-  }),
-  onda: router({
-    members: protectedProcedure.query(({ ctx }) => listOndaMembers(ctx.user.id)),
-    duos: protectedProcedure.query(({ ctx }) => listOndaDuos(ctx.user.id)),
-    saveDuo: protectedProcedure.input(z.object({ firstUserId: z.number().int().positive(), secondUserId: z.number().int().positive(), days: z.string().max(120), meeting: z.string().max(120), plan: z.string().max(4000), target: z.number().int().min(1).max(100000) })).mutation(({ ctx, input }) => saveOndaDuo(ctx.user.id, input)),
-    list: protectedProcedure.input(z.object({ kind: z.enum(["sparring", "lista", "migracao", "ativacao", "onboarding"]) })).query(({ ctx, input }) => listOperationalRecords(ctx.user.id, input.kind)),
-    save: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive(), kind: z.enum(["sparring", "lista", "migracao", "ativacao", "onboarding"]), payload: z.record(z.string(), z.unknown()), sourceFileName: z.string().max(255).optional() })).mutation(({ ctx, input }) => saveOperationalRecord(ctx.user.id, input)),
-    remind: protectedProcedure.input(z.object({ targetUserId: z.number().int().positive(), kind: z.string().max(160) })).mutation(() => ({ success: true })),
   }),
   monthlyCard: router({
     get: protectedProcedure.input(z.object({ monthKey: z.string().regex(/^\d{4}-\d{2}$/) })).query(async ({ ctx, input }) => {
@@ -381,6 +377,9 @@ auth: router({
     update: protectedProcedure.input(campaignInputSchema.extend({ id: z.number().int().positive() })).mutation(({ ctx, input }) => { const { id, ...campaign } = input; return updateEngagementCampaign(ctx.user.id, id, campaign); }),
   }),
   psv: router({
+    demands: protectedProcedure.query(({ ctx }) => listPsvDemands(ctx.user.id)),
+    saveDemand: protectedProcedure.input(z.object({ id: z.number().int().positive().optional(), title: z.string().trim().min(2).max(240), category: z.string().trim().max(80), dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), completed: z.boolean().optional() })).mutation(({ ctx, input }) => savePsvDemand(ctx.user.id, input)),
+    removeDemand: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => removePsvDemand(ctx.user.id, input.id)),
     history: protectedProcedure.query(({ ctx }) => getPrivatePlanHistory(ctx.user.id)),
     pipeline: protectedProcedure.query(({ ctx }) => getPrivatePipelineLeads(ctx.user.id)),
     weeklyRitual: protectedProcedure.input(z.object({ weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })).query(({ ctx, input }) => getPsvWeeklyRitual(ctx.user.id, input.weekOf)),
@@ -478,7 +477,7 @@ auth: router({
   admin: router({
     profiles: protectedProcedure.query(({ ctx }) => listAdminProfiles(ctx.user.id)),
     updateProfile: protectedProcedure.input(z.object({
-      userId: z.number().int().positive(), displayName: z.string().trim().min(2).max(120), leadershipRole: z.enum(["none", "polo", "interino", "distrital", "sdr"]),
+      userId: z.number().int().positive(), displayName: z.string().trim().min(2).max(120), leadershipRole: z.enum(["none", "polo", "distrital"]),
       regional: z.string().trim().max(120), district: z.string().trim().max(120), polo: z.string().trim().max(120), route: z.string().trim().max(120),
       targetVariable: z.number().min(0).max(100_000_000), defaultGoalTpv: z.number().min(0).max(1_000_000_000), defaultGoalNewClients: z.number().int().min(0).max(1_000_000),
     })).mutation(({ ctx, input }) => updateAdminProfile(ctx.user.id, input)),

@@ -1,0 +1,3 @@
+CREATE TABLE `psv_demands` (`id` int AUTO_INCREMENT NOT NULL, `userId` int NOT NULL, `title` varchar(240) NOT NULL, `category` varchar(80) NOT NULL DEFAULT 'Comercial', `dueDate` varchar(10) NOT NULL, `completed` boolean NOT NULL DEFAULT false, `createdAt` timestamp NOT NULL DEFAULT (now()), `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP, CONSTRAINT `psv_demands_id` PRIMARY KEY(`id`));--> statement-breakpoint
+ALTER TABLE `psv_demands` ADD CONSTRAINT `psv_demands_userId_users_id_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX `psv_demands_user_due_date_idx` ON `psv_demands` (`userId`,`dueDate`);

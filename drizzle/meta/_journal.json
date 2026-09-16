@@ -162,6 +162,27 @@
       "when": 1789466000000,
       "tag": "0022_operations_onda",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1789567200000,
+      "tag": "0023_team_member_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1789567300000,
+      "tag": "0024_team_checklist_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1789567400000,
+      "tag": "0025_psv_demands",
+      "breakpoints": true
     }
   ]
 }

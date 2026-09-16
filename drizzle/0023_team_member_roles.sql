@@ -1,0 +1,3 @@
+CREATE TABLE `team_member_roles` (`id` int AUTO_INCREMENT NOT NULL, `userId` int NOT NULL, `role` varchar(32) NOT NULL, `createdAt` timestamp NOT NULL DEFAULT (now()), CONSTRAINT `team_member_roles_id` PRIMARY KEY(`id`), CONSTRAINT `team_member_roles_user_role_uq` UNIQUE(`userId`,`role`));--> statement-breakpoint
+ALTER TABLE `team_member_roles` ADD CONSTRAINT `team_member_roles_userId_users_id_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX `team_member_roles_user_idx` ON `team_member_roles` (`userId`);

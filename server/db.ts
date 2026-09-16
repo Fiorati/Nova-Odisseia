@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   agentProfiles,
@@ -17,6 +18,7 @@ import {
   prospectionSources,
   psvPipelineLeads,
   psvPlans,
+  psvDemands,
   psvWeeklyRituals,
   rmrRecords,
   routePortfolioEntries,
@@ -27,11 +29,8 @@ import {
   spartacusSkillProgress,
   simulations,
   teamDailyPromises,
+  teamMemberRoles,
   teamSchedules,
-  meetingLeads,
-  meetingPeriodMetrics,
-  operationalRecords,
-  ondaDuos,
   userNotifications,
   users,
   type InsertUser,
@@ -49,7 +48,7 @@ import { monthlyKpiPoints, sortByGlobalKpi, sortByNewClients, sortByTpv } from "
 import { tioPatinhasAlias } from "../shared/tioPatinhas";
 import { calculateSalesPipeline, listSalesPipeFilterOptions, type SalesPipeFilters, type SalesPipeEntry } from "../shared/salesPipeline";
 import { buildSpartacusPdi, type SpartacusPlanInput } from "../shared/spartacus";
-import { canAccessTeamMember, canEditTeamProfile, type TeamAccessIdentity } from "../shared/teamAccess";
+import { canAccessTeamMember, canEditTeamProfile, type TeamAccessIdentity, type TeamMemberRole } from "../shared/teamAccess";
 import { storagePut } from "./storage";
 import { createPassword } from "./credentials";
 import { isSystemAdminEmail, SYSTEM_ADMIN_EMAIL, TEST_ADMIN_EMAIL } from "./registration";
@@ -162,7 +161,7 @@ export async function getUserByEmail(email: string) {
   return rows[0] ?? null;
 }
 
-export async function saveEmailVerificationChallenge(input: { email: string; name: string; leadershipRole: "none" | "polo" | "interino" | "distrital" | "sdr"; codeHash: string; codeSalt: string; expiresAt: Date }) {
+export async function saveEmailVerificationChallenge(input: { email: string; name: string; leadershipRole: "none" | "polo" | "distrital"; codeHash: string; codeSalt: string; expiresAt: Date }) {
   const db = await getDb();
   await db.insert(emailVerificationChallenges).values({ ...input, verificationTokenHash: "", verificationTokenSalt: "", attempts: 0 }).onDuplicateKeyUpdate({
     set: { name: input.name, leadershipRole: input.leadershipRole, codeHash: input.codeHash, codeSalt: input.codeSalt, verificationTokenHash: "", verificationTokenSalt: "", expiresAt: input.expiresAt, verifiedAt: null, consumedAt: null, attempts: 0 },
@@ -221,7 +220,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   });
 }
 
-export async function createEmailAccount(input: { name: string; email: string; openId: string; passwordHash: string; passwordSalt: string; leadershipRole?: "none" | "polo" | "interino" | "distrital" | "sdr"; role?: "user" | "admin" }) {
+export async function createEmailAccount(input: { name: string; email: string; openId: string; passwordHash: string; passwordSalt: string; leadershipRole?: "none" | "polo" | "distrital"; role?: "user" | "admin" }) {
   const db = await getDb();
   const role = input.role ?? (isSystemAdminEmail(input.email) ? "admin" : "user");
   const created = await db.insert(users).values({
@@ -237,6 +236,15 @@ export async function createEmailAccount(input: { name: string; email: string; o
   const leadershipRole = role === "admin" ? "distrital" : "none";
   await db.insert(agentProfiles).values({ userId, displayName: input.name, leadershipRole });
   await db.update(routeAssignments).set({ userId }).where(eq(routeAssignments.agentEmail, normalizeAssignmentEmail(input.email)));
+  return getUserByOpenId(input.openId);
+}
+
+export async function activatePendingEmailAccount(userId: number, input: { name: string; openId: string; passwordHash: string; passwordSalt: string }) {
+  const db = await getDb();
+  const existing = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+  if (!existing || existing.loginMethod !== "team-invite" || await getCredentialsForUser(userId)) throw new Error("Esta pessoa já possui acesso ou não está pendente.");
+  await db.update(users).set({ name: input.name.trim().slice(0, 120), openId: input.openId, loginMethod: "email-password", lastSignedIn: new Date() }).where(eq(users.id, userId));
+  await db.insert(emailCredentials).values({ userId, passwordHash: input.passwordHash, passwordSalt: input.passwordSalt });
   return getUserByOpenId(input.openId);
 }
 
@@ -296,7 +304,7 @@ export async function listAdminProfiles(adminUserId: number) {
 }
 
 /** Alteração organizacional global, isolada do fluxo de autoedição do perfil comum. */
-export async function updateAdminProfile(adminUserId: number, input: { userId: number; displayName: string; leadershipRole: "none" | "polo" | "interino" | "distrital" | "sdr"; regional: string; district: string; polo: string; route: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients: number }) {
+export async function updateAdminProfile(adminUserId: number, input: { userId: number; displayName: string; leadershipRole: "none" | "polo" | "distrital"; regional: string; district: string; polo: string; route: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients: number }) {
   const db = await assertGlobalAdministrator(adminUserId);
   const [target] = await db.select().from(agentProfiles).where(eq(agentProfiles.userId, input.userId)).limit(1);
   if (!target) throw new Error("Perfil não encontrado.");
@@ -334,8 +342,25 @@ export async function assignRouteOwner(userId: number, input: { route: string; a
 }
 export async function listRouteAssignmentsForLeader(userId: number) { const db = await getDb(); const [profile, actor] = await Promise.all([db.select().from(agentProfiles).where(eq(agentProfiles.userId, userId)).limit(1).then(rows => rows[0]), db.select().from(users).where(eq(users.id, userId)).limit(1).then(rows => rows[0])]); if (!profile || (profile.leadershipRole === "none" && actor?.role !== "admin")) throw new Error("Acesso exclusivo para liderança."); const rows = await db.select().from(routeAssignments).orderBy(routeAssignments.route); return actor?.role === "admin" ? rows : rows.filter(row => profile.leadershipRole === "distrital" ? normalizeOrganizationKey(row.district) === normalizeOrganizationKey(profile.district) : normalizeOrganizationKey(row.polo) === normalizeOrganizationKey(profile.polo)); }
 
-function teamIdentity(user: typeof users.$inferSelect, profile: typeof agentProfiles.$inferSelect): TeamAccessIdentity {
-  return { id: user.id, role: user.role, leadershipRole: profile.leadershipRole, regional: profile.regional, district: profile.district, polo: profile.polo };
+function teamIdentity(user: typeof users.$inferSelect, profile: typeof agentProfiles.$inferSelect, teamRoles: TeamMemberRole[] = []): TeamAccessIdentity {
+  return { id: user.id, role: user.role, leadershipRole: profile.leadershipRole, regional: profile.regional, district: profile.district, polo: profile.polo, teamRoles };
+}
+
+function defaultTeamRoles(profile: typeof agentProfiles.$inferSelect): TeamMemberRole[] {
+  if (profile.leadershipRole === "polo") return ["polo"];
+  if (profile.leadershipRole === "distrital") return ["distrital"];
+  return ["agente"];
+}
+
+function cleanTeamRoles(roles: string[]): TeamMemberRole[] {
+  const ordered = Array.from(new Set(roles));
+  return (ordered.includes("agente") ? ordered : ["agente", ...ordered]) as TeamMemberRole[];
+}
+
+async function getTeamRoleMap(db: Awaited<ReturnType<typeof getDb>>, userIds: number[]) {
+  if (!userIds.length) return new Map<number, TeamMemberRole[]>();
+  const rows = await db.select().from(teamMemberRoles).where(inArray(teamMemberRoles.userId, userIds));
+  return new Map<number, TeamMemberRole[]>(userIds.map(userId => [userId, cleanTeamRoles(rows.filter(row => row.userId === userId).map(row => row.role as TeamMemberRole))]));
 }
 
 async function assertTeamProfileAccess(actorUserId: number, targetUserId: number) {
@@ -345,15 +370,16 @@ async function assertTeamProfileAccess(actorUserId: number, targetUserId: number
     db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, targetUserId)).limit(1),
   ]);
   const actor = actorRows[0]; const target = targetRows[0];
-  if (!actor || !target || !canAccessTeamMember(teamIdentity(actor.user, actor.profile), teamIdentity(target.user, target.profile))) {
+  const roleMap = await getTeamRoleMap(db, [actorUserId, targetUserId]);
+  if (!actor || !target || !canAccessTeamMember(teamIdentity(actor.user, actor.profile, roleMap.get(actorUserId) ?? defaultTeamRoles(actor.profile)), teamIdentity(target.user, target.profile, roleMap.get(targetUserId) ?? defaultTeamRoles(target.profile)))) {
     throw new Error("Agente fora do seu escopo de Gestão do Time.");
   }
-  return { db, actor, target };
+  return { db, actor, target, actorRoles: roleMap.get(actorUserId) ?? defaultTeamRoles(actor.profile), targetRoles: roleMap.get(targetUserId) ?? defaultTeamRoles(target.profile) };
 }
 
 async function assertTeamManagementAccess(actorUserId: number, targetUserId: number) {
   const access = await assertTeamProfileAccess(actorUserId, targetUserId);
-  if (!canEditTeamProfile(teamIdentity(access.actor.user, access.actor.profile), teamIdentity(access.target.user, access.target.profile))) {
+  if (!canEditTeamProfile(teamIdentity(access.actor.user, access.actor.profile, access.actorRoles), teamIdentity(access.target.user, access.target.profile, access.targetRoles))) {
     throw new Error("Você não pode administrar este agente.");
   }
   return access;
@@ -364,8 +390,11 @@ export async function listTeamProfiles(actorUserId: number) {
   const rows = await db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).orderBy(agentProfiles.displayName).limit(500);
   const actor = rows.find(row => row.user.id === actorUserId);
   if (!actor) throw new Error("Perfil do usuário não encontrado.");
-  const actorIdentity = teamIdentity(actor.user, actor.profile);
-  const visible = rows.filter(row => canAccessTeamMember(actorIdentity, teamIdentity(row.user, row.profile)));
+  const roleMap = await getTeamRoleMap(db, rows.map(row => row.user.id));
+  const credentials = rows.length ? await db.select({ userId: emailCredentials.userId }).from(emailCredentials).where(inArray(emailCredentials.userId, rows.map(row => row.user.id))) : [];
+  const accessSet = new Set(credentials.map(row => row.userId));
+  const actorIdentity = teamIdentity(actor.user, actor.profile, roleMap.get(actorUserId) ?? defaultTeamRoles(actor.profile));
+  const visible = rows.filter(row => canAccessTeamMember(actorIdentity, teamIdentity(row.user, row.profile, roleMap.get(row.user.id) ?? defaultTeamRoles(row.profile))));
   const userIds = visible.map(row => row.user.id);
   const [teamProfiles, assignments] = await Promise.all([
     userIds.length ? db.select().from(agentTeamProfiles).where(inArray(agentTeamProfiles.userId, userIds)) : [],
@@ -382,7 +411,97 @@ export async function listTeamProfiles(actorUserId: number) {
     route: row.profile.route,
     formalRoutes: assignments.filter(assignment => assignment.userId === row.user.id).map(assignment => assignment.route),
     teamProfile: teamProfiles.find(profile => profile.userId === row.user.id) ?? null,
+    teamRoles: roleMap.get(row.user.id) ?? defaultTeamRoles(row.profile),
+    hasAccess: accessSet.has(row.user.id),
   }));
+}
+
+type TeamMemberOrganizationInput = {
+  displayName: string;
+  roles: string[];
+  regional: string;
+  district: string;
+  polo: string;
+  routes: string[];
+};
+
+async function assertTeamOrganizationManagement(actorUserId: number, targetUserId?: number) {
+  const db = await getDb();
+  const [actorRow] = await db.select({ user: users, profile: agentProfiles }).from(users).innerJoin(agentProfiles, eq(agentProfiles.userId, users.id)).where(eq(users.id, actorUserId)).limit(1);
+  if (!actorRow) throw new Error("Perfil do usuário não encontrado.");
+  const roleMap = await getTeamRoleMap(db, [actorUserId]);
+  const actorIdentity = teamIdentity(actorRow.user, actorRow.profile, roleMap.get(actorUserId) ?? defaultTeamRoles(actorRow.profile));
+  if (actorRow.user.role !== "admin" && actorRow.profile.leadershipRole === "none" && !actorIdentity.teamRoles?.some(role => ["polo", "distrital", "interino", "agendamento"].includes(role))) {
+    throw new Error("Somente ADMIN, Distrital, Dono de Polo, Interino ou Agendamento podem administrar funções.");
+  }
+  if (!targetUserId) return { db, actor: actorRow, actorIdentity };
+  const access = await assertTeamManagementAccess(actorUserId, targetUserId);
+  return { ...access, actorIdentity };
+}
+
+function leadershipFromRoles(roles: TeamMemberRole[]) {
+  if (roles.includes("distrital")) return "distrital" as const;
+  if (roles.includes("polo")) return "polo" as const;
+  return "none" as const;
+}
+
+function assertOrganizationWithinActorScope(actor: TeamAccessIdentity, organization: { district: string; polo: string }) {
+  const roles = actor.teamRoles ?? [];
+  if (actor.role === "admin") return;
+  if (actor.leadershipRole === "distrital" || roles.includes("distrital")) {
+    if (normalizeOrganizationKey(actor.district) !== normalizeOrganizationKey(organization.district)) throw new Error("Você só pode administrar pessoas do seu distrito.");
+    return;
+  }
+  if (actor.leadershipRole === "polo" || roles.some(role => ["polo", "interino", "agendamento"].includes(role))) {
+    if (normalizeOrganizationKey(actor.polo) !== normalizeOrganizationKey(organization.polo)) throw new Error("Você só pode administrar pessoas do seu polo.");
+    return;
+  }
+  throw new Error("Você não possui escopo para administrar funções.");
+}
+
+async function saveTeamMemberOrganization(actorUserId: number, targetUserId: number, input: TeamMemberOrganizationInput) {
+  const access = await assertTeamOrganizationManagement(actorUserId, targetUserId);
+  const roles = cleanTeamRoles(input.roles);
+  if (access.actor.user.role !== "admin" && roles.some(role => role === "polo" || role === "distrital")) throw new Error("Somente ADMIN pode atribuir funções de liderança estrutural.");
+  const organization = prepareOrganizationValues({ regional: input.regional, district: input.district, polo: input.polo, route: input.routes[0] ?? "" });
+  assertOrganizationWithinActorScope(access.actorIdentity, organization);
+  const displayName = cleanPortfolioText(input.displayName, 120);
+  if (displayName.length < 2) throw new Error("Informe um nome válido.");
+  await access.db.update(agentProfiles).set({ displayName, leadershipRole: leadershipFromRoles(roles), ...organization }).where(eq(agentProfiles.userId, targetUserId));
+  await access.db.update(users).set({ name: displayName }).where(eq(users.id, targetUserId));
+  await access.db.delete(teamMemberRoles).where(eq(teamMemberRoles.userId, targetUserId));
+  await access.db.insert(teamMemberRoles).values(roles.map(role => ({ userId: targetUserId, role })));
+  await access.db.delete(routeAssignments).where(eq(routeAssignments.userId, targetUserId));
+  const targetEmail = (await access.db.select({ email: users.email }).from(users).where(eq(users.id, targetUserId)).limit(1))[0]?.email ?? "";
+  for (const route of Array.from(new Set(input.routes.map(value => cleanPortfolioText(value, 120)).filter(Boolean)))) {
+    await access.db.insert(routeAssignments).values({ route, routeKey: normalizeRouteKey(route), agentName: displayName, agentEmail: targetEmail, userId: targetUserId, regional: organization.regional, district: organization.district, polo: organization.polo, updatedByUserId: actorUserId }).onDuplicateKeyUpdate({ set: { agentName: displayName, agentEmail: targetEmail, userId: targetUserId, regional: organization.regional, district: organization.district, polo: organization.polo, updatedByUserId: actorUserId } });
+  }
+  await recordSecurityAuditEvent({ actorUserId, eventType: "team_member_organization_update", targetType: "user", targetId: targetUserId, scope: `${organization.district} · ${organization.polo}` });
+  return (await listTeamProfiles(actorUserId)).find(member => member.userId === targetUserId) ?? null;
+}
+
+export async function updateTeamMemberOrganization(actorUserId: number, targetUserId: number, input: TeamMemberOrganizationInput) {
+  return saveTeamMemberOrganization(actorUserId, targetUserId, input);
+}
+
+export async function createTeamMember(actorUserId: number, input: TeamMemberOrganizationInput & { email: string }) {
+  const access = await assertTeamOrganizationManagement(actorUserId);
+  const email = input.email.trim().toLocaleLowerCase("pt-BR");
+  const existing = await getUserByEmail(email);
+  if (existing) throw new Error("Já existe uma pessoa ou conta com este e-mail.");
+  const roles = cleanTeamRoles(input.roles);
+  if (access.actor.user.role !== "admin" && roles.some(role => role === "polo" || role === "distrital")) throw new Error("Somente ADMIN pode atribuir funções de liderança estrutural.");
+  const displayName = cleanPortfolioText(input.displayName, 120);
+  const organization = prepareOrganizationValues({ regional: input.regional, district: input.district, polo: input.polo, route: input.routes[0] ?? "" });
+  assertOrganizationWithinActorScope(access.actorIdentity, organization);
+  const created = await access.db.insert(users).values({ openId: `pending_${randomUUID().replaceAll("-", "")}`, name: displayName, email, loginMethod: "team-invite", role: "user" }).$returningId();
+  const userId = created[0]?.id;
+  if (!userId) throw new Error("Não foi possível criar a pessoa.");
+  await access.db.insert(agentProfiles).values({ userId, displayName, leadershipRole: leadershipFromRoles(roles), ...organization });
+  await access.db.insert(teamMemberRoles).values(roles.map(role => ({ userId, role })));
+  for (const route of Array.from(new Set(input.routes.map(value => cleanPortfolioText(value, 120)).filter(Boolean)))) await access.db.insert(routeAssignments).values({ route, routeKey: normalizeRouteKey(route), agentName: displayName, agentEmail: email, userId, regional: organization.regional, district: organization.district, polo: organization.polo, updatedByUserId: actorUserId }).onDuplicateKeyUpdate({ set: { agentName: displayName, agentEmail: email, userId, regional: organization.regional, district: organization.district, polo: organization.polo, updatedByUserId: actorUserId } });
+  await recordSecurityAuditEvent({ actorUserId, eventType: "team_member_created_pending", targetType: "user", targetId: userId, scope: `${organization.district} · ${organization.polo}` });
+  return { userId, hasAccess: false };
 }
 
 export async function updateTeamProfile(actorUserId: number, targetUserId: number, input: {
@@ -419,9 +538,11 @@ export async function getTeamDailyPromises(actorUserId: number, targetUserId: nu
 
 export async function saveTeamDailyPromise(actorUserId: number, targetUserId: number, input: {
   promiseDate: string;
+  salesTasks?: number;
   proposals: number;
   newClients: number;
   newClientsTpv: number;
+  closedTpv?: number;
   notes?: string | null;
 }) {
   const { db } = await assertTeamManagementAccess(actorUserId, targetUserId);
@@ -429,13 +550,40 @@ export async function saveTeamDailyPromise(actorUserId: number, targetUserId: nu
   const values = {
     userId: targetUserId,
     promiseDate: input.promiseDate,
+    salesTasks: Math.max(0, Math.floor(input.salesTasks ?? 0)),
     proposals: Math.max(0, Math.floor(input.proposals)),
     newClients: Math.max(0, Math.floor(input.newClients)),
     newClientsTpv: Math.max(0, input.newClientsTpv),
+    closedTpv: Math.max(0, input.closedTpv ?? 0),
     notes: input.notes?.trim().slice(0, 4000) || null,
   };
   await db.insert(teamDailyPromises).values(values).onDuplicateKeyUpdate({ set: { ...values, updatedAt: new Date() } });
   return (await db.select().from(teamDailyPromises).where(and(eq(teamDailyPromises.userId, targetUserId), eq(teamDailyPromises.promiseDate, input.promiseDate))).limit(1))[0] ?? null;
+}
+
+export async function listPsvDemands(userId: number) {
+  const db = await getDb();
+  return db.select().from(psvDemands).where(eq(psvDemands.userId, userId)).orderBy(psvDemands.dueDate, psvDemands.createdAt).limit(500);
+}
+
+export async function savePsvDemand(userId: number, input: { id?: number; title: string; category: string; dueDate: string; completed?: boolean }) {
+  const db = await getDb();
+  const title = cleanPortfolioText(input.title, 240);
+  if (!title) throw new Error("Informe a demanda.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) throw new Error("Informe uma data válida.");
+  const values = { userId, title, category: cleanPortfolioText(input.category, 80) || "Comercial", dueDate: input.dueDate, completed: input.completed ?? false };
+  if (input.id) {
+    const existing = (await db.select().from(psvDemands).where(and(eq(psvDemands.id, input.id), eq(psvDemands.userId, userId))).limit(1))[0];
+    if (!existing) throw new Error("Demanda não encontrada.");
+    await db.update(psvDemands).set({ ...values, updatedAt: new Date() }).where(eq(psvDemands.id, input.id));
+  } else await db.insert(psvDemands).values(values);
+  return listPsvDemands(userId);
+}
+
+export async function removePsvDemand(userId: number, id: number) {
+  const db = await getDb();
+  await db.delete(psvDemands).where(and(eq(psvDemands.id, id), eq(psvDemands.userId, userId)));
+  return { success: true };
 }
 
 async function canAccessScheduleScope(actorUserId: number, schedule: typeof teamSchedules.$inferSelect) {
@@ -863,7 +1011,7 @@ export async function getMonthlyTrophies(monthKey: string) {
   };
 }
 
-export async function updateProfile(userId: number, input: { displayName: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients?: number; profileVisibleInRanking: boolean; leadershipRole?: "none" | "polo" | "interino" | "distrital" | "sdr"; regional: string; district: string; polo: string; route: string }) {
+export async function updateProfile(userId: number, input: { displayName: string; targetVariable: number; defaultGoalTpv: number; defaultGoalNewClients?: number; profileVisibleInRanking: boolean; leadershipRole?: "none" | "polo" | "distrital"; regional: string; district: string; polo: string; route: string }) {
   const db = await getDb();
   const existing = (await db.select().from(agentProfiles).where(eq(agentProfiles.userId, userId)).limit(1))[0];
   const leadershipRole = input.leadershipRole ?? existing?.leadershipRole ?? "none";
@@ -1139,7 +1287,7 @@ export async function updateEngagementCampaign(userId: number, id: number, input
   const campaign = (await actor.db.select().from(engagementCampaigns).where(eq(engagementCampaigns.id, id)).limit(1))[0]; if (!campaign) throw new Error("Campanha não encontrada."); return { ...campaign, projection: await campaignProjection(actor, campaign), editable: true };
 }
 
-export async function setLeadershipRole(userId: number, role: "none" | "polo" | "interino" | "distrital" | "sdr") {
+export async function setLeadershipRole(userId: number, role: "none" | "polo" | "distrital") {
   const db = await getDb();
   const profile = (await db.select().from(agentProfiles).where(eq(agentProfiles.userId, userId)).limit(1))[0];
   if (!profile) throw new Error("Perfil não encontrado.");
@@ -1354,71 +1502,4 @@ export async function createSpartacusPdi(userId: number, input: Omit<SpartacusPl
   const [row] = await db.select().from(spartacusPdis).where(and(eq(spartacusPdis.id, id), eq(spartacusPdis.userId, userId))).limit(1);
   if (!row) throw new Error("PDI não encontrado.");
   return { ...row, plan };
-}
-
-type MeetingStatus = "novo" | "contato" | "agendada" | "realizada" | "cancelada";
-
-export async function listMeetingLeads(userId: number) {
-  const db = await getDb();
-  const visibleIds = (await listTeamProfiles(userId)).map(member => member.userId);
-  if (!visibleIds.length) return [];
-  return db.select().from(meetingLeads).where(inArray(meetingLeads.createdByUserId, visibleIds)).orderBy(desc(meetingLeads.updatedAt)).limit(500);
-}
-
-export async function saveMeetingLead(userId: number, input: { id?: number; cnpj: string; tradeName: string; segment: string; route: string; decisionMaker: string; contact: string; notes?: string | null; status: MeetingStatus }) {
-  const db = await getDb();
-  const [actor] = (await listTeamProfiles(userId)).filter(member => member.userId === userId);
-  if (!actor) throw new Error("Perfil do usuário não encontrado.");
-  const values = { createdByUserId: userId, polo: actor.polo, cnpj: input.cnpj.trim(), tradeName: input.tradeName.trim(), segment: input.segment.trim(), route: input.route.trim(), decisionMaker: input.decisionMaker.trim(), contact: input.contact.trim(), notes: input.notes?.trim() || null, status: input.status };
-  if (!values.tradeName) throw new Error("Informe o nome fantasia.");
-  if (input.id) await db.update(meetingLeads).set({ ...values, updatedAt: new Date() }).where(and(eq(meetingLeads.id, input.id), eq(meetingLeads.createdByUserId, userId)));
-  else await db.insert(meetingLeads).values(values);
-  return { success: true };
-}
-
-export async function getMeetingPeriod(userId: number, periodKey: string) {
-  const db = await getDb();
-  const [row] = await db.select().from(meetingPeriodMetrics).where(and(eq(meetingPeriodMetrics.userId, userId), eq(meetingPeriodMetrics.periodKey, periodKey))).limit(1);
-  return row ?? { userId, periodKey, callsMade: 0, callsAnswered: 0, meetingsBooked: 0, clientsCredited: 0 };
-}
-
-export async function saveMeetingPeriod(userId: number, input: { periodKey: string; callsMade: number; callsAnswered: number; meetingsBooked: number; clientsCredited: number }) {
-  const db = await getDb();
-  const values = { userId, periodKey: input.periodKey, callsMade: Math.max(0, Math.floor(input.callsMade)), callsAnswered: Math.max(0, Math.floor(input.callsAnswered)), meetingsBooked: Math.max(0, Math.floor(input.meetingsBooked)), clientsCredited: Math.max(0, Math.floor(input.clientsCredited)) };
-  await db.insert(meetingPeriodMetrics).values(values).onDuplicateKeyUpdate({ set: { ...values, updatedAt: new Date() } });
-  return getMeetingPeriod(userId, input.periodKey);
-}
-
-export async function listOndaMembers(userId: number) { return listTeamProfiles(userId); }
-
-export async function saveOndaDuo(userId: number, input: { firstUserId: number; secondUserId: number; days: string; meeting: string; plan: string; target: number }) {
-  const db = await getDb();
-  const allowed = new Set((await listTeamProfiles(userId)).map(member => member.userId));
-  if (!allowed.has(input.firstUserId) || !allowed.has(input.secondUserId) || input.firstUserId === input.secondUserId) throw new Error("A dupla precisa estar no seu escopo de Polo.");
-  await db.insert(ondaDuos).values({ createdByUserId: userId, firstUserId: input.firstUserId, secondUserId: input.secondUserId, days: input.days.trim(), meeting: input.meeting.trim(), plan: input.plan.trim(), target: Math.max(1, Math.floor(input.target)) });
-  return { success: true };
-}
-
-export async function listOndaDuos(userId: number) {
-  const db = await getDb();
-  const allowed = new Set((await listTeamProfiles(userId)).map(member => member.userId));
-  if (!allowed.size) return [];
-  return db.select().from(ondaDuos).where(and(eq(ondaDuos.createdByUserId, userId), inArray(ondaDuos.firstUserId, Array.from(allowed)))).orderBy(desc(ondaDuos.createdAt));
-}
-
-export async function listOperationalRecords(userId: number, kind: "sparring" | "lista" | "migracao" | "ativacao" | "onboarding") {
-  const db = await getDb();
-  const targetIds = (await listTeamProfiles(userId)).map(member => member.userId);
-  if (!targetIds.length) return [];
-  const rows = await db.select().from(operationalRecords).where(and(eq(operationalRecords.kind, kind), eq(operationalRecords.ownerUserId, userId), inArray(operationalRecords.targetUserId, targetIds))).limit(500);
-  return rows.map(row => ({ ...row, payload: JSON.parse(row.payloadJson) as Record<string, unknown> }));
-}
-
-export async function saveOperationalRecord(userId: number, input: { targetUserId: number; kind: "sparring" | "lista" | "migracao" | "ativacao" | "onboarding"; payload: Record<string, unknown>; sourceFileName?: string }) {
-  const db = await getDb();
-  const allowed = new Set((await listTeamProfiles(userId)).map(member => member.userId));
-  if (!allowed.has(input.targetUserId)) throw new Error("Agente fora do seu escopo.");
-  const values = { ownerUserId: userId, targetUserId: input.targetUserId, kind: input.kind, payloadJson: JSON.stringify(input.payload), sourceFileName: input.sourceFileName?.trim() ?? "" };
-  await db.insert(operationalRecords).values(values).onDuplicateKeyUpdate({ set: { payloadJson: values.payloadJson, sourceFileName: values.sourceFileName, updatedAt: new Date() } });
-  return { success: true };
 }

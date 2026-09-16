@@ -36,7 +36,7 @@ export const emailVerificationChallenges = mysqlTable("email_verification_challe
   id: int("id").autoincrement().primaryKey(),
   email: varchar("email", { length: 320 }).notNull(),
   name: varchar("name", { length: 120 }).notNull(),
-  leadershipRole: mysqlEnum("leadershipRole", ["none", "polo", "interino", "distrital", "sdr"]).notNull().default("none"),
+  leadershipRole: mysqlEnum("leadershipRole", ["none", "polo", "distrital"]).notNull().default("none"),
   codeHash: varchar("codeHash", { length: 256 }).notNull(),
   codeSalt: varchar("codeSalt", { length: 128 }).notNull(),
   verificationTokenHash: varchar("verificationTokenHash", { length: 256 }).notNull().default(""),
@@ -72,7 +72,7 @@ export const agentProfiles = mysqlTable("agent_profiles", {
   defaultGoalTpv: double("defaultGoalTpv").notNull().default(300000),
   defaultGoalNewClients: int("defaultGoalNewClients").notNull().default(0),
   profileVisibleInRanking: boolean("profileVisibleInRanking").notNull().default(true),
-  leadershipRole: mysqlEnum("leadershipRole", ["none", "polo", "interino", "distrital", "sdr"]).notNull().default("none"),
+  leadershipRole: mysqlEnum("leadershipRole", ["none", "polo", "distrital"]).notNull().default("none"),
   regional: varchar("regional", { length: 120 }).notNull().default(""),
   district: varchar("district", { length: 120 }).notNull().default(""),
   polo: varchar("polo", { length: 120 }).notNull().default(""),
@@ -80,6 +80,13 @@ export const agentProfiles = mysqlTable("agent_profiles", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => ({ userUnique: uniqueIndex("agent_profiles_user_unique").on(table.userId) }));
+
+export const teamMemberRoles = mysqlTable("team_member_roles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 32 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({ userRoleUnique: uniqueIndex("team_member_roles_user_role_uq").on(table.userId, table.role), userIndex: index("team_member_roles_user_idx").on(table.userId) }));
 
 export const monthlyGoals = mysqlTable("monthly_goals", {
   id: int("id").autoincrement().primaryKey(),
@@ -204,6 +211,17 @@ export const psvWeeklyRituals = mysqlTable("psv_weekly_rituals", {
   preparedLeadIdsJson: text("preparedLeadIdsJson"),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => ({ weeklyRitualUserWeekIndex: uniqueIndex("psv_weekly_rituals_user_week_uq").on(table.userId, table.weekOf) }));
+
+export const psvDemands = mysqlTable("psv_demands", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 240 }).notNull(),
+  category: varchar("category", { length: 80 }).notNull().default("Comercial"),
+  dueDate: varchar("dueDate", { length: 10 }).notNull(),
+  completed: boolean("completed").notNull().default(false),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ userDueDateIndex: index("psv_demands_user_due_date_idx").on(table.userId, table.dueDate) }));
 
 export const engagementCampaigns = mysqlTable("engagement_campaigns", {
   id: int("id").autoincrement().primaryKey(),
@@ -422,9 +440,11 @@ export const teamDailyPromises = mysqlTable("team_daily_promises", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   promiseDate: varchar("promiseDate", { length: 10 }).notNull(),
+  salesTasks: int("salesTasks").notNull().default(0),
   proposals: int("proposals").notNull().default(0),
   newClients: int("newClients").notNull().default(0),
   newClientsTpv: double("newClientsTpv").notNull().default(0),
+  closedTpv: double("closedTpv").notNull().default(0),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -450,55 +470,6 @@ export const teamSchedules = mysqlTable("team_schedules", {
   scopeIndex: index("team_schedules_scope_idx").on(table.scopeType, table.scopeId),
   weekdayIndex: index("team_schedules_weekday_idx").on(table.weekday),
 }));
-
-export const meetingLeads = mysqlTable("meeting_leads", {
-  id: int("id").autoincrement().primaryKey(),
-  createdByUserId: int("createdByUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  polo: varchar("polo", { length: 120 }).notNull().default(""),
-  cnpj: varchar("cnpj", { length: 40 }).notNull().default(""),
-  tradeName: varchar("tradeName", { length: 160 }).notNull(),
-  segment: varchar("segment", { length: 160 }).notNull().default(""),
-  route: varchar("route", { length: 120 }).notNull().default(""),
-  decisionMaker: varchar("decisionMaker", { length: 160 }).notNull().default(""),
-  contact: varchar("contact", { length: 160 }).notNull().default(""),
-  notes: text("notes"),
-  status: mysqlEnum("status", ["novo", "contato", "agendada", "realizada", "cancelada"]).notNull().default("novo"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, table => ({ poloIndex: index("meeting_leads_polo_idx").on(table.polo), creatorIndex: index("meeting_leads_creator_idx").on(table.createdByUserId) }));
-
-export const meetingPeriodMetrics = mysqlTable("meeting_period_metrics", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  periodKey: varchar("periodKey", { length: 7 }).notNull(),
-  callsMade: int("callsMade").notNull().default(0),
-  callsAnswered: int("callsAnswered").notNull().default(0),
-  meetingsBooked: int("meetingsBooked").notNull().default(0),
-  clientsCredited: int("clientsCredited").notNull().default(0),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, table => ({ userPeriodUnique: uniqueIndex("meeting_period_metrics_user_period_uq").on(table.userId, table.periodKey) }));
-
-export const operationalRecords = mysqlTable("operational_records", {
-  id: int("id").autoincrement().primaryKey(),
-  ownerUserId: int("ownerUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  targetUserId: int("targetUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  kind: mysqlEnum("kind", ["sparring", "lista", "migracao", "ativacao", "onboarding"]).notNull(),
-  payloadJson: text("payloadJson").notNull(),
-  sourceFileName: varchar("sourceFileName", { length: 255 }).notNull().default(""),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, table => ({ ownerKindTargetUnique: uniqueIndex("operational_records_owner_kind_target_uq").on(table.ownerUserId, table.targetUserId, table.kind) }));
-
-export const ondaDuos = mysqlTable("onda_duos", {
-  id: int("id").autoincrement().primaryKey(),
-  createdByUserId: int("createdByUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  firstUserId: int("firstUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  secondUserId: int("secondUserId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  days: varchar("days", { length: 120 }).notNull(),
-  meeting: varchar("meeting", { length: 120 }).notNull(),
-  plan: text("plan").notNull(),
-  target: int("target").notNull().default(25),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => ({ firstIndex: index("onda_duos_first_idx").on(table.firstUserId), secondIndex: index("onda_duos_second_idx").on(table.secondUserId) }));
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
