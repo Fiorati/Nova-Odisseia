@@ -817,7 +817,7 @@ export const appRouter = router({
         z.object({
           title: z.string().trim().min(2).max(160),
           content: z.string().trim().min(2).max(8000),
-          imageDataBase64: z.string().max(11_000_000).optional(),
+          imageDataBase64: z.string().max(12_000_000).optional(),
           imageMimeType: z.string().max(80).optional(),
           imageFileName: z.string().max(200).optional(),
         })

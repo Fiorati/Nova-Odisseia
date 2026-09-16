@@ -230,6 +230,7 @@ export const bestPracticePosts = mysqlTable("best_practice_posts", {
   title: varchar("title", { length: 160 }).notNull(),
   content: text("content").notNull(),
   imageKey: varchar("imageKey", { length: 512 }),
+  attachmentMimeType: varchar("attachmentMimeType", { length: 120 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => ({ createdAtIndex: index("best_practice_posts_created_at_idx").on(table.createdAt) }));
 

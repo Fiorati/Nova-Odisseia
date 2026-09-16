@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { ImagePlus, Megaphone, Plus, Trash2 } from "lucide-react";
+import { FileText, ImagePlus, Megaphone, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -13,16 +13,17 @@ export default function BestPracticesFeed() {
   const feed = trpc.bestPractices.list.useQuery();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [image, setImage] = useState<File | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const create = trpc.bestPractices.create.useMutation({
     onSuccess: async () => {
       await utils.bestPractices.list.invalidate();
+      await utils.bestPractices.list.refetch();
       setTitle("");
       setContent("");
-      setImage(null);
+      setAttachment(null);
       toast.success("Boa prática publicada para toda a plataforma.");
     },
-    onError: error => toast.error(error.message),
+    onError: error => toast.error(`Não foi possível publicar: ${error.message}`),
   });
   const remove = trpc.bestPractices.remove.useMutation({
     onSuccess: () => utils.bestPractices.list.invalidate(),
@@ -61,27 +62,31 @@ export default function BestPracticesFeed() {
           className="w-fit bg-[#002b1d]"
           disabled={create.isPending || !title.trim() || !content.trim()}
           onClick={async () => {
-            const imageDataBase64 = image
-              ? await fileToBase64(image)
+            if (attachment && attachment.size > 8 * 1024 * 1024) {
+              toast.error("O anexo deve ter no máximo 8 MB.");
+              return;
+            }
+            const imageDataBase64 = attachment
+              ? await fileToBase64(attachment)
               : undefined;
             create.mutate({
               title,
               content,
               imageDataBase64,
-              imageMimeType: image?.type,
-              imageFileName: image?.name,
+              imageMimeType: attachment?.type,
+              imageFileName: attachment?.name,
             });
           }}
         >
           <Plus size={16} /> Publicar
         </Button>
         <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-emerald-700">
-          <ImagePlus size={15} /> {image ? image.name : "Anexar imagem"}
+          {attachment?.type === "application/pdf" ? <FileText size={15} /> : <ImagePlus size={15} />} {attachment ? attachment.name : "Anexar imagem ou PDF"}
           <input
             className="sr-only"
             type="file"
-            accept="image/*"
-            onChange={event => setImage(event.target.files?.[0] ?? null)}
+            accept="image/*,application/pdf"
+            onChange={event => setAttachment(event.target.files?.[0] ?? null)}
           />
         </label>
       </div>
@@ -113,12 +118,17 @@ export default function BestPracticesFeed() {
             <p className="mt-2 whitespace-pre-line text-sm text-emerald-900/80">
               {post.content}
             </p>
-            {post.imageUrl && (
+            {post.attachmentUrl && post.attachmentMimeType?.startsWith("image/") && (
               <img
                 className="mt-3 max-h-96 w-full rounded-lg object-cover"
-                src={post.imageUrl}
+                src={post.attachmentUrl}
                 alt="Imagem anexada à boa prática"
               />
+            )}
+            {post.attachmentUrl && post.attachmentMimeType === "application/pdf" && (
+              <a className="mt-3 flex items-center gap-2 text-sm font-semibold text-emerald-700 underline" href={post.attachmentUrl} target="_blank" rel="noreferrer">
+                <FileText size={16} /> Abrir PDF anexado
+              </a>
             )}
           </article>
         ))}

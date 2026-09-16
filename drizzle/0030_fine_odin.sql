@@ -1,0 +1,1 @@
+ALTER TABLE `best_practice_posts` ADD `attachmentMimeType` varchar(120);

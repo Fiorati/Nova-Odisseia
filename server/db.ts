@@ -1711,6 +1711,8 @@ export async function listBestPracticePosts() {
   return rows.map(row => ({
     ...row,
     imageUrl: row.imageKey ? `/storage/${row.imageKey}` : null,
+    attachmentUrl: row.imageKey ? `/storage/${row.imageKey}` : null,
+    attachmentMimeType: row.attachmentMimeType ?? (row.imageKey ? "image/*" : null),
   }));
 }
 
@@ -1735,8 +1737,10 @@ export async function createBestPracticePost(
     const buffer = Buffer.from(input.imageDataBase64, "base64");
     if (!buffer.length || buffer.byteLength > 8 * 1024 * 1024)
       throw new Error("Envie uma imagem de até 8 MB.");
-    if (!input.imageMimeType?.startsWith("image/"))
-      throw new Error("O anexo precisa ser uma imagem.");
+    const isImage = input.imageMimeType?.startsWith("image/");
+    const isPdf = input.imageMimeType === "application/pdf";
+    if (!isImage && !isPdf)
+      throw new Error("O anexo precisa ser uma imagem ou PDF.");
     const safeName =
       (input.imageFileName ?? "imagem")
         .replace(/[^a-zA-Z0-9._-]/g, "_")
@@ -1754,6 +1758,7 @@ export async function createBestPracticePost(
     title,
     content,
     imageKey,
+    attachmentMimeType: input.imageMimeType || null,
   });
   return listBestPracticePosts();
 }
