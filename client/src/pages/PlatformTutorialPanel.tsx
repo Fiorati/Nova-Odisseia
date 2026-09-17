@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { BarChart3, BookOpen, CalendarDays, CheckCircle2, Compass, FileText, Flag, Medal, PlayCircle, SearchCheck, Sparkles, Target, Users } from "lucide-react";
 import { ItakaEmblem, NordicCompassEmblem, SpartacusEmblem, TrojanHorseEmblem } from "@/components/emblems";
 
-type TutorialStep = { id: string; title: string; subtitle: string; icon: typeof Target; color: string; what: string; how: string; impact: string };
+type TutorialIcon = ComponentType<{ size?: number; className?: string }>;
+type TutorialStep = { id: string; title: string; subtitle: string; icon: TutorialIcon; color: string; what: string; how: string; impact: string };
 
 const steps: TutorialStep[] = [
   { id: "painel", title: "Comece pelo Gestão", subtitle: "Seu ponto de partida", icon: Target, color: "bg-emerald-50 text-emerald-700", what: "Veja seus KPIs, a mensagem de Ítaka, novidades, Boas Práticas e o que merece atenção.", how: "Abra Gestão no início do dia e escolha uma ação concreta para executar.", impact: "Mais clareza, menos dispersão e uma rotina que começa pelo que realmente importa." },

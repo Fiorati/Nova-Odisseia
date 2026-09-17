@@ -1860,6 +1860,18 @@ export async function canManageNews(userId: number) {
 
 export async function listNewsArticles() {
   const db = await getDb();
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS news_articles (
+    id int AUTO_INCREMENT NOT NULL,
+    authorUserId int NOT NULL,
+    authorName varchar(160) NOT NULL,
+    title varchar(200) NOT NULL,
+    category varchar(80) NOT NULL DEFAULT 'Negócios',
+    content text NOT NULL,
+    publishedAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  )`);
   const articles = await db.select().from(newsArticles).orderBy(desc(newsArticles.publishedAt)).limit(100);
   return [...DEFAULT_NEWS_ARTICLES, ...articles];
 }
@@ -1867,6 +1879,7 @@ export async function listNewsArticles() {
 export async function saveNewsArticle(userId: number, input: { id?: number; title: string; category: string; content: string }) {
   if (!(await canManageNews(userId))) throw new Error("Apenas admin e donos de polo podem editar notícias.");
   const db = await getDb();
+  await listNewsArticles();
   const values = {
     authorUserId: userId,
     authorName: "",
