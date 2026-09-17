@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { BookOpenText, CalendarDays, Pencil, Plus, Trash2 } from "lucide-react";
 import { BookOpenText, CalendarDays, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -74,16 +73,16 @@ export default function NewsFeed() {
       <div className="mt-5 space-y-3">
         {articles.map(article => (
           <article key={article.id} className="rounded-lg border border-emerald-100 p-4">
+            {(() => { const isPinned = Boolean((article as { pinned?: boolean }).pinned); return (
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span className="rounded-full bg-lime-100 px-2 py-1 text-[10px] font-semibold text-emerald-900">{article.category}</span>
                 <h4 className="mt-2 font-semibold">{article.title}</h4>
                 <p className="mt-1 text-xs text-emerald-700/60">{article.authorName} · {new Date(article.publishedAt).toLocaleDateString("pt-BR")}</p>
               </div>
-              {canManage.data && article.id > 0 && <div className="flex gap-2"><button type="button" aria-label={`Editar ${article.title}`} className="text-emerald-600 hover:text-emerald-900" onClick={() => edit(article)}><Pencil size={15} /></button><button type="button" aria-label={`Remover ${article.title}`} className="text-emerald-600 hover:text-red-600" onClick={() => remove.mutate({ id: article.id })}><Trash2 size={15} /></button></div>}
-                          {canManage.data && article.id > 0 && <div className="flex gap-2"><button type="button" aria-label={`${article.pinned ? "Desfixar" : "Fixar"} ${article.title}`} className={article.pinned ? "text-amber-600" : "text-emerald-600"} onClick={() => pin.mutate({ id: article.id, pinned: !article.pinned })}><Pin size={15} /></button><button type="button" aria-label={`Editar ${article.title}`} className="text-emerald-600 hover:text-emerald-900" onClick={() => edit(article)}><Pencil size={15} /></button><button type="button" aria-label={`Remover ${article.title}`} className="text-emerald-600 hover:text-red-600" onClick={() => remove.mutate({ id: article.id })}><Trash2 size={15} /></button></div>}
-                            <span className="rounded-full bg-lime-100 px-2 py-1 text-[10px] font-semibold text-emerald-900">{article.pinned ? "FIXADA · " : ""}{article.category}</span>
+              {canManage.data && article.id > 0 && <div className="flex gap-2"><button type="button" aria-label={`${isPinned ? "Desfixar" : "Fixar"} ${article.title}`} className={isPinned ? "text-amber-600" : "text-emerald-600"} onClick={() => pin.mutate({ id: article.id, pinned: !isPinned })}><Pin size={15} /></button><button type="button" aria-label={`Editar ${article.title}`} className="text-emerald-600 hover:text-emerald-900" onClick={() => edit(article)}><Pencil size={15} /></button><button type="button" aria-label={`Remover ${article.title}`} className="text-emerald-600 hover:text-red-600" onClick={() => remove.mutate({ id: article.id })}><Trash2 size={15} /></button></div>}
             </div>
+            ); })()}
             <p className="mt-3 whitespace-pre-line text-sm leading-6 text-emerald-900/80">{article.content}</p>
           </article>
         ))}
