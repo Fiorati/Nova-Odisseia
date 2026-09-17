@@ -1703,11 +1703,20 @@ export async function removePsvDemand(userId: number, id: number) {
 
 export async function listBestPracticePosts() {
   const db = await getDb();
-  const rows = await db
-    .select()
-    .from(bestPracticePosts)
-    .orderBy(desc(bestPracticePosts.createdAt))
-    .limit(100);
+  let rows: Array<typeof bestPracticePosts.$inferSelect>;
+  try {
+    rows = await db.select().from(bestPracticePosts).orderBy(desc(bestPracticePosts.createdAt)).limit(100);
+  } catch {
+    const legacyRows = await db.select({
+      id: bestPracticePosts.id,
+      authorUserId: bestPracticePosts.authorUserId,
+      authorName: bestPracticePosts.authorName,
+      title: bestPracticePosts.title,
+      content: bestPracticePosts.content,
+      createdAt: bestPracticePosts.createdAt,
+    }).from(bestPracticePosts).orderBy(desc(bestPracticePosts.createdAt)).limit(100);
+    rows = legacyRows.map(row => ({ ...row, imageKey: null })) as Array<typeof bestPracticePosts.$inferSelect>;
+  }
   return rows.map(row => ({
     ...row,
     imageUrl: row.imageKey ? `/storage/${row.imageKey}` : null,
@@ -1756,13 +1765,11 @@ export async function createBestPracticePost(
     );
     imageKey = stored.key;
   }
-  await db.insert(bestPracticePosts).values({
-    authorUserId: userId,
-    authorName: displayAuthorName || "Agente",
-    title,
-    content,
-    imageKey,
-  });
+  try {
+    await db.insert(bestPracticePosts).values({ authorUserId: userId, authorName: displayAuthorName || "Agente", title, content, imageKey });
+  } catch {
+    await db.insert(bestPracticePosts).values({ authorUserId: userId, authorName: displayAuthorName || "Agente", title, content });
+  }
   return listBestPracticePosts();
 }
 
