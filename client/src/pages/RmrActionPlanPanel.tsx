@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { exportPrivatePdf } from "@/lib/printDocument";
 import { BookOpenCheck, CheckCircle2, ClipboardList, FileDown, Target } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { calculateRmrKpi } from "@shared/metrics";
 import { recommendRmrContent } from "@shared/rmrContent";
@@ -12,7 +12,18 @@ import { recommendRmrContent } from "@shared/rmrContent";
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
 export default function RmrActionPlanPanel({ defaultGoal, lastVariable }: { defaultGoal: number; lastVariable: number }) {
+  const promises = trpc.team.promises.useQuery({});
+  const dashboard = trpc.agent.dashboard.useQuery();
   const [periodLabel, setPeriodLabel] = useState("Análise mensal"); const [workingDays, setWorkingDays] = useState(20); const [salesTasks, setSalesTasks] = useState(0); const [proposals, setProposals] = useState(0); const [closedClients, setClosedClients] = useState(0); const [closedTpv, setClosedTpv] = useState(0); const [goalTpv, setGoalTpv] = useState(defaultGoal); const [variableValue, setVariableValue] = useState(lastVariable); const [rootCause, setRootCause] = useState(""); const [actionPlan, setActionPlan] = useState(""); const [owner, setOwner] = useState(""); const [expectedResult, setExpectedResult] = useState(""); const [dueAt, setDueAt] = useState("");
+  useEffect(() => {
+    const rows = promises.data ?? [];
+    if (!rows.length) return;
+    setSalesTasks(rows.reduce((sum, row) => sum + (row.salesTasks ?? 0), 0));
+    setProposals(rows.reduce((sum, row) => sum + row.proposals, 0));
+    setClosedClients(rows.reduce((sum, row) => sum + row.newClients, 0));
+    setClosedTpv(rows.reduce((sum, row) => sum + Number(row.closedTpv ?? row.newClientsTpv ?? 0), 0));
+    setGoalTpv(dashboard.data?.latestGoal?.targetTpv ?? defaultGoal);
+  }, [promises.data, dashboard.data?.latestGoal?.targetTpv, defaultGoal]);
   const calculated = useMemo(() => calculateRmrKpi({ workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv }), [workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv]);
   const recommendations = useMemo(() => recommendRmrContent({ tasksRate: calculated.taskScore, proposalsRate: calculated.proposalScore, tpvRate: calculated.tpvScore }), [calculated]);
   const save = trpc.rmr.save.useMutation({ onSuccess: result => toast.success(result.pointsAwarded ? `RMR registrada. +${result.pointsAwarded} pontos por KPI mensal.` : "RMR registrada."), onError: error => toast.error(error.message) });
