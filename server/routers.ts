@@ -75,6 +75,7 @@ import {
   canManageNews,
   saveNewsArticle,
   removeNewsArticle,
+  toggleNewsPin,
   listMeetingLeads,
   saveMeetingLead,
   listMeetingPeriod,
@@ -856,6 +857,7 @@ export const appRouter = router({
     canManage: protectedProcedure.query(({ ctx }) => canManageNews(ctx.user.id)),
     save: protectedProcedure.input(z.object({ id: z.number().int().positive().optional(), title: z.string().trim().min(2).max(200), category: z.string().trim().max(80), content: z.string().trim().min(2).max(8000) })).mutation(({ ctx, input }) => saveNewsArticle(ctx.user.id, input)),
     remove: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => removeNewsArticle(ctx.user.id, input.id)),
+    pin: protectedProcedure.input(z.object({ id: z.number().int().positive(), pinned: z.boolean() })).mutation(({ ctx, input }) => toggleNewsPin(ctx.user.id, input.id, input.pinned)),
   }),
   psv: router({
     demands: protectedProcedure.query(({ ctx }) => listPsvDemands(ctx.user.id)),

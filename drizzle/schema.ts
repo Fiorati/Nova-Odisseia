@@ -241,6 +241,7 @@ export const newsArticles = mysqlTable("news_articles", {
   title: varchar("title", { length: 200 }).notNull(),
   category: varchar("category", { length: 80 }).notNull().default("Negócios"),
   content: text("content").notNull(),
+  pinned: boolean("pinned").notNull().default(false),
   publishedAt: timestamp("publishedAt").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

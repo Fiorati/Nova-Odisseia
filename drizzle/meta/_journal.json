@@ -225,6 +225,13 @@
       "when": 1789602507416,
       "tag": "0031_late_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1789606954294,
+      "tag": "0032_blue_nova",
+      "breakpoints": true
     }
   ]
 }

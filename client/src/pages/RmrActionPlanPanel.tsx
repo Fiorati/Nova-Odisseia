@@ -26,6 +26,14 @@ export default function RmrActionPlanPanel({ defaultGoal, lastVariable }: { defa
   }, [promises.data, dashboard.data?.latestGoal?.targetTpv, defaultGoal]);
   const calculated = useMemo(() => calculateRmrKpi({ workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv }), [workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv]);
   const recommendations = useMemo(() => recommendRmrContent({ tasksRate: calculated.taskScore, proposalsRate: calculated.proposalScore, tpvRate: calculated.tpvScore }), [calculated]);
+  useEffect(() => {
+    const primary = recommendations[0];
+    if (!primary) return;
+    setRootCause(current => current || `Gargalo principal identificado em ${primary.area}: ${primary.focus}`);
+    setActionPlan(current => current || `Aplicar o playbook ${primary.title}: ${primary.focus}`);
+    setOwner(current => current || "Agente responsável pela carteira");
+    setExpectedResult(current => current || "Aumentar a execução da próxima cadência e reduzir o GAP do período.");
+  }, [recommendations]);
   const save = trpc.rmr.save.useMutation({ onSuccess: result => toast.success(result.pointsAwarded ? `RMR registrada. +${result.pointsAwarded} pontos por KPI mensal.` : "RMR registrada."), onError: error => toast.error(error.message) });
   const submit = () => save.mutate({ periodLabel, workingDays, salesTasks, proposals, closedClients, closedTpv, goalTpv, variableValue, rootCause, actionPlan, owner, expectedResult, dueAt: dueAt ? new Date(`${dueAt}T12:00:00.000Z`) : null });
   const exportRmr = () => { const ok = exportPrivatePdf("RMR — Revisão mensal", periodLabel, [{ title: "Indicadores", items: [`Dias úteis: ${workingDays}`, `Tarefas de venda: ${salesTasks}`, `Propostas: ${proposals}`, `Clientes fechados: ${closedClients}`, `TPV novo: R$ ${closedTpv.toLocaleString("pt-BR")}`, `Meta TPV: R$ ${goalTpv.toLocaleString("pt-BR")}`, `RV do período: R$ ${variableValue.toLocaleString("pt-BR")}`] }, { title: `KPI global: ${percent.format(calculated.globalKpi)}%`, items: [`Tarefas: ${percent.format(calculated.taskScore * 100)}%`, `Propostas: ${percent.format(calculated.proposalScore * 100)}%`, `TPV: ${percent.format(calculated.tpvScore * 100)}%`] }, { title: "Plano de ação", items: [`Causa-raiz: ${rootCause || "Não informado."}`, `Ação: ${actionPlan || "Não informado."}`, `Responsável: ${owner || "Não informado."}`, `Prazo: ${dueAt ? new Date(`${dueAt}T12:00:00`).toLocaleDateString("pt-BR") : "Não informado."}`, `Resultado esperado: ${expectedResult || "Não informado."}`] }]); if (!ok) toast.error("Permita a janela de impressão para salvar o PDF."); };

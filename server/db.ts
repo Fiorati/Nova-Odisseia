@@ -1872,7 +1872,7 @@ export async function listNewsArticles() {
     updatedAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
   )`);
-  const articles = await db.select().from(newsArticles).orderBy(desc(newsArticles.publishedAt)).limit(100);
+  const articles = await db.select().from(newsArticles).orderBy(desc(newsArticles.pinned), desc(newsArticles.publishedAt)).limit(100);
   return [...DEFAULT_NEWS_ARTICLES, ...articles];
 }
 
@@ -1895,6 +1895,13 @@ export async function saveNewsArticle(userId: number, input: { id?: number; titl
   } else {
     await db.insert(newsArticles).values(values);
   }
+  return listNewsArticles();
+}
+
+export async function toggleNewsPin(userId: number, id: number, pinned: boolean) {
+  if (!(await canManageNews(userId))) throw new Error("Apenas admin e donos de polo podem fixar notícias.");
+  const db = await getDb();
+  await db.update(newsArticles).set({ pinned }).where(eq(newsArticles.id, id));
   return listNewsArticles();
 }
 
