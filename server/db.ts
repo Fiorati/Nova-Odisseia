@@ -1815,6 +1815,15 @@ export async function removeBestPracticePost(
 
 const DEFAULT_NEWS_ARTICLES = [
   {
+    id: -4,
+    authorUserId: 0,
+    authorName: "Nova Odisseia",
+    title: "Radar de negócios de 17/09/2026: converse sobre eficiência e caixa",
+    category: "Mercado e vendas",
+    content: "Notícia editorial do dia: em um cenário de decisão mais racional, o agente deve investigar fluxo de caixa, prazo de recebimento, custo total dos meios de pagamento e capacidade de giro antes de discutir taxa. Na conversa com o cliente, transforme a análise em perguntas: onde há perda operacional, qual produto melhora o controle e qual próximo passo pode ser medido?",
+    publishedAt: new Date("2026-09-17T08:00:00Z"),
+  },
+  {
     id: -1,
     authorUserId: 0,
     authorName: "Nova Odisseia",
