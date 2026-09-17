@@ -205,6 +205,7 @@ function PortfolioTab({
     },
     importScope: ImportScope
   ) => {
+    setPendingImport(null);
     setReferenceMonth(data.referenceMonth ?? uploadMonth);
     await utils.portfolio.getForMyRoute.invalidate();
     const duplicates = data.duplicateCount
@@ -248,7 +249,6 @@ function PortfolioTab({
     if (pendingImport.scope === "route") routeUpload.mutate(pendingImport.input);
     if (pendingImport.scope === "polo") poloUpload.mutate(pendingImport.input);
     if (pendingImport.scope === "district") districtUpload.mutate(pendingImport.input);
-    setPendingImport(null);
   };
   useEffect(() => {
     if (focusListIntelligent && type === "route") setShowStone(true);

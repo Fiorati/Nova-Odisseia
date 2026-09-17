@@ -1703,6 +1703,7 @@ export async function removePsvDemand(userId: number, id: number) {
 
 export async function listBestPracticePosts() {
   const db = await getDb();
+  await ensureBestPracticeTable(db);
   let rows: Array<typeof bestPracticePosts.$inferSelect>;
   try {
     rows = await db.select().from(bestPracticePosts).orderBy(desc(bestPracticePosts.createdAt)).limit(100);
@@ -1725,6 +1726,23 @@ export async function listBestPracticePosts() {
   }));
 }
 
+async function ensureBestPracticeTable(db: Awaited<ReturnType<typeof getDb>>) {
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS best_practice_posts (
+    id int AUTO_INCREMENT NOT NULL,
+    authorUserId int NOT NULL,
+    authorName varchar(160) NOT NULL,
+    title varchar(160) NOT NULL,
+    content text NOT NULL,
+    createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  )`);
+  try {
+    await db.execute(sql`ALTER TABLE best_practice_posts ADD COLUMN imageKey varchar(512) NULL`);
+  } catch {
+    // The column already exists on databases that ran the attachment migration.
+  }
+}
+
 export async function createBestPracticePost(
   userId: number,
   authorName: string,
@@ -1737,6 +1755,7 @@ export async function createBestPracticePost(
   }
 ) {
   const db = await getDb();
+  await ensureBestPracticeTable(db);
   const title = cleanPortfolioText(input.title, 160);
   const content = cleanPortfolioText(input.content, 8000);
   const normalizedAuthorName = cleanPortfolioText(authorName, 160);
