@@ -2,20 +2,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { gapToTarget, weeklyPace } from "@shared/nordic";
-import { NordicCompassEmblem } from "@/components/emblems";
 import {
   CalendarPlus,
-  Check,
   CheckCircle2,
   Flame,
   ListChecks,
   MapPinned,
-  Pencil,
   Plus,
   Sparkles,
   Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useEffect, useMemo, useState } from "react";
@@ -58,7 +54,7 @@ type SpartaLead = {
 
 export function selectImageFiles(
   files: FileList | File[] | null | undefined,
-  maxFiles = 8
+  maxFiles = 8,
 ) {
   const images = Array.from(files ?? []).filter(file =>
     file.type.startsWith("image/")
@@ -67,17 +63,13 @@ export function selectImageFiles(
   return images.slice(0, maxFiles);
 }
 
-export function removeItemById<T extends { id: number }>(
-  items: T[],
-  id: number
-) {
+export function removeItemById<T extends { id: number }>(items: T[], id: number) {
   return items.filter(item => item.id !== id);
 }
 
 function normalizeSpreadsheetValue(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "number")
-    return Number.isFinite(value) ? String(value) : "";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
   if (typeof value === "string") return value.trim();
   return String(value).trim();
 }
@@ -110,16 +102,12 @@ function spreadsheetStage(value: unknown): string {
 
 function spreadsheetTemperature(value: unknown): "frio" | "quente" {
   const text = normalizeSpreadsheetValue(value).toLowerCase();
-  return text.includes("quente") ||
-    text.includes("hot") ||
-    text.includes("alta")
+  return text.includes("quente") || text.includes("hot") || text.includes("alta")
     ? "quente"
     : "frio";
 }
 
-export async function parseSpreadsheetLeads(
-  file: File | Blob | null | undefined
-) {
+export async function parseSpreadsheetLeads(file: File | Blob | null | undefined) {
   if (!file) return [] as Array<SpartaLead>;
 
   const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
@@ -193,18 +181,6 @@ function SpartaFunnel({
     temperature: "frio" | "quente";
   }>;
 }) {
-  const saveUtils = trpc.useUtils();
-  const pipeline = trpc.psv.pipeline.useQuery();
-  const saveLead = trpc.psv.saveLead.useMutation({
-    onSuccess: async () => {
-      await saveUtils.psv.pipeline.invalidate();
-    },
-    onError: error => toast.error(error.message),
-  });
-  const removeLead = trpc.psv.removeLead.useMutation({
-    onSuccess: () => pipeline.refetch(),
-    onError: error => toast.error(error.message),
-  });
   const [imageNames, setImageNames] = useState<string[]>([]);
   const [manualName, setManualName] = useState("");
   const [manualTpv, setManualTpv] = useState(0);
@@ -212,28 +188,15 @@ function SpartaFunnel({
   const [rows, setRows] = useState<SpartaLead[]>(() =>
     leads.map(lead => ({ ...lead, helpRequest: "" }))
   );
-  useEffect(() => {
-    const savedRows = (pipeline.data ?? [])
-      .filter(lead => lead.segmentId === "sparta")
-      .map(lead => ({
-        id: lead.id,
-        clientName: lead.clientName,
-        projectedTpv: lead.projectedTpv,
-        stage:
-          lead.stage === "negociacao"
-            ? "Negociando"
-            : lead.stage === "qualificando"
-              ? "Qualificando"
-              : lead.stage === "planejado"
-                ? "Planejado"
-                : "Mapeado",
-        temperature: lead.temperature,
-        helpRequest: "",
-      }));
-    if (savedRows.length) setRows(savedRows);
-    else if (!rows.length)
-      setRows(leads.map(lead => ({ ...lead, helpRequest: "" })));
-  }, [pipeline.data, leads]);
+  useEffect(
+    () =>
+      setRows(current =>
+        current.length
+          ? current
+          : leads.map(lead => ({ ...lead, helpRequest: "" }))
+      ),
+    [leads]
+  );
   const addManual = () => {
     if (!manualName.trim()) return;
     setRows(current => [
@@ -252,44 +215,10 @@ function SpartaFunnel({
   };
 
   const removeRow = (id: number) => {
-    if (id > 0) removeLead.mutate({ id });
-    else setRows(current => removeItemById(current, id));
-  };
-  const saveRows = async () => {
-    try {
-      for (const row of rows) {
-        await saveLead.mutateAsync({
-          id: row.id > 0 ? row.id : undefined,
-          clientName: row.clientName,
-          temperature: row.temperature,
-          segmentId: "sparta",
-          segmentLabel: "Estratégia Sparta",
-          mcc: "",
-          cnae: "",
-          projectedTpv: row.projectedTpv,
-          nextContactAt: null,
-          stage:
-            row.stage === "Negociando"
-              ? "negociacao"
-              : row.stage === "Qualificando"
-                ? "qualificando"
-                : row.stage === "Planejado"
-                  ? "planejado"
-                  : "mapeado",
-        });
-      }
-      await pipeline.refetch();
-      toast.success(
-        `${rows.length} cliente(s) salvo(s) no funil privado da PSV.`
-      );
-    } catch {
-      toast.error("Não foi possível salvar todos os clientes da planilha.");
-    }
+    setRows(current => removeItemById(current, id));
   };
 
-  const handleSpreadsheetImport = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleSpreadsheetImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -305,11 +234,7 @@ function SpartaFunnel({
       setImportedCount(imported.length);
       toast.success(`${imported.length} cliente(s) importado(s) para o funil.`);
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível importar a planilha."
-      );
+      toast.error(error instanceof Error ? error.message : "Não foi possível importar a planilha.");
     } finally {
       event.currentTarget.value = "";
     }
@@ -327,13 +252,12 @@ function SpartaFunnel({
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-emerald-800/65">
             Anexe até 8 imagens do Super Pipe para manter a leitura operacional
-            no mesmo lugar. Os registros autorizados do funil já aparecem
-            abaixo; a transcrição automática será conectada ao processamento de
-            imagem.
+            no mesmo lugar. Os registros autorizados do funil já aparecem abaixo;
+            a transcrição automática será conectada ao processamento de imagem.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[#002b1d] px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-900">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[#0e3426] px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-900">
             <Upload size={15} /> Importar planilha
             <input
               className="sr-only"
@@ -349,22 +273,9 @@ function SpartaFunnel({
       </div>
       {importedCount > 0 && (
         <p className="mt-3 rounded-lg bg-lime-50 p-3 text-xs text-emerald-900">
-          Planilha importada: <b>{importedCount}</b> cliente(s) incluído(s) no
-          funil. Ajuste etapa, temperatura e pedidos de ajuda abaixo antes de
-          prosseguir.
+          Planilha importada: <b>{importedCount}</b> cliente(s) incluído(s) no funil.
+          Ajuste etapa, temperatura e pedidos de ajuda abaixo antes de prosseguir.
         </p>
-      )}
-      {rows.length > 0 && (
-        <Button
-          className="mt-3 bg-[#002b1d]"
-          disabled={saveLead.isPending}
-          onClick={saveRows}
-        >
-          <CheckCircle2 size={15} />{" "}
-          {saveLead.isPending
-            ? "Salvando clientes..."
-            : "Salvar clientes no funil"}
-        </Button>
       )}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Input
@@ -387,37 +298,9 @@ function SpartaFunnel({
             key={row.id}
           >
             <div>
-              <Input
-                value={row.clientName}
-                onChange={event =>
-                  setRows(current =>
-                    current.map(item =>
-                      item.id === row.id
-                        ? { ...item, clientName: event.target.value }
-                        : item
-                    )
-                  )
-                }
-              />
+              <b>{row.clientName}</b>
               <span className="mt-1 block text-xs text-emerald-700/60">
-                <Input
-                  type="number"
-                  min="0"
-                  value={row.projectedTpv || ""}
-                  onChange={event =>
-                    setRows(current =>
-                      current.map(item =>
-                        item.id === row.id
-                          ? {
-                              ...item,
-                              projectedTpv: Number(event.target.value) || 0,
-                            }
-                          : item
-                      )
-                    )
-                  }
-                />{" "}
-                · {tierLabel(row.projectedTpv)}
+                {brl.format(row.projectedTpv)} · {tierLabel(row.projectedTpv)}
               </span>
             </div>
             <button
@@ -545,23 +428,6 @@ export default function NordicStrategyPanel({
     },
     onError: error => toast.error(error.message),
   });
-  const [editingActivationId, setEditingActivationId] = useState<number | null>(
-    null
-  );
-  const [editActivationDraft, setEditActivationDraft] = useState({
-    clientName: "",
-    realTpv: 0,
-    projectedTpv: 0,
-    estimatedVariable: 0,
-  });
-  const updateActivation = trpc.nordic.saveActivation.useMutation({
-    onSuccess: () => {
-      refresh();
-      setEditingActivationId(null);
-      toast.success("Ativação atualizada.");
-    },
-    onError: error => toast.error(error.message),
-  });
   const items = strategy.data?.activationPlans ?? [];
   const routes = strategy.data?.microRoutes ?? [];
   const activationTpvTotal = useMemo(
@@ -578,40 +444,23 @@ export default function NordicStrategyPanel({
   const tpvGap = gapToTarget(targetTpv, actualTpv);
   const daysRemaining = businessDaysRemaining();
   const authorizedPortfolioLeads = strategy.data?.routePortfolioLeads ?? [];
-  const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<number[]>(
-    []
-  );
-  const removePortfolioEntries = trpc.portfolio.removeEntries.useMutation({
-    onSuccess: async () => {
-      setSelectedPortfolioIds([]);
-      await Promise.all([
-        utils.nordic.get.invalidate({ monthKey }),
-        utils.portfolio.getForMyRoute.invalidate({ portfolioType: "route" }),
-      ]);
-      toast.success("Clientes removidos da carteira importada.");
-    },
-    onError: error => toast.error(error.message),
-  });
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl bg-[#002b1d] p-6 text-white md:p-8">
+      <section className="rounded-2xl bg-[#0e3426] p-6 text-white md:p-8">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div className="flex items-start gap-4">
-            <NordicCompassEmblem size={48} />
-            <div>
-              <p className="font-mono text-[10px] font-semibold tracking-[.14em] text-lime-200">
-                ESTRATÉGIA NÓRDICA
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-[-.06em]">
-                Rotina operacional para transformar plano em cadência.
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-100/75">
-                Conecte o período do mês, os funis de PSV, as ativações e as
-                visitas. Listas derivadas mostram somente dados reais já
-                registrados.
-              </p>
-            </div>
+          <div>
+            <p className="font-mono text-[10px] font-semibold tracking-[.14em] text-lime-200">
+              ESTRATÉGIA NÓRDICA
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-.06em]">
+              Rotina operacional para transformar plano em cadência.
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-100/75">
+              Conecte o período do mês, os funis de PSV, as ativações e as
+              visitas. Listas derivadas mostram somente dados reais já
+              registrados.
+            </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <label className="grid gap-1 text-xs text-emerald-100/75">
@@ -824,123 +673,121 @@ export default function NordicStrategyPanel({
               )}
           </div>
         </article>
-        {false && (
-          <article className="rounded-xl border border-emerald-100 bg-white p-5">
-            <div className="flex items-center gap-2">
-              <CalendarPlus className="text-emerald-600" size={18} />
-              <div>
-                <p className="font-mono text-[10px] font-semibold tracking-[.12em] text-emerald-600">
-                  NOVA MICRORROTA
-                </p>
-                <h3 className="mt-1 text-xl font-semibold">
-                  Planeje uma visita por região.
-                </h3>
-              </div>
+        {false && <article className="rounded-xl border border-emerald-100 bg-white p-5">
+          <div className="flex items-center gap-2">
+            <CalendarPlus className="text-emerald-600" size={18} />
+            <div>
+              <p className="font-mono text-[10px] font-semibold tracking-[.12em] text-emerald-600">
+                NOVA MICRORROTA
+              </p>
+              <h3 className="mt-1 text-xl font-semibold">
+                Planeje uma visita por região.
+              </h3>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1 text-xs">
-                Região / derredores
-                <Input
-                  value={area}
-                  onChange={e => setArea(e.target.value)}
-                  placeholder="Ex.: Vila Medeiros e derredores"
-                />
-              </label>
-              <label className="grid gap-1 text-xs">
-                Data e hora
-                <Input
-                  type="datetime-local"
-                  value={visitAt}
-                  onChange={e => setVisitAt(e.target.value)}
-                />
-              </label>
-              <label className="grid gap-1 text-xs">
-                Cliente ou lead
-                <Input
-                  value={routeClient}
-                  onChange={e => setRouteClient(e.target.value)}
-                  placeholder="Nome do estabelecimento"
-                />
-              </label>
-              <label className="grid gap-1 text-xs">
-                Objetivo
-                <Input
-                  value={objective}
-                  onChange={e => setObjective(e.target.value)}
-                />
-              </label>
-              <label className="grid gap-1 text-xs">
-                Status
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs">
+              Região / derredores
+              <Input
+                value={area}
+                onChange={e => setArea(e.target.value)}
+                placeholder="Ex.: Vila Medeiros e derredores"
+              />
+            </label>
+            <label className="grid gap-1 text-xs">
+              Data e hora
+              <Input
+                type="datetime-local"
+                value={visitAt}
+                onChange={e => setVisitAt(e.target.value)}
+              />
+            </label>
+            <label className="grid gap-1 text-xs">
+              Cliente ou lead
+              <Input
+                value={routeClient}
+                onChange={e => setRouteClient(e.target.value)}
+                placeholder="Nome do estabelecimento"
+              />
+            </label>
+            <label className="grid gap-1 text-xs">
+              Objetivo
+              <Input
+                value={objective}
+                onChange={e => setObjective(e.target.value)}
+              />
+            </label>
+            <label className="grid gap-1 text-xs">
+              Status
+              <select
+                value={routeStatus}
+                onChange={e =>
+                  setRouteStatus(
+                    e.target.value as "planejada" | "concluida" | "remarcada"
+                  )
+                }
+              >
+                <option value="planejada">Planejada</option>
+                <option value="concluida">Concluída</option>
+                <option value="remarcada">Remarcada</option>
+              </select>
+            </label>
+          </div>
+          <Button
+            className="mt-4 bg-[#0e3426]"
+            disabled={route.isPending || !area || !routeClient}
+            onClick={() =>
+              route.mutate({
+                area,
+                visitAt: new Date(visitAt),
+                clientName: routeClient,
+                priority: "normal",
+                objective,
+                status: routeStatus,
+              })
+            }
+          >
+            <MapPinned size={16} /> Adicionar à agenda
+          </Button>
+          <div className="mt-4 space-y-2">
+            {routes.slice(0, 5).map(item => (
+              <div
+                className="flex items-center justify-between gap-3 rounded-lg bg-[#f6f8f2] px-3 py-2 text-xs"
+                key={item.id}
+              >
+                <span>
+                  <b>{item.clientName}</b> · {item.area}
+                  <small className="block text-emerald-700/55">
+                    {new Date(item.visitAt).toLocaleDateString("pt-BR")}
+                  </small>
+                </span>
                 <select
-                  value={routeStatus}
+                  value={item.status}
                   onChange={e =>
-                    setRouteStatus(
-                      e.target.value as "planejada" | "concluida" | "remarcada"
-                    )
+                    route.mutate({
+                      id: item.id,
+                      area: item.area,
+                      visitAt: new Date(item.visitAt),
+                      clientName: item.clientName,
+                      pipelineLeadId: item.pipelineLeadId ?? null,
+                      priority: item.priority,
+                      objective: item.objective,
+                      status: e.target.value as
+                        | "planejada"
+                        | "concluida"
+                        | "remarcada",
+                      notes: item.notes ?? undefined,
+                    })
                   }
                 >
                   <option value="planejada">Planejada</option>
                   <option value="concluida">Concluída</option>
                   <option value="remarcada">Remarcada</option>
                 </select>
-              </label>
-            </div>
-            <Button
-              className="mt-4 bg-[#002b1d]"
-              disabled={route.isPending || !area || !routeClient}
-              onClick={() =>
-                route.mutate({
-                  area,
-                  visitAt: new Date(visitAt),
-                  clientName: routeClient,
-                  priority: "normal",
-                  objective,
-                  status: routeStatus,
-                })
-              }
-            >
-              <MapPinned size={16} /> Adicionar à agenda
-            </Button>
-            <div className="mt-4 space-y-2">
-              {routes.slice(0, 5).map(item => (
-                <div
-                  className="flex items-center justify-between gap-3 rounded-lg bg-[#f6f8f2] px-3 py-2 text-xs"
-                  key={item.id}
-                >
-                  <span>
-                    <b>{item.clientName}</b> · {item.area}
-                    <small className="block text-emerald-700/55">
-                      {new Date(item.visitAt).toLocaleDateString("pt-BR")}
-                    </small>
-                  </span>
-                  <select
-                    value={item.status}
-                    onChange={e =>
-                      route.mutate({
-                        id: item.id,
-                        area: item.area,
-                        visitAt: new Date(item.visitAt),
-                        clientName: item.clientName,
-                        pipelineLeadId: item.pipelineLeadId ?? null,
-                        priority: item.priority,
-                        objective: item.objective,
-                        status: e.target.value as
-                          | "planejada"
-                          | "concluida"
-                          | "remarcada",
-                        notes: item.notes ?? undefined,
-                      })
-                    }
-                  >
-                    <option value="planejada">Planejada</option>
-                    <option value="concluida">Concluída</option>
-                    <option value="remarcada">Remarcada</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-          </article>
-        )}
+              </div>
+            ))}
+          </div>
+        </article>}
       </section>
 
       <SpartaFunnel
@@ -964,74 +811,21 @@ export default function NordicStrategyPanel({
           A lista considera somente entradas das suas rotas formalmente
           atribuídas na competência selecionada.
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setSelectedPortfolioIds(
-                authorizedPortfolioLeads.map(lead => lead.id)
-              )
-            }
-            disabled={!authorizedPortfolioLeads.length}
-          >
-            Selecionar todos
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedPortfolioIds([])}
-            disabled={!selectedPortfolioIds.length}
-          >
-            Limpar seleção
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() =>
-              removePortfolioEntries.mutate({ ids: selectedPortfolioIds })
-            }
-            disabled={
-              !selectedPortfolioIds.length || removePortfolioEntries.isPending
-            }
-          >
-            Excluir selecionados
-          </Button>
-          <span className="text-xs text-emerald-700/60">
-            {selectedPortfolioIds.length} selecionado(s)
-          </span>
-        </div>
         <div className="mt-4 grid gap-2 md:grid-cols-2">
           {authorizedPortfolioLeads.slice(0, 8).map(lead => (
-            <label
-              key={lead.id}
-              className="flex gap-3 rounded-lg bg-[#f6f8f2] p-3 text-xs"
-            >
-              <input
-                type="checkbox"
-                checked={selectedPortfolioIds.includes(lead.id)}
-                onChange={() =>
-                  setSelectedPortfolioIds(current =>
-                    current.includes(lead.id)
-                      ? current.filter(id => id !== lead.id)
-                      : [...current, lead.id]
-                  )
-                }
-              />
-              <span>
-                <b>{lead.clientName}</b>
-                <p className="mt-1 text-emerald-700/65">
-                  {lead.route} · {tierLabel(lead.projectedTpv)} ·{" "}
-                  {lead.segment || "Segmento não informado"}
-                </p>
-                <p className="text-emerald-700/55">
-                  {lead.stage || "Sem etapa"}{" "}
-                  {lead.nextContactAt
-                    ? `· próximo contato ${new Date(lead.nextContactAt).toLocaleDateString("pt-BR")}`
-                    : ""}
-                </p>
-              </span>
-            </label>
+            <div key={lead.id} className="rounded-lg bg-[#f6f8f2] p-3 text-xs">
+              <b>{lead.clientName}</b>
+              <p className="mt-1 text-emerald-700/65">
+                {lead.route} · {tierLabel(lead.projectedTpv)} ·{" "}
+                {lead.segment || "Segmento não informado"}
+              </p>
+              <p className="text-emerald-700/55">
+                {lead.stage || "Sem etapa"}{" "}
+                {lead.nextContactAt
+                  ? `· próximo contato ${new Date(lead.nextContactAt).toLocaleDateString("pt-BR")}`
+                  : ""}
+              </p>
+            </div>
           ))}
           {!authorizedPortfolioLeads.length && (
             <p className="rounded-lg bg-[#f6f8f2] p-4 text-sm text-emerald-700/65">
@@ -1079,7 +873,7 @@ export default function NordicStrategyPanel({
             placeholder="RV estimada"
           />
           <Button
-            className="bg-[#002b1d]"
+            className="bg-[#0e3426]"
             disabled={activation.isPending || !activationName.trim()}
             onClick={() =>
               activation.mutate({
@@ -1112,198 +906,76 @@ export default function NordicStrategyPanel({
                 <th className="pb-3">D+15</th>
                 <th className="pb-3">D+30</th>
                 <th className="pb-3">RV</th>
-                <th className="sticky right-0 bg-white pb-3 pl-3 text-right">
-                  Ação
-                </th>
+                <th className="pb-3 text-right">Ação</th>
               </tr>
             </thead>
             <tbody>
-              {items.map(item => {
-                const isEditing = editingActivationId === item.id;
-                return (
-                  <tr className="border-b border-emerald-50" key={item.id}>
-                    <td className="py-3 font-semibold">
-                      {isEditing ? (
-                        <Input
-                          className="h-8 text-xs"
-                          value={editActivationDraft.clientName}
-                          onChange={e =>
-                            setEditActivationDraft(draft => ({
-                              ...draft,
-                              clientName: e.target.value,
-                            }))
-                          }
-                        />
-                      ) : (
-                        <>
-                          {item.clientName}
-                          <small className="block font-normal text-emerald-700/60">
-                            {item.status}
-                          </small>
-                        </>
-                      )}
-                    </td>
-                    <td className="py-3 font-mono">
-                      {isEditing ? (
-                        <Input
-                          className="h-8 w-28 text-xs"
-                          type="number"
-                          value={editActivationDraft.realTpv}
-                          onChange={e =>
-                            setEditActivationDraft(draft => ({
-                              ...draft,
-                              realTpv: Number(e.target.value) || 0,
-                            }))
-                          }
-                        />
-                      ) : (
-                        brl.format(item.realTpv)
-                      )}
-                    </td>
-                    <td className="py-3 font-mono">
-                      {isEditing ? (
-                        <Input
-                          className="h-8 w-28 text-xs"
-                          type="number"
-                          value={editActivationDraft.projectedTpv}
-                          onChange={e =>
-                            setEditActivationDraft(draft => ({
-                              ...draft,
-                              projectedTpv: Number(e.target.value) || 0,
-                            }))
-                          }
-                        />
-                      ) : (
-                        brl.format(item.projectedTpv)
-                      )}
-                    </td>
-                    <td className="py-3">
-                      <input
-                        type="checkbox"
-                        checked={item.productsReady}
-                        onChange={e =>
-                          completeActivation.mutate({
-                            ...item,
-                            productsReady: e.target.checked,
-                            notes: item.notes ?? undefined,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className="py-3">
-                      <input
-                        type="checkbox"
-                        checked={item.d15Complete}
-                        onChange={e =>
-                          completeActivation.mutate({
-                            ...item,
-                            d15Complete: e.target.checked,
-                            notes: item.notes ?? undefined,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className="py-3">
-                      <input
-                        type="checkbox"
-                        checked={item.d30Complete}
-                        onChange={e =>
-                          completeActivation.mutate({
-                            ...item,
-                            d30Complete: e.target.checked,
-                            notes: item.notes ?? undefined,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className="py-3 font-mono">
-                      {isEditing ? (
-                        <Input
-                          className="h-8 w-24 text-xs"
-                          type="number"
-                          value={editActivationDraft.estimatedVariable}
-                          onChange={e =>
-                            setEditActivationDraft(draft => ({
-                              ...draft,
-                              estimatedVariable: Number(e.target.value) || 0,
-                            }))
-                          }
-                        />
-                      ) : (
-                        brl.format(item.estimatedVariable)
-                      )}
-                    </td>
-                    <td className="sticky right-0 bg-white py-3 pl-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {isEditing ? (
-                          <>
-                            <button
-                              type="button"
-                              aria-label={`Salvar ${item.clientName}`}
-                              disabled={
-                                updateActivation.isPending ||
-                                !editActivationDraft.clientName.trim()
-                              }
-                              className="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 hover:bg-emerald-100"
-                              onClick={() =>
-                                updateActivation.mutate({
-                                  ...item,
-                                  clientName: editActivationDraft.clientName,
-                                  realTpv: editActivationDraft.realTpv,
-                                  projectedTpv:
-                                    editActivationDraft.projectedTpv,
-                                  estimatedVariable:
-                                    editActivationDraft.estimatedVariable,
-                                  notes: item.notes ?? undefined,
-                                })
-                              }
-                            >
-                              <Check size={15} />
-                            </button>
-                            <button
-                              type="button"
-                              aria-label="Cancelar edição"
-                              className="inline-flex items-center justify-center rounded-md border border-emerald-100 bg-white p-2 text-emerald-700/70 hover:bg-emerald-50"
-                              onClick={() => setEditingActivationId(null)}
-                            >
-                              <X size={15} />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              aria-label={`Editar ${item.clientName}`}
-                              className="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 hover:bg-emerald-100"
-                              onClick={() => {
-                                setEditingActivationId(item.id);
-                                setEditActivationDraft({
-                                  clientName: item.clientName,
-                                  realTpv: item.realTpv,
-                                  projectedTpv: item.projectedTpv,
-                                  estimatedVariable: item.estimatedVariable,
-                                });
-                              }}
-                            >
-                              <Pencil size={15} />
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={`Remover ${item.clientName} do checklist`}
-                              className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100"
-                              onClick={() =>
-                                removeActivation.mutate({ id: item.id })
-                              }
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map(item => (
+                <tr className="border-b border-emerald-50" key={item.id}>
+                  <td className="py-3 font-semibold">
+                    {item.clientName}
+                    <small className="block font-normal text-emerald-700/60">
+                      {item.status}
+                    </small>
+                  </td>
+                  <td className="py-3 font-mono">{brl.format(item.realTpv)}</td>
+                  <td className="py-3 font-mono">
+                    {brl.format(item.projectedTpv)}
+                  </td>
+                  <td className="py-3">
+                    <input
+                      type="checkbox"
+                      checked={item.productsReady}
+                      onChange={e =>
+                        completeActivation.mutate({
+                          ...item,
+                          productsReady: e.target.checked,
+                          notes: item.notes ?? undefined,
+                        })
+                      }
+                    />
+                  </td>
+                  <td className="py-3">
+                    <input
+                      type="checkbox"
+                      checked={item.d15Complete}
+                      onChange={e =>
+                        completeActivation.mutate({
+                          ...item,
+                          d15Complete: e.target.checked,
+                          notes: item.notes ?? undefined,
+                        })
+                      }
+                    />
+                  </td>
+                  <td className="py-3">
+                    <input
+                      type="checkbox"
+                      checked={item.d30Complete}
+                      onChange={e =>
+                        completeActivation.mutate({
+                          ...item,
+                          d30Complete: e.target.checked,
+                          notes: item.notes ?? undefined,
+                        })
+                      }
+                    />
+                  </td>
+                  <td className="py-3 font-mono">
+                    {brl.format(item.estimatedVariable)}
+                  </td>
+                  <td className="py-3 text-right">
+                    <button
+                      type="button"
+                      aria-label={`Remover ${item.clientName} do checklist`}
+                      className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100"
+                      onClick={() => removeActivation.mutate({ id: item.id })}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
               {!items.length && (
                 <tr>
                   <td

@@ -503,10 +503,18 @@ export const appRouter = router({
           displayName: z.string().trim().min(2).max(120),
           roles: z
             .array(
-              z.enum(["agente", "interino", "polo", "distrital", "agendamento"])
+              z.enum([
+                "agente",
+                "interino",
+                "polo",
+                "distrital",
+                "agendamento",
+                "assistente",
+                "auxiliar",
+              ])
             )
             .min(1)
-            .max(5),
+            .max(7),
           regional: z.string().trim().max(120),
           district: z.string().trim().max(120),
           polo: z.string().trim().max(120),
@@ -523,10 +531,18 @@ export const appRouter = router({
           email: z.string().trim().email(),
           roles: z
             .array(
-              z.enum(["agente", "interino", "polo", "distrital", "agendamento"])
+              z.enum([
+                "agente",
+                "interino",
+                "polo",
+                "distrital",
+                "agendamento",
+                "assistente",
+                "auxiliar",
+              ])
             )
             .min(1)
-            .max(5),
+            .max(7),
           regional: z.string().trim().max(120),
           district: z.string().trim().max(120),
           polo: z.string().trim().max(120),

@@ -26,7 +26,7 @@ type TeamMember = {
   route: string;
   formalRoutes: string[];
   teamRoles: Array<
-    "agente" | "interino" | "polo" | "distrital" | "agendamento"
+    "agente" | "interino" | "polo" | "distrital" | "agendamento" | "assistente" | "auxiliar"
   >;
   hasAccess: boolean;
   teamProfile: {
@@ -373,6 +373,8 @@ function TeamProfileForm({
 
 const roleOptions = [
   ["agente", "Agente"],
+  ["assistente", "Assistente / Auxiliar"],
+  ["auxiliar", "Auxiliar Operacional"],
   ["interino", "Agente Interino"],
   ["polo", "Dono de Polo"],
   ["distrital", "Distrital"],
@@ -613,7 +615,7 @@ export default function TeamManagementPanel() {
     user?.role === "admin" ||
       actorMember?.leadershipRole !== "none" ||
       actorRoles.some(role =>
-        ["polo", "distrital", "interino", "agendamento"].includes(role)
+        ["polo", "distrital", "interino", "agendamento", "assistente", "auxiliar"].includes(role)
       )
   );
   const canAssignLeadership = user?.role === "admin";
@@ -623,7 +625,7 @@ export default function TeamManagementPanel() {
         user?.role === "admin" ||
         actorMember?.leadershipRole !== "none" ||
         actorRoles.some(role =>
-          ["polo", "distrital", "interino", "agendamento"].includes(role)
+          ["polo", "distrital", "interino", "agendamento", "assistente", "auxiliar"].includes(role)
         ))
   );
   if (team.isLoading)

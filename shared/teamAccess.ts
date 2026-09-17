@@ -1,5 +1,5 @@
 export type TeamLeadershipRole = "none" | "polo" | "distrital";
-export type TeamMemberRole = "agente" | "interino" | "polo" | "distrital" | "agendamento";
+export type TeamMemberRole = "agente" | "interino" | "polo" | "distrital" | "agendamento" | "assistente" | "auxiliar";
 
 export type TeamAccessIdentity = {
   id: number;
@@ -19,8 +19,9 @@ export function canAccessTeamMember(actor: TeamAccessIdentity, target: TeamAcces
   if (actor.role === "admin") return true;
   if (actor.id === target.id) return true;
   const roles = actor.teamRoles ?? [];
-  const isPoloScopeLeader = actor.leadershipRole === "polo" || roles.includes("polo") || roles.includes("interino") || roles.includes("agendamento");
-  if (actor.leadershipRole === "polo" || roles.includes("polo") || roles.includes("interino") || roles.includes("agendamento")) {
+  const poloScopeRoles = ["polo", "interino", "agendamento", "assistente", "auxiliar"] as const;
+  const isPoloScopeLeader = actor.leadershipRole === "polo" || poloScopeRoles.some(role => roles.includes(role));
+  if (actor.leadershipRole === "polo" || poloScopeRoles.some(role => roles.includes(role))) {
     return isPoloScopeLeader && normalize(actor.polo) === normalize(target.polo);
   }
   if (actor.leadershipRole === "distrital" || roles.includes("distrital")) {
@@ -30,6 +31,6 @@ export function canAccessTeamMember(actor: TeamAccessIdentity, target: TeamAcces
 }
 
 export function canEditTeamProfile(actor: TeamAccessIdentity, target: TeamAccessIdentity) {
-  const delegatedLeadership = (actor.teamRoles ?? []).some(role => ["polo", "distrital", "interino", "agendamento"].includes(role));
+  const delegatedLeadership = (actor.teamRoles ?? []).some(role => ["polo", "distrital", "interino", "agendamento", "assistente", "auxiliar"].includes(role));
   return canAccessTeamMember(actor, target) && (actor.role === "admin" || actor.id === target.id || actor.leadershipRole !== "none" || delegatedLeadership);
 }

@@ -64,4 +64,15 @@ describe("autorização da Gestão do Time", () => {
     expect(canAccessTeamMember(scheduler, agent)).toBe(true);
     expect(canEditTeamProfile(scheduler, agent)).toBe(true);
   });
+
+  it("permite ao assistente e ao auxiliar operar no mesmo polo", () => {
+    const assistant = identity({ id: 40, teamRoles: ["agente", "assistente"] });
+    const helper = identity({ id: 41, teamRoles: ["agente", "auxiliar"] });
+    const agent = identity({ id: 42 });
+
+    expect(canAccessTeamMember(assistant, agent)).toBe(true);
+    expect(canEditTeamProfile(assistant, agent)).toBe(true);
+    expect(canAccessTeamMember(helper, agent)).toBe(true);
+    expect(canEditTeamProfile(helper, agent)).toBe(true);
+  });
 });

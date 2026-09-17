@@ -1336,7 +1336,7 @@ async function assertTeamOrganizationManagement(
     actorRow.user.role !== "admin" &&
     actorRow.profile.leadershipRole === "none" &&
     !actorIdentity.teamRoles?.some(role =>
-      ["polo", "distrital", "interino", "agendamento"].includes(role)
+      ["polo", "distrital", "interino", "agendamento", "assistente", "auxiliar"].includes(role)
     )
   ) {
     throw new Error(
@@ -1370,7 +1370,7 @@ function assertOrganizationWithinActorScope(
   }
   if (
     actor.leadershipRole === "polo" ||
-    roles.some(role => ["polo", "interino", "agendamento"].includes(role))
+    roles.some(role => ["polo", "interino", "agendamento", "assistente", "auxiliar"].includes(role))
   ) {
     if (
       normalizeOrganizationKey(actor.polo) !==
