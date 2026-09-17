@@ -223,7 +223,8 @@ function SpartaFunnel({
   };
 
   const removeRow = (id: number) => {
-    setRows(current => removeItemById(current, id));
+    if (id > 0) removeLead.mutate({ id });
+    else setRows(current => removeItemById(current, id));
   };
   const saveRows = async () => {
     try {
@@ -236,7 +237,6 @@ function SpartaFunnel({
       toast.error("Não foi possível salvar todos os clientes da planilha.");
     }
   };
-  const removeRow = (id: number) => { if (id > 0) removeLead.mutate({ id }); else setRows(current => removeItemById(current, id)); };
 
   const handleSpreadsheetImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
