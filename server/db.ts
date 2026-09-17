@@ -1730,6 +1730,10 @@ export async function createBestPracticePost(
   const db = await getDb();
   const title = cleanPortfolioText(input.title, 160);
   const content = cleanPortfolioText(input.content, 8000);
+  const normalizedAuthorName = cleanPortfolioText(authorName, 160);
+  const displayAuthorName = normalizedAuthorName.includes("@")
+    ? normalizedAuthorName.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase())
+    : normalizedAuthorName;
   if (!title) throw new Error("Informe um título para a boa prática.");
   if (!content) throw new Error("Descreva a boa prática antes de publicar.");
   let imageKey: string | null = null;
@@ -1754,7 +1758,7 @@ export async function createBestPracticePost(
   }
   await db.insert(bestPracticePosts).values({
     authorUserId: userId,
-    authorName: authorName || "Agente",
+    authorName: displayAuthorName || "Agente",
     title,
     content,
     imageKey,
