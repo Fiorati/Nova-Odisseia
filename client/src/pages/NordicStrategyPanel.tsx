@@ -185,6 +185,11 @@ function SpartaFunnel({
     temperature: "frio" | "quente";
   }>;
 }) {
+  const saveUtils = trpc.useUtils();
+  const saveLead = trpc.psv.saveLead.useMutation({
+    onSuccess: async () => { await saveUtils.psv.pipeline.invalidate(); },
+    onError: error => toast.error(error.message),
+  });
   const [imageNames, setImageNames] = useState<string[]>([]);
   const [manualName, setManualName] = useState("");
   const [manualTpv, setManualTpv] = useState(0);
@@ -220,6 +225,16 @@ function SpartaFunnel({
 
   const removeRow = (id: number) => {
     setRows(current => removeItemById(current, id));
+  };
+  const saveRows = async () => {
+    try {
+      for (const row of rows) {
+        await saveLead.mutateAsync({ clientName: row.clientName, temperature: row.temperature, segmentId: "sparta", segmentLabel: "Estratégia Sparta", mcc: "", cnae: "", projectedTpv: row.projectedTpv, nextContactAt: null, stage: row.stage === "Negociando" ? "negociacao" : row.stage === "Qualificando" ? "qualificando" : row.stage === "Planejado" ? "planejado" : "mapeado" });
+      }
+      toast.success(`${rows.length} cliente(s) salvo(s) no funil privado da PSV.`);
+    } catch {
+      toast.error("Não foi possível salvar todos os clientes da planilha.");
+    }
   };
 
   const handleSpreadsheetImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,6 +296,7 @@ function SpartaFunnel({
           Ajuste etapa, temperatura e pedidos de ajuda abaixo antes de prosseguir.
         </p>
       )}
+      {rows.length > 0 && <Button className="mt-3 bg-[#002b1d]" disabled={saveLead.isPending} onClick={saveRows}><CheckCircle2 size={15} /> {saveLead.isPending ? "Salvando clientes..." : "Salvar clientes no funil"}</Button>}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Input
           value={manualName}

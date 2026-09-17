@@ -1292,7 +1292,7 @@ export default function Home() {
       {/* NAVEGAÇÃO MOBILE */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-emerald-100 bg-white p-2 lg:hidden">
         {nav
-          .filter(([key]) => key === "painel" || key === "reunioes" || key === "psv" || key === "nordica" || key === "periodo")
+          .filter(([key]) => key === "painel" || key === "reunioes" || key === "tutorial" || key === "psv" || key === "nordica" || key === "periodo")
           .slice(0, 5)
           .map(([key, Icon, label]) => (
           <button
