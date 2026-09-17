@@ -3527,7 +3527,7 @@ export async function getPrivatePipelineLeads(userId: number) {
     .from(psvPipelineLeads)
     .where(eq(psvPipelineLeads.userId, userId))
     .orderBy(desc(psvPipelineLeads.updatedAt))
-    .limit(50);
+    .limit(1000);
 }
 
 function parsePreparedLeadIds(value: string | null) {

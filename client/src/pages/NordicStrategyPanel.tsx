@@ -58,7 +58,7 @@ type SpartaLead = {
 
 export function selectImageFiles(
   files: FileList | File[] | null | undefined,
-  maxFiles = 8,
+  maxFiles = 8
 ) {
   const images = Array.from(files ?? []).filter(file =>
     file.type.startsWith("image/")
@@ -67,13 +67,17 @@ export function selectImageFiles(
   return images.slice(0, maxFiles);
 }
 
-export function removeItemById<T extends { id: number }>(items: T[], id: number) {
+export function removeItemById<T extends { id: number }>(
+  items: T[],
+  id: number
+) {
   return items.filter(item => item.id !== id);
 }
 
 function normalizeSpreadsheetValue(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+  if (typeof value === "number")
+    return Number.isFinite(value) ? String(value) : "";
   if (typeof value === "string") return value.trim();
   return String(value).trim();
 }
@@ -106,12 +110,16 @@ function spreadsheetStage(value: unknown): string {
 
 function spreadsheetTemperature(value: unknown): "frio" | "quente" {
   const text = normalizeSpreadsheetValue(value).toLowerCase();
-  return text.includes("quente") || text.includes("hot") || text.includes("alta")
+  return text.includes("quente") ||
+    text.includes("hot") ||
+    text.includes("alta")
     ? "quente"
     : "frio";
 }
 
-export async function parseSpreadsheetLeads(file: File | Blob | null | undefined) {
+export async function parseSpreadsheetLeads(
+  file: File | Blob | null | undefined
+) {
   if (!file) return [] as Array<SpartaLead>;
 
   const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
@@ -188,23 +196,44 @@ function SpartaFunnel({
   const saveUtils = trpc.useUtils();
   const pipeline = trpc.psv.pipeline.useQuery();
   const saveLead = trpc.psv.saveLead.useMutation({
-    onSuccess: async () => { await saveUtils.psv.pipeline.invalidate(); },
+    onSuccess: async () => {
+      await saveUtils.psv.pipeline.invalidate();
+    },
     onError: error => toast.error(error.message),
   });
-  const removeLead = trpc.psv.removeLead.useMutation({ onSuccess: () => pipeline.refetch(), onError: error => toast.error(error.message) });
+  const removeLead = trpc.psv.removeLead.useMutation({
+    onSuccess: () => pipeline.refetch(),
+    onError: error => toast.error(error.message),
+  });
   const [imageNames, setImageNames] = useState<string[]>([]);
   const [manualName, setManualName] = useState("");
   const [manualTpv, setManualTpv] = useState(0);
   const [importedCount, setImportedCount] = useState(0);
-  const [rows, setRows] = useState<SpartaLead[]>(() => leads.map(lead => ({ ...lead, helpRequest: "" })));
-  useEffect(
-    () => {
-      const savedRows = (pipeline.data ?? []).filter(lead => lead.segmentId === "sparta").map(lead => ({ id: lead.id, clientName: lead.clientName, projectedTpv: lead.projectedTpv, stage: lead.stage === "negociacao" ? "Negociando" : lead.stage === "qualificando" ? "Qualificando" : lead.stage === "planejado" ? "Planejado" : "Mapeado", temperature: lead.temperature, helpRequest: "" }));
-      if (savedRows.length) setRows(savedRows);
-      else if (!rows.length) setRows(leads.map(lead => ({ ...lead, helpRequest: "" })));
-    },
-    [pipeline.data, leads]
+  const [rows, setRows] = useState<SpartaLead[]>(() =>
+    leads.map(lead => ({ ...lead, helpRequest: "" }))
   );
+  useEffect(() => {
+    const savedRows = (pipeline.data ?? [])
+      .filter(lead => lead.segmentId === "sparta")
+      .map(lead => ({
+        id: lead.id,
+        clientName: lead.clientName,
+        projectedTpv: lead.projectedTpv,
+        stage:
+          lead.stage === "negociacao"
+            ? "Negociando"
+            : lead.stage === "qualificando"
+              ? "Qualificando"
+              : lead.stage === "planejado"
+                ? "Planejado"
+                : "Mapeado",
+        temperature: lead.temperature,
+        helpRequest: "",
+      }));
+    if (savedRows.length) setRows(savedRows);
+    else if (!rows.length)
+      setRows(leads.map(lead => ({ ...lead, helpRequest: "" })));
+  }, [pipeline.data, leads]);
   const addManual = () => {
     if (!manualName.trim()) return;
     setRows(current => [
@@ -229,16 +258,38 @@ function SpartaFunnel({
   const saveRows = async () => {
     try {
       for (const row of rows) {
-        await saveLead.mutateAsync({ id: row.id > 0 ? row.id : undefined, clientName: row.clientName, temperature: row.temperature, segmentId: "sparta", segmentLabel: "Estratégia Sparta", mcc: "", cnae: "", projectedTpv: row.projectedTpv, nextContactAt: null, stage: row.stage === "Negociando" ? "negociacao" : row.stage === "Qualificando" ? "qualificando" : row.stage === "Planejado" ? "planejado" : "mapeado" });
+        await saveLead.mutateAsync({
+          id: row.id > 0 ? row.id : undefined,
+          clientName: row.clientName,
+          temperature: row.temperature,
+          segmentId: "sparta",
+          segmentLabel: "Estratégia Sparta",
+          mcc: "",
+          cnae: "",
+          projectedTpv: row.projectedTpv,
+          nextContactAt: null,
+          stage:
+            row.stage === "Negociando"
+              ? "negociacao"
+              : row.stage === "Qualificando"
+                ? "qualificando"
+                : row.stage === "Planejado"
+                  ? "planejado"
+                  : "mapeado",
+        });
       }
       await pipeline.refetch();
-      toast.success(`${rows.length} cliente(s) salvo(s) no funil privado da PSV.`);
+      toast.success(
+        `${rows.length} cliente(s) salvo(s) no funil privado da PSV.`
+      );
     } catch {
       toast.error("Não foi possível salvar todos os clientes da planilha.");
     }
   };
 
-  const handleSpreadsheetImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSpreadsheetImport = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -254,7 +305,11 @@ function SpartaFunnel({
       setImportedCount(imported.length);
       toast.success(`${imported.length} cliente(s) importado(s) para o funil.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível importar a planilha.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível importar a planilha."
+      );
     } finally {
       event.currentTarget.value = "";
     }
@@ -272,8 +327,9 @@ function SpartaFunnel({
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-emerald-800/65">
             Anexe até 8 imagens do Super Pipe para manter a leitura operacional
-            no mesmo lugar. Os registros autorizados do funil já aparecem abaixo;
-            a transcrição automática será conectada ao processamento de imagem.
+            no mesmo lugar. Os registros autorizados do funil já aparecem
+            abaixo; a transcrição automática será conectada ao processamento de
+            imagem.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -293,11 +349,23 @@ function SpartaFunnel({
       </div>
       {importedCount > 0 && (
         <p className="mt-3 rounded-lg bg-lime-50 p-3 text-xs text-emerald-900">
-          Planilha importada: <b>{importedCount}</b> cliente(s) incluído(s) no funil.
-          Ajuste etapa, temperatura e pedidos de ajuda abaixo antes de prosseguir.
+          Planilha importada: <b>{importedCount}</b> cliente(s) incluído(s) no
+          funil. Ajuste etapa, temperatura e pedidos de ajuda abaixo antes de
+          prosseguir.
         </p>
       )}
-      {rows.length > 0 && <Button className="mt-3 bg-[#002b1d]" disabled={saveLead.isPending} onClick={saveRows}><CheckCircle2 size={15} /> {saveLead.isPending ? "Salvando clientes..." : "Salvar clientes no funil"}</Button>}
+      {rows.length > 0 && (
+        <Button
+          className="mt-3 bg-[#002b1d]"
+          disabled={saveLead.isPending}
+          onClick={saveRows}
+        >
+          <CheckCircle2 size={15} />{" "}
+          {saveLead.isPending
+            ? "Salvando clientes..."
+            : "Salvar clientes no funil"}
+        </Button>
+      )}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Input
           value={manualName}
@@ -319,9 +387,37 @@ function SpartaFunnel({
             key={row.id}
           >
             <div>
-              <Input value={row.clientName} onChange={event => setRows(current => current.map(item => item.id === row.id ? { ...item, clientName: event.target.value } : item))} />
+              <Input
+                value={row.clientName}
+                onChange={event =>
+                  setRows(current =>
+                    current.map(item =>
+                      item.id === row.id
+                        ? { ...item, clientName: event.target.value }
+                        : item
+                    )
+                  )
+                }
+              />
               <span className="mt-1 block text-xs text-emerald-700/60">
-                <Input type="number" min="0" value={row.projectedTpv || ""} onChange={event => setRows(current => current.map(item => item.id === row.id ? { ...item, projectedTpv: Number(event.target.value) || 0 } : item))} /> · {tierLabel(row.projectedTpv)}
+                <Input
+                  type="number"
+                  min="0"
+                  value={row.projectedTpv || ""}
+                  onChange={event =>
+                    setRows(current =>
+                      current.map(item =>
+                        item.id === row.id
+                          ? {
+                              ...item,
+                              projectedTpv: Number(event.target.value) || 0,
+                            }
+                          : item
+                      )
+                    )
+                  }
+                />{" "}
+                · {tierLabel(row.projectedTpv)}
               </span>
             </div>
             <button
@@ -449,9 +545,9 @@ export default function NordicStrategyPanel({
     },
     onError: error => toast.error(error.message),
   });
-  const [editingActivationId, setEditingActivationId] = useState<
-    number | null
-  >(null);
+  const [editingActivationId, setEditingActivationId] = useState<number | null>(
+    null
+  );
   const [editActivationDraft, setEditActivationDraft] = useState({
     clientName: "",
     realTpv: 0,
@@ -482,11 +578,16 @@ export default function NordicStrategyPanel({
   const tpvGap = gapToTarget(targetTpv, actualTpv);
   const daysRemaining = businessDaysRemaining();
   const authorizedPortfolioLeads = strategy.data?.routePortfolioLeads ?? [];
-  const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<number[]>([]);
+  const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<number[]>(
+    []
+  );
   const removePortfolioEntries = trpc.portfolio.removeEntries.useMutation({
     onSuccess: async () => {
       setSelectedPortfolioIds([]);
-      await Promise.all([utils.nordic.get.invalidate({ monthKey }), utils.portfolio.getForMyRoute.invalidate({ portfolioType: "route" })]);
+      await Promise.all([
+        utils.nordic.get.invalidate({ monthKey }),
+        utils.portfolio.getForMyRoute.invalidate({ portfolioType: "route" }),
+      ]);
       toast.success("Clientes removidos da carteira importada.");
     },
     onError: error => toast.error(error.message),
@@ -723,121 +824,123 @@ export default function NordicStrategyPanel({
               )}
           </div>
         </article>
-        {false && <article className="rounded-xl border border-emerald-100 bg-white p-5">
-          <div className="flex items-center gap-2">
-            <CalendarPlus className="text-emerald-600" size={18} />
-            <div>
-              <p className="font-mono text-[10px] font-semibold tracking-[.12em] text-emerald-600">
-                NOVA MICRORROTA
-              </p>
-              <h3 className="mt-1 text-xl font-semibold">
-                Planeje uma visita por região.
-              </h3>
+        {false && (
+          <article className="rounded-xl border border-emerald-100 bg-white p-5">
+            <div className="flex items-center gap-2">
+              <CalendarPlus className="text-emerald-600" size={18} />
+              <div>
+                <p className="font-mono text-[10px] font-semibold tracking-[.12em] text-emerald-600">
+                  NOVA MICRORROTA
+                </p>
+                <h3 className="mt-1 text-xl font-semibold">
+                  Planeje uma visita por região.
+                </h3>
+              </div>
             </div>
-          </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1 text-xs">
-              Região / derredores
-              <Input
-                value={area}
-                onChange={e => setArea(e.target.value)}
-                placeholder="Ex.: Vila Medeiros e derredores"
-              />
-            </label>
-            <label className="grid gap-1 text-xs">
-              Data e hora
-              <Input
-                type="datetime-local"
-                value={visitAt}
-                onChange={e => setVisitAt(e.target.value)}
-              />
-            </label>
-            <label className="grid gap-1 text-xs">
-              Cliente ou lead
-              <Input
-                value={routeClient}
-                onChange={e => setRouteClient(e.target.value)}
-                placeholder="Nome do estabelecimento"
-              />
-            </label>
-            <label className="grid gap-1 text-xs">
-              Objetivo
-              <Input
-                value={objective}
-                onChange={e => setObjective(e.target.value)}
-              />
-            </label>
-            <label className="grid gap-1 text-xs">
-              Status
-              <select
-                value={routeStatus}
-                onChange={e =>
-                  setRouteStatus(
-                    e.target.value as "planejada" | "concluida" | "remarcada"
-                  )
-                }
-              >
-                <option value="planejada">Planejada</option>
-                <option value="concluida">Concluída</option>
-                <option value="remarcada">Remarcada</option>
-              </select>
-            </label>
-          </div>
-          <Button
-            className="mt-4 bg-[#002b1d]"
-            disabled={route.isPending || !area || !routeClient}
-            onClick={() =>
-              route.mutate({
-                area,
-                visitAt: new Date(visitAt),
-                clientName: routeClient,
-                priority: "normal",
-                objective,
-                status: routeStatus,
-              })
-            }
-          >
-            <MapPinned size={16} /> Adicionar à agenda
-          </Button>
-          <div className="mt-4 space-y-2">
-            {routes.slice(0, 5).map(item => (
-              <div
-                className="flex items-center justify-between gap-3 rounded-lg bg-[#f6f8f2] px-3 py-2 text-xs"
-                key={item.id}
-              >
-                <span>
-                  <b>{item.clientName}</b> · {item.area}
-                  <small className="block text-emerald-700/55">
-                    {new Date(item.visitAt).toLocaleDateString("pt-BR")}
-                  </small>
-                </span>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs">
+                Região / derredores
+                <Input
+                  value={area}
+                  onChange={e => setArea(e.target.value)}
+                  placeholder="Ex.: Vila Medeiros e derredores"
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                Data e hora
+                <Input
+                  type="datetime-local"
+                  value={visitAt}
+                  onChange={e => setVisitAt(e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                Cliente ou lead
+                <Input
+                  value={routeClient}
+                  onChange={e => setRouteClient(e.target.value)}
+                  placeholder="Nome do estabelecimento"
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                Objetivo
+                <Input
+                  value={objective}
+                  onChange={e => setObjective(e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                Status
                 <select
-                  value={item.status}
+                  value={routeStatus}
                   onChange={e =>
-                    route.mutate({
-                      id: item.id,
-                      area: item.area,
-                      visitAt: new Date(item.visitAt),
-                      clientName: item.clientName,
-                      pipelineLeadId: item.pipelineLeadId ?? null,
-                      priority: item.priority,
-                      objective: item.objective,
-                      status: e.target.value as
-                        | "planejada"
-                        | "concluida"
-                        | "remarcada",
-                      notes: item.notes ?? undefined,
-                    })
+                    setRouteStatus(
+                      e.target.value as "planejada" | "concluida" | "remarcada"
+                    )
                   }
                 >
                   <option value="planejada">Planejada</option>
                   <option value="concluida">Concluída</option>
                   <option value="remarcada">Remarcada</option>
                 </select>
-              </div>
-            ))}
-          </div>
-        </article>}
+              </label>
+            </div>
+            <Button
+              className="mt-4 bg-[#002b1d]"
+              disabled={route.isPending || !area || !routeClient}
+              onClick={() =>
+                route.mutate({
+                  area,
+                  visitAt: new Date(visitAt),
+                  clientName: routeClient,
+                  priority: "normal",
+                  objective,
+                  status: routeStatus,
+                })
+              }
+            >
+              <MapPinned size={16} /> Adicionar à agenda
+            </Button>
+            <div className="mt-4 space-y-2">
+              {routes.slice(0, 5).map(item => (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-lg bg-[#f6f8f2] px-3 py-2 text-xs"
+                  key={item.id}
+                >
+                  <span>
+                    <b>{item.clientName}</b> · {item.area}
+                    <small className="block text-emerald-700/55">
+                      {new Date(item.visitAt).toLocaleDateString("pt-BR")}
+                    </small>
+                  </span>
+                  <select
+                    value={item.status}
+                    onChange={e =>
+                      route.mutate({
+                        id: item.id,
+                        area: item.area,
+                        visitAt: new Date(item.visitAt),
+                        clientName: item.clientName,
+                        pipelineLeadId: item.pipelineLeadId ?? null,
+                        priority: item.priority,
+                        objective: item.objective,
+                        status: e.target.value as
+                          | "planejada"
+                          | "concluida"
+                          | "remarcada",
+                        notes: item.notes ?? undefined,
+                      })
+                    }
+                  >
+                    <option value="planejada">Planejada</option>
+                    <option value="concluida">Concluída</option>
+                    <option value="remarcada">Remarcada</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          </article>
+        )}
       </section>
 
       <SpartaFunnel
@@ -862,27 +965,71 @@ export default function NordicStrategyPanel({
           atribuídas na competência selecionada.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setSelectedPortfolioIds(authorizedPortfolioLeads.map(lead => lead.id))} disabled={!authorizedPortfolioLeads.length}>Selecionar todos</Button>
-          <Button variant="outline" size="sm" onClick={() => setSelectedPortfolioIds([])} disabled={!selectedPortfolioIds.length}>Limpar seleção</Button>
-          <Button variant="destructive" size="sm" onClick={() => removePortfolioEntries.mutate({ ids: selectedPortfolioIds })} disabled={!selectedPortfolioIds.length || removePortfolioEntries.isPending}>Excluir selecionados</Button>
-          <span className="text-xs text-emerald-700/60">{selectedPortfolioIds.length} selecionado(s)</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setSelectedPortfolioIds(
+                authorizedPortfolioLeads.map(lead => lead.id)
+              )
+            }
+            disabled={!authorizedPortfolioLeads.length}
+          >
+            Selecionar todos
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedPortfolioIds([])}
+            disabled={!selectedPortfolioIds.length}
+          >
+            Limpar seleção
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() =>
+              removePortfolioEntries.mutate({ ids: selectedPortfolioIds })
+            }
+            disabled={
+              !selectedPortfolioIds.length || removePortfolioEntries.isPending
+            }
+          >
+            Excluir selecionados
+          </Button>
+          <span className="text-xs text-emerald-700/60">
+            {selectedPortfolioIds.length} selecionado(s)
+          </span>
         </div>
         <div className="mt-4 grid gap-2 md:grid-cols-2">
           {authorizedPortfolioLeads.slice(0, 8).map(lead => (
-            <label key={lead.id} className="flex gap-3 rounded-lg bg-[#f6f8f2] p-3 text-xs">
-              <input type="checkbox" checked={selectedPortfolioIds.includes(lead.id)} onChange={() => setSelectedPortfolioIds(current => current.includes(lead.id) ? current.filter(id => id !== lead.id) : [...current, lead.id])} />
+            <label
+              key={lead.id}
+              className="flex gap-3 rounded-lg bg-[#f6f8f2] p-3 text-xs"
+            >
+              <input
+                type="checkbox"
+                checked={selectedPortfolioIds.includes(lead.id)}
+                onChange={() =>
+                  setSelectedPortfolioIds(current =>
+                    current.includes(lead.id)
+                      ? current.filter(id => id !== lead.id)
+                      : [...current, lead.id]
+                  )
+                }
+              />
               <span>
-              <b>{lead.clientName}</b>
-              <p className="mt-1 text-emerald-700/65">
-                {lead.route} · {tierLabel(lead.projectedTpv)} ·{" "}
-                {lead.segment || "Segmento não informado"}
-              </p>
-              <p className="text-emerald-700/55">
-                {lead.stage || "Sem etapa"}{" "}
-                {lead.nextContactAt
-                  ? `· próximo contato ${new Date(lead.nextContactAt).toLocaleDateString("pt-BR")}`
-                  : ""}
-              </p>
+                <b>{lead.clientName}</b>
+                <p className="mt-1 text-emerald-700/65">
+                  {lead.route} · {tierLabel(lead.projectedTpv)} ·{" "}
+                  {lead.segment || "Segmento não informado"}
+                </p>
+                <p className="text-emerald-700/55">
+                  {lead.stage || "Sem etapa"}{" "}
+                  {lead.nextContactAt
+                    ? `· próximo contato ${new Date(lead.nextContactAt).toLocaleDateString("pt-BR")}`
+                    : ""}
+                </p>
               </span>
             </label>
           ))}
