@@ -186,25 +186,24 @@ function SpartaFunnel({
   }>;
 }) {
   const saveUtils = trpc.useUtils();
+  const pipeline = trpc.psv.pipeline.useQuery();
   const saveLead = trpc.psv.saveLead.useMutation({
     onSuccess: async () => { await saveUtils.psv.pipeline.invalidate(); },
     onError: error => toast.error(error.message),
   });
+  const removeLead = trpc.psv.removeLead.useMutation({ onSuccess: () => pipeline.refetch(), onError: error => toast.error(error.message) });
   const [imageNames, setImageNames] = useState<string[]>([]);
   const [manualName, setManualName] = useState("");
   const [manualTpv, setManualTpv] = useState(0);
   const [importedCount, setImportedCount] = useState(0);
-  const [rows, setRows] = useState<SpartaLead[]>(() =>
-    leads.map(lead => ({ ...lead, helpRequest: "" }))
-  );
+  const [rows, setRows] = useState<SpartaLead[]>(() => leads.map(lead => ({ ...lead, helpRequest: "" })));
   useEffect(
-    () =>
-      setRows(current =>
-        current.length
-          ? current
-          : leads.map(lead => ({ ...lead, helpRequest: "" }))
-      ),
-    [leads]
+    () => {
+      const savedRows = (pipeline.data ?? []).filter(lead => lead.segmentId === "sparta").map(lead => ({ id: lead.id, clientName: lead.clientName, projectedTpv: lead.projectedTpv, stage: lead.stage === "negociacao" ? "Negociando" : lead.stage === "qualificando" ? "Qualificando" : lead.stage === "planejado" ? "Planejado" : "Mapeado", temperature: lead.temperature, helpRequest: "" }));
+      if (savedRows.length) setRows(savedRows);
+      else if (!rows.length) setRows(leads.map(lead => ({ ...lead, helpRequest: "" })));
+    },
+    [pipeline.data, leads]
   );
   const addManual = () => {
     if (!manualName.trim()) return;
@@ -229,13 +228,15 @@ function SpartaFunnel({
   const saveRows = async () => {
     try {
       for (const row of rows) {
-        await saveLead.mutateAsync({ clientName: row.clientName, temperature: row.temperature, segmentId: "sparta", segmentLabel: "Estratégia Sparta", mcc: "", cnae: "", projectedTpv: row.projectedTpv, nextContactAt: null, stage: row.stage === "Negociando" ? "negociacao" : row.stage === "Qualificando" ? "qualificando" : row.stage === "Planejado" ? "planejado" : "mapeado" });
+        await saveLead.mutateAsync({ id: row.id > 0 ? row.id : undefined, clientName: row.clientName, temperature: row.temperature, segmentId: "sparta", segmentLabel: "Estratégia Sparta", mcc: "", cnae: "", projectedTpv: row.projectedTpv, nextContactAt: null, stage: row.stage === "Negociando" ? "negociacao" : row.stage === "Qualificando" ? "qualificando" : row.stage === "Planejado" ? "planejado" : "mapeado" });
       }
+      await pipeline.refetch();
       toast.success(`${rows.length} cliente(s) salvo(s) no funil privado da PSV.`);
     } catch {
       toast.error("Não foi possível salvar todos os clientes da planilha.");
     }
   };
+  const removeRow = (id: number) => { if (id > 0) removeLead.mutate({ id }); else setRows(current => removeItemById(current, id)); };
 
   const handleSpreadsheetImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -318,9 +319,9 @@ function SpartaFunnel({
             key={row.id}
           >
             <div>
-              <b>{row.clientName}</b>
+              <Input value={row.clientName} onChange={event => setRows(current => current.map(item => item.id === row.id ? { ...item, clientName: event.target.value } : item))} />
               <span className="mt-1 block text-xs text-emerald-700/60">
-                {brl.format(row.projectedTpv)} · {tierLabel(row.projectedTpv)}
+                <Input type="number" min="0" value={row.projectedTpv || ""} onChange={event => setRows(current => current.map(item => item.id === row.id ? { ...item, projectedTpv: Number(event.target.value) || 0 } : item))} /> · {tierLabel(row.projectedTpv)}
               </span>
             </div>
             <button

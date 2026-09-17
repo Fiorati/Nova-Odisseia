@@ -50,6 +50,7 @@ function emptyLead(): Omit<MeetingLead, "id" | "polo"> {
 export default function MeetingSchedulingPanel() {
   const meetings = trpc.meetings.list.useQuery();
   const strategyPortfolio = trpc.portfolio.getForMyRoute.useQuery({ portfolioType: "route" });
+  const strategySparta = trpc.psv.pipeline.useQuery();
   const team = trpc.team.list.useQuery();
   const utils = trpc.useUtils();
   const [periodKey, setPeriodKey] = useState(currentPeriod);
@@ -114,7 +115,7 @@ export default function MeetingSchedulingPanel() {
       status: row.status,
     });
   };
-  const strategyEntries = strategyPortfolio.data?.entries ?? [];
+  const strategyEntries = [...(strategyPortfolio.data?.entries ?? []).map(entry => ({ id: entry.id, clientName: entry.clientName, projectedTpv: entry.projectedTpv, segment: entry.segment, route: entry.route, document: entry.document, phone: entry.phone, notes: entry.notes })), ...(strategySparta.data ?? []).filter(entry => entry.segmentId === "sparta").map(entry => ({ id: -entry.id, clientName: entry.clientName, projectedTpv: entry.projectedTpv, segment: entry.segmentLabel, route: "", document: "", phone: "", notes: "" }))];
   const importSelectedStrategy = async () => {
     setImportingStrategy(true);
     try {
