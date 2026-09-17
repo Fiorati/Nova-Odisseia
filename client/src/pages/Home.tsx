@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
-import { BarChart3, Calculator, CheckCircle2, ClipboardCheck, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
+import { BarChart3, Boxes, Calculator, CheckCircle2, ClipboardCheck, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
