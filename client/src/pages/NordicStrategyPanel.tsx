@@ -465,6 +465,15 @@ export default function NordicStrategyPanel({
   const tpvGap = gapToTarget(targetTpv, actualTpv);
   const daysRemaining = businessDaysRemaining();
   const authorizedPortfolioLeads = strategy.data?.routePortfolioLeads ?? [];
+  const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<number[]>([]);
+  const removePortfolioEntries = trpc.portfolio.removeEntries.useMutation({
+    onSuccess: async () => {
+      setSelectedPortfolioIds([]);
+      await Promise.all([utils.nordic.get.invalidate({ monthKey }), utils.portfolio.getForMyRoute.invalidate({ portfolioType: "route" })]);
+      toast.success("Clientes removidos da carteira importada.");
+    },
+    onError: error => toast.error(error.message),
+  });
 
   return (
     <div className="space-y-6">
@@ -835,9 +844,17 @@ export default function NordicStrategyPanel({
           A lista considera somente entradas das suas rotas formalmente
           atribuídas na competência selecionada.
         </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSelectedPortfolioIds(authorizedPortfolioLeads.map(lead => lead.id))} disabled={!authorizedPortfolioLeads.length}>Selecionar todos</Button>
+          <Button variant="outline" size="sm" onClick={() => setSelectedPortfolioIds([])} disabled={!selectedPortfolioIds.length}>Limpar seleção</Button>
+          <Button variant="destructive" size="sm" onClick={() => removePortfolioEntries.mutate({ ids: selectedPortfolioIds })} disabled={!selectedPortfolioIds.length || removePortfolioEntries.isPending}>Excluir selecionados</Button>
+          <span className="text-xs text-emerald-700/60">{selectedPortfolioIds.length} selecionado(s)</span>
+        </div>
         <div className="mt-4 grid gap-2 md:grid-cols-2">
           {authorizedPortfolioLeads.slice(0, 8).map(lead => (
-            <div key={lead.id} className="rounded-lg bg-[#f6f8f2] p-3 text-xs">
+            <label key={lead.id} className="flex gap-3 rounded-lg bg-[#f6f8f2] p-3 text-xs">
+              <input type="checkbox" checked={selectedPortfolioIds.includes(lead.id)} onChange={() => setSelectedPortfolioIds(current => current.includes(lead.id) ? current.filter(id => id !== lead.id) : [...current, lead.id])} />
+              <span>
               <b>{lead.clientName}</b>
               <p className="mt-1 text-emerald-700/65">
                 {lead.route} · {tierLabel(lead.projectedTpv)} ·{" "}
@@ -849,7 +866,8 @@ export default function NordicStrategyPanel({
                   ? `· próximo contato ${new Date(lead.nextContactAt).toLocaleDateString("pt-BR")}`
                   : ""}
               </p>
-            </div>
+              </span>
+            </label>
           ))}
           {!authorizedPortfolioLeads.length && (
             <p className="rounded-lg bg-[#f6f8f2] p-4 text-sm text-emerald-700/65">

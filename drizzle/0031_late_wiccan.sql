@@ -1,0 +1,1 @@
+ALTER TABLE `psv_weekly_rituals` ADD `preparedPortfolioIdsJson` text;

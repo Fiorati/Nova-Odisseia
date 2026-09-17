@@ -30,6 +30,7 @@ import {
   getPsvWeeklyRitual,
   getProspectionRecommendations,
   getRoutePortfolioForUser,
+  removeRoutePortfolioEntries,
   importStoneLeadList,
   getNordicStrategy,
   importDistrictPortfolio,
@@ -631,6 +632,7 @@ export const appRouter = router({
       }),
   }),
   portfolio: router({
+    removeEntries: protectedProcedure.input(z.object({ ids: z.array(z.number().int().positive()).min(1).max(500) })).mutation(({ ctx, input }) => removeRoutePortfolioEntries(ctx.user.id, input.ids)),
     assignments: protectedProcedure.query(({ ctx }) =>
       listRouteAssignmentsForLeader(ctx.user.id)
     ),
@@ -913,6 +915,10 @@ export const appRouter = router({
           dailyPlan: z.string().max(3000).optional(),
           weeklyRoute: z.string().max(3000).optional(),
           preparedLeadIds: z
+            .array(z.number().int().positive())
+            .max(30)
+            .optional(),
+          preparedPortfolioIds: z
             .array(z.number().int().positive())
             .max(30)
             .optional(),

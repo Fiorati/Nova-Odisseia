@@ -209,6 +209,7 @@ export const psvWeeklyRituals = mysqlTable("psv_weekly_rituals", {
   dailyPlan: text("dailyPlan"),
   weeklyRoute: text("weeklyRoute"),
   preparedLeadIdsJson: text("preparedLeadIdsJson"),
+  preparedPortfolioIdsJson: text("preparedPortfolioIdsJson"),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => ({ weeklyRitualUserWeekIndex: uniqueIndex("psv_weekly_rituals_user_week_uq").on(table.userId, table.weekOf) }));
 

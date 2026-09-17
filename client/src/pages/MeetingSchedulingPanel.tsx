@@ -49,11 +49,14 @@ function emptyLead(): Omit<MeetingLead, "id" | "polo"> {
 
 export default function MeetingSchedulingPanel() {
   const meetings = trpc.meetings.list.useQuery();
+  const strategyPortfolio = trpc.portfolio.getForMyRoute.useQuery({ portfolioType: "route" });
   const team = trpc.team.list.useQuery();
   const utils = trpc.useUtils();
   const [periodKey, setPeriodKey] = useState(currentPeriod);
   const [draft, setDraft] = useState(emptyLead);
   const [editing, setEditing] = useState<number | null>(null);
+  const [importingStrategy, setImportingStrategy] = useState(false);
+  const [selectedStrategyIds, setSelectedStrategyIds] = useState<number[]>([]);
   const period = trpc.meetings.period.useQuery({ periodKey });
   const [metrics, setMetrics] = useState({
     callsMade: 0,
@@ -111,6 +114,19 @@ export default function MeetingSchedulingPanel() {
       status: row.status,
     });
   };
+  const strategyEntries = strategyPortfolio.data?.entries ?? [];
+  const importSelectedStrategy = async () => {
+    setImportingStrategy(true);
+    try {
+      for (const entry of strategyEntries.filter(item => selectedStrategyIds.includes(item.id))) {
+        await save.mutateAsync({ cnpj: entry.document ?? "", tradeName: entry.clientName, tpv: entry.projectedTpv, segment: entry.segment ?? "", route: entry.route ?? "", decisionMaker: "", contact: entry.phone ?? "", notes: entry.notes ?? "", status: "novo" });
+      }
+      setSelectedStrategyIds([]);
+      toast.success("Clientes selecionados importados para novas reuniões.");
+    } finally {
+      setImportingStrategy(false);
+    }
+  };
   return (
     <div className="space-y-6">
       <section className="rounded-2xl bg-[#002b1d] p-6 text-white md:p-8">
@@ -147,6 +163,14 @@ export default function MeetingSchedulingPanel() {
           >
             Limpar
           </Button>
+        </div>
+        <div className="mt-4 rounded-lg bg-[#f6f8f2] p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelectedStrategyIds(strategyEntries.map(entry => entry.id))} disabled={!strategyEntries.length}>Importar da estratégia</Button>
+            <Button size="sm" className="bg-[#002b1d]" onClick={importSelectedStrategy} disabled={!selectedStrategyIds.length || importingStrategy}>{importingStrategy ? "Importando..." : "Adicionar selecionados"}</Button>
+            <span className="text-xs text-emerald-700/65">Selecione clientes importados na Estratégia para trazer ao agendamento.</span>
+          </div>
+          {!!selectedStrategyIds.length && <div className="mt-3 grid gap-2 md:grid-cols-2">{strategyEntries.map(entry => <label key={entry.id} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={selectedStrategyIds.includes(entry.id)} onChange={() => setSelectedStrategyIds(current => current.includes(entry.id) ? current.filter(id => id !== entry.id) : [...current, entry.id])} /><span>{entry.clientName} · {entry.route}</span></label>)}</div>}
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <label className="grid gap-1 text-xs">

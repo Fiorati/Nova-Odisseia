@@ -2854,6 +2854,21 @@ export async function getRoutePortfolioForUser(
   };
 }
 
+export async function removeRoutePortfolioEntries(userId: number, ids: number[]) {
+  const db = await getDb();
+  const requestedIds = Array.from(new Set(ids)).filter(id => Number.isInteger(id) && id > 0).slice(0, 500);
+  if (!requestedIds.length) return { success: true, removed: 0 };
+  const [actor, formalRoutes] = await Promise.all([
+    db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1).then(rows => rows[0]),
+    getFormalRoutes(userId),
+  ]);
+  const scope = actor?.role === "admin"
+    ? undefined
+    : inArray(routePortfolioEntries.routeKey, formalRoutes.map(route => route.routeKey));
+  const result = await db.delete(routePortfolioEntries).where(and(inArray(routePortfolioEntries.id, requestedIds), ...(scope ? [scope] : [])));
+  return { success: true, removed: result[0]?.affectedRows ?? requestedIds.length };
+}
+
 export async function savePsvPlan(
   userId: number,
   input: {
@@ -3470,6 +3485,15 @@ function parsePreparedLeadIds(value: string | null) {
   }
 }
 
+function parsePreparedPortfolioIds(value: string | null) {
+  try {
+    const ids = JSON.parse(value ?? "[]") as unknown;
+    return Array.isArray(ids) ? ids.filter((id): id is number => Number.isInteger(id) && id > 0).slice(0, 30) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getPsvWeeklyRitual(userId: number, weekOf: string) {
   const db = await getDb();
   const row = (
@@ -3485,7 +3509,7 @@ export async function getPsvWeeklyRitual(userId: number, weekOf: string) {
       .limit(1)
   )[0];
   return row
-    ? { ...row, preparedLeadIds: parsePreparedLeadIds(row.preparedLeadIdsJson) }
+    ? { ...row, preparedLeadIds: parsePreparedLeadIds(row.preparedLeadIdsJson), preparedPortfolioIds: parsePreparedPortfolioIds(row.preparedPortfolioIdsJson) }
     : null;
 }
 
@@ -3497,6 +3521,7 @@ export async function savePsvWeeklyRitual(
     dailyPlan?: string;
     weeklyRoute?: string;
     preparedLeadIds?: number[];
+    preparedPortfolioIds?: number[];
   }
 ) {
   const db = await getDb();
@@ -3516,6 +3541,15 @@ export async function savePsvWeeklyRitual(
     : [];
   if (ownLeads.length !== requestedIds.length)
     throw new Error("A preparação só pode incluir leads do seu próprio funil.");
+  const requestedPortfolioIds = Array.from(new Set(input.preparedPortfolioIds ?? []))
+    .filter(id => Number.isInteger(id) && id > 0)
+    .slice(0, 30);
+  const formalRoutes = await getFormalRoutes(userId);
+  const ownPortfolioEntries = requestedPortfolioIds.length && formalRoutes.length
+    ? await db.select({ id: routePortfolioEntries.id }).from(routePortfolioEntries).where(and(inArray(routePortfolioEntries.id, requestedPortfolioIds), inArray(routePortfolioEntries.routeKey, formalRoutes.map(route => route.routeKey))))
+    : [];
+  if (ownPortfolioEntries.length !== requestedPortfolioIds.length)
+    throw new Error("A preparação só pode incluir clientes importados das suas rotas.");
   const value = {
     userId,
     weekOf: input.weekOf,
@@ -3523,6 +3557,7 @@ export async function savePsvWeeklyRitual(
     dailyPlan: cleanPortfolioText(input.dailyPlan, 3000) || null,
     weeklyRoute: cleanPortfolioText(input.weeklyRoute, 3000) || null,
     preparedLeadIdsJson: JSON.stringify(requestedIds),
+    preparedPortfolioIdsJson: JSON.stringify(requestedPortfolioIds),
   };
   await db
     .insert(psvWeeklyRituals)
@@ -3533,6 +3568,7 @@ export async function savePsvWeeklyRitual(
         dailyPlan: value.dailyPlan,
         weeklyRoute: value.weeklyRoute,
         preparedLeadIdsJson: value.preparedLeadIdsJson,
+        preparedPortfolioIdsJson: value.preparedPortfolioIdsJson,
       },
     });
   return getPsvWeeklyRitual(userId, input.weekOf);
