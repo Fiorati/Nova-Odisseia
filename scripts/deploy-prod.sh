@@ -9,20 +9,20 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-echo "[1/4] Instalando dependências"
+echo "[1/5] Instalando dependências"
 pnpm install --frozen-lockfile
 
-echo "[2/4] Validando TypeScript"
+echo "[2/5] Validando TypeScript"
 pnpm run check
 
-echo "[3/4] Rodando testes unitários"
+echo "[3/5] Rodando testes unitários"
 pnpm run test:unit
 
-echo "[4/4] Build de produção"
+echo "[4/5] Build de produção"
 pnpm run build
 
-echo "Build concluído. Agora rode em produção:"
-echo "  PORT=3000 NODE_ENV=production pnpm run start"
+echo "[5/5] Aplicando migrations do banco"
+pnpm run db:migrate
 
-echo "Ou, se quiser migrar banco antes do start:"
-echo "  pnpm run db:migrate"
+echo "Deploy preparado com sucesso. O processo de produção pode ser iniciado com:"
+echo "  PORT=3000 NODE_ENV=production pnpm run start"

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
+import { applySecurityHeaders, limitApiAbuse } from "./_core/requestSecurity";
 
 type CookieCall = {
   name: string;
@@ -58,5 +59,28 @@ describe("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+
+  it("aplica cabeçalhos anti-scraping e proteção de abuso", () => {
+    const res = {
+      headers: {} as Record<string, string>,
+      setHeader(name: string, value: string) {
+        this.headers[name] = value;
+      },
+    } as any;
+    const req = {
+      method: "GET",
+      path: "/api/trpc/identity.configuration",
+      headers: { host: "app.novaodisseia.com" },
+      ip: "192.168.1.10",
+    } as any;
+
+    const next = () => undefined;
+    applySecurityHeaders(req, res, next);
+    limitApiAbuse(req, res, next);
+
+    expect(res.headers["X-Robots-Tag"]).toContain("noindex");
+    expect(res.headers["X-Frame-Options"]).toBe("DENY");
+    expect(res.headers["Permissions-Policy"]).toContain("geolocation=()");
   });
 });

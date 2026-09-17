@@ -32,8 +32,11 @@ export function rejectUntrustedTrpcMutationOrigin(req: Request, res: Response, n
 
 type Attempt = { count: number; startedAt: number };
 const authAttempts = new Map<string, Attempt>();
+const apiAttempts = new Map<string, Attempt>();
 const AUTH_WINDOW_MS = 15 * 60 * 1000;
 const MAX_AUTH_ATTEMPTS_PER_WINDOW = 20;
+const API_WINDOW_MS = 60 * 1000;
+const MAX_API_REQUESTS_PER_WINDOW = 300;
 
 function requestIp(req: Request) {
   return headerValue(req.headers["x-forwarded-for"] as string | string[] | undefined)?.split(",")[0]?.trim() || req.ip || "unknown";
@@ -58,6 +61,31 @@ export function limitSensitiveAuthMutations(req: Request, res: Response, next: N
   next();
 }
 
+/** Limita abuso geral da API por IP para reduzir scraping massivo e consultas automatizadas. */
+export function limitApiAbuse(req: Request, res: Response, next: NextFunction) {
+  if (!req.path.startsWith("/api/")) {
+    next();
+    return;
+  }
+
+  const key = `${requestIp(req)}:${req.path}`;
+  const now = Date.now();
+  const previous = apiAttempts.get(key);
+  const current = !previous || now - previous.startedAt > API_WINDOW_MS
+    ? { count: 0, startedAt: now }
+    : previous;
+
+  current.count += 1;
+  apiAttempts.set(key, current);
+
+  if (current.count > MAX_API_REQUESTS_PER_WINDOW) {
+    res.status(429).json({ error: "Muitas requisições em sequência. Aguarde alguns minutos e tente novamente." });
+    return;
+  }
+
+  next();
+}
+
 function analyticsOrigin() {
   try {
     return process.env.VITE_ANALYTICS_ENDPOINT ? new URL(process.env.VITE_ANALYTICS_ENDPOINT).origin : "";
@@ -72,11 +100,15 @@ export function applySecurityHeaders(req: Request, res: Response, next: NextFunc
   res.setHeader("Content-Security-Policy", process.env.NODE_ENV === "production"
     ? `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'${analyticsSource}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'${analyticsSource} https://api.brasilapi.com.br; frame-src 'none'`
     : "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-DNS-Prefetch-Control", "off");
+  res.setHeader("X-Download-Options", "noopen");
+  res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
   res.setHeader("X-Frame-Options", "DENY");
   if (req.path.startsWith("/api/")) res.setHeader("Cache-Control", "no-store");
   if (process.env.NODE_ENV === "production") {

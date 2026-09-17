@@ -5,7 +5,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { applySecurityHeaders, limitSensitiveAuthMutations, rejectUntrustedTrpcMutationOrigin } from "./requestSecurity";
+import { applySecurityHeaders, limitApiAbuse, limitSensitiveAuthMutations, rejectUntrustedTrpcMutationOrigin } from "./requestSecurity";
 import { serveStatic, setupVite } from "./vite";
 import { publishScheduledNewsIfDue } from "../db";
 
@@ -13,6 +13,7 @@ export function createApp(): Express {
   const app = express();
   app.disable("x-powered-by");
   app.use(applySecurityHeaders);
+  app.use(limitApiAbuse);
   app.use(rejectUntrustedTrpcMutationOrigin);
   app.use(limitSensitiveAuthMutations);
   app.use(express.json({ limit: "18mb" }));
