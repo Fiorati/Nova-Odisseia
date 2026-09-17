@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
 import {
   BarChart3,
+  BookOpen,
   CalendarDays,
   Calculator,
   CheckCircle2,
@@ -42,6 +43,7 @@ import BestPracticesFeed from "./BestPracticesFeed";
 import NewsFeed from "./NewsFeed";
 import TaskDescriptionGeneratorPanel from "./TaskDescriptionGeneratorPanel";
 import MeetingSchedulingPanel from "./MeetingSchedulingPanel";
+import PlatformTutorialPanel from "./PlatformTutorialPanel";
 import {
   ItakaEmblem,
   LaurelTop1,
@@ -68,7 +70,8 @@ type View =
   | "campanhas"
   | "spartacus"
   | "reunioes"
-  | "descricao-tarefa";
+  | "descricao-tarefa"
+  | "tutorial";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -932,6 +935,7 @@ export default function Home() {
       "spartacus",
       "descricao-tarefa",
       "reunioes",
+      "tutorial",
     ].includes(value ?? "")
       ? (value as View)
       : "painel";
@@ -1026,6 +1030,7 @@ export default function Home() {
         ["psv", ClipboardCheck, "Plano semanal"],
         ["descricao-tarefa", FileText, "Descrição da tarefa"],
         ["reunioes", CalendarDays, "Agendamento de reuniões"],
+        ["tutorial", BookOpen, "Tutorial"],
         ["ranking", Trophy, "Troféus"],
         ["perfil", Users, "Meu perfil"],
       ] as const)
@@ -1039,6 +1044,7 @@ export default function Home() {
         ["psv", ClipboardCheck, "Plano semanal"],
         ["descricao-tarefa", FileText, "Descrição da tarefa"],
         ["reunioes", CalendarDays, "Agendamento de reuniões"],
+        ["tutorial", BookOpen, "Tutorial"],
         ["rmr", BarChart3, "RMR"],
         ["card-final", Flag, "Card final"],
         ["ranking", Trophy, "Troféus"],
@@ -1066,6 +1072,10 @@ export default function Home() {
 
     if (view === "reunioes") {
       return <MeetingSchedulingPanel />;
+    }
+
+    if (view === "tutorial") {
+      return <PlatformTutorialPanel />;
     }
 
     if (isLeader && view === "painel") {
