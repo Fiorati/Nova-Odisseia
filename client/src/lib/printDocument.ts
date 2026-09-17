@@ -12,9 +12,21 @@ export function buildPrintDocumentHtml(title: string, subtitle: string, sections
 }
 
 export function exportPrivatePdf(title: string, subtitle: string, sections: PrintSection[]) {
-  const popup = window.open("", "_blank", "noopener,noreferrer");
-  if (!popup) return false;
-  popup.document.write(buildPrintDocumentHtml(title, subtitle, sections));
-  popup.document.close();
-  return true;
+  try {
+    const html = buildPrintDocumentHtml(title, subtitle, sections);
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    // Um clique de âncora não é bloqueado por bloqueadores de pop-up como window.open.
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch {
+    return false;
+  }
 }

@@ -78,6 +78,7 @@ import {
   sortByTpv,
 } from "../shared/gamification";
 import { tioPatinhasAlias } from "../shared/tioPatinhas";
+import { pickAutoNewsItem } from "../shared/newsAutoContent";
 import {
   calculateSalesPipeline,
   listSalesPipeFilterOptions,
@@ -305,52 +306,10 @@ export async function researchProspectionCnpj(
   const cnpj = sanitizeCnpj(input.cnpj ?? dossier.cnpj);
   if (cnpj.length !== 14)
     throw new Error("Informe um CNPJ com 14 caracteres antes de pesquisar.");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
-  let response: Response;
-  try {
-    response = await fetch(
-      `https://brasilapi.com.br/api/cnpj/v1/${encodeURIComponent(cnpj)}`,
-      { signal: controller.signal, headers: { Accept: "application/json" } }
-    );
-  } catch {
-    throw new Error(
-      "A consulta pública de CNPJ está indisponível. Tente novamente mais tarde."
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
-  if (response.status === 400)
-    throw new Error("CNPJ inválido ou mal formatado.");
-  if (response.status === 404)
-    throw new Error("CNPJ não encontrado na fonte pública.");
-  if (!response.ok)
+  const result = await fetchPublicCnpjSnapshot(cnpj);
+  if (!result)
     throw new Error("Não foi possível consultar a fonte pública no momento.");
-  const body = (await response.json()) as Record<string, unknown>;
-  const snapshot: PublicCnpjSnapshot = {
-    cnpj: typeof body.cnpj === "string" ? body.cnpj : cnpj,
-    razaoSocial: typeof body.razao_social === "string" ? body.razao_social : "",
-    nomeFantasia:
-      typeof body.nome_fantasia === "string" ? body.nome_fantasia : "",
-    situacaoCadastral:
-      typeof body.descricao_situacao_cadastral === "string"
-        ? body.descricao_situacao_cadastral
-        : "",
-    porte: typeof body.porte === "string" ? body.porte : "",
-    cnae: body.cnae_fiscal ? String(body.cnae_fiscal) : "",
-    atividade:
-      typeof body.cnae_fiscal_descricao === "string"
-        ? body.cnae_fiscal_descricao
-        : "",
-    municipio: typeof body.municipio === "string" ? body.municipio : "",
-    uf: typeof body.uf === "string" ? body.uf : "",
-    bairro: typeof body.bairro === "string" ? body.bairro : "",
-    inicioAtividade:
-      typeof body.data_inicio_atividade === "string"
-        ? body.data_inicio_atividade
-        : "",
-  };
-  const sourceUrl = `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`;
+  const { snapshot, sourceUrl, sourceLabel } = result;
   await db
     .update(prospectionDossiers)
     .set({
@@ -377,10 +336,88 @@ export async function researchProspectionCnpj(
   await db.insert(prospectionSources).values({
     dossierId: dossier.id,
     sourceType: "cnpj",
-    label: "BrasilAPI · CNPJ público",
+    label: sourceLabel,
     url: sourceUrl,
   });
   return { snapshot, sourceUrl, researchedAt: new Date() };
+}
+
+async function fetchJsonWithTimeout(url: string, timeoutMs = 8_000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Encadeia fontes públicas e gratuitas de CNPJ (sem scraping) para reduzir falhas por indisponibilidade/limite de uma única fonte. */
+async function fetchPublicCnpjSnapshot(
+  cnpj: string
+): Promise<{ snapshot: PublicCnpjSnapshot; sourceUrl: string; sourceLabel: string } | null> {
+  const brasilApiUrl = `https://brasilapi.com.br/api/cnpj/v1/${encodeURIComponent(cnpj)}`;
+  const brasilApiBody = await fetchJsonWithTimeout(brasilApiUrl);
+  if (brasilApiBody) {
+    return {
+      snapshot: {
+        cnpj: typeof brasilApiBody.cnpj === "string" ? brasilApiBody.cnpj : cnpj,
+        razaoSocial: typeof brasilApiBody.razao_social === "string" ? brasilApiBody.razao_social : "",
+        nomeFantasia: typeof brasilApiBody.nome_fantasia === "string" ? brasilApiBody.nome_fantasia : "",
+        situacaoCadastral:
+          typeof brasilApiBody.descricao_situacao_cadastral === "string"
+            ? brasilApiBody.descricao_situacao_cadastral
+            : "",
+        porte: typeof brasilApiBody.porte === "string" ? brasilApiBody.porte : "",
+        cnae: brasilApiBody.cnae_fiscal ? String(brasilApiBody.cnae_fiscal) : "",
+        atividade:
+          typeof brasilApiBody.cnae_fiscal_descricao === "string"
+            ? brasilApiBody.cnae_fiscal_descricao
+            : "",
+        municipio: typeof brasilApiBody.municipio === "string" ? brasilApiBody.municipio : "",
+        uf: typeof brasilApiBody.uf === "string" ? brasilApiBody.uf : "",
+        bairro: typeof brasilApiBody.bairro === "string" ? brasilApiBody.bairro : "",
+        inicioAtividade:
+          typeof brasilApiBody.data_inicio_atividade === "string"
+            ? brasilApiBody.data_inicio_atividade
+            : "",
+      },
+      sourceUrl: brasilApiUrl,
+      sourceLabel: "BrasilAPI · CNPJ público",
+    };
+  }
+  const receitaWsUrl = `https://www.receitaws.com.br/v1/cnpj/${encodeURIComponent(cnpj)}`;
+  const receitaWsBody = await fetchJsonWithTimeout(receitaWsUrl);
+  if (receitaWsBody && receitaWsBody.status !== "ERROR") {
+    const primaryActivity = Array.isArray(receitaWsBody.atividade_principal)
+      ? (receitaWsBody.atividade_principal[0] as Record<string, unknown> | undefined)
+      : undefined;
+    return {
+      snapshot: {
+        cnpj,
+        razaoSocial: typeof receitaWsBody.nome === "string" ? receitaWsBody.nome : "",
+        nomeFantasia: typeof receitaWsBody.fantasia === "string" ? receitaWsBody.fantasia : "",
+        situacaoCadastral: typeof receitaWsBody.situacao === "string" ? receitaWsBody.situacao : "",
+        porte: typeof receitaWsBody.porte === "string" ? receitaWsBody.porte : "",
+        cnae: typeof primaryActivity?.code === "string" ? primaryActivity.code : "",
+        atividade: typeof primaryActivity?.text === "string" ? primaryActivity.text : "",
+        municipio: typeof receitaWsBody.municipio === "string" ? receitaWsBody.municipio : "",
+        uf: typeof receitaWsBody.uf === "string" ? receitaWsBody.uf : "",
+        bairro: typeof receitaWsBody.bairro === "string" ? receitaWsBody.bairro : "",
+        inicioAtividade: typeof receitaWsBody.abertura === "string" ? receitaWsBody.abertura : "",
+      },
+      sourceUrl: receitaWsUrl,
+      sourceLabel: "ReceitaWS · CNPJ público",
+    };
+  }
+  return null;
 }
 
 export async function getProspectionRecommendations(userId: number) {
@@ -1858,6 +1895,37 @@ export async function canManageNews(userId: number) {
   return row?.role === "admin" || row?.leadershipRole === "polo";
 }
 
+const AUTO_NEWS_AUTHOR_NAME = "Nova Odisseia";
+const AUTO_NEWS_INTERVAL_MS = 12 * 60 * 60 * 1000;
+
+/** Publica automaticamente o próximo item da rotação editorial quando passam 12h desde a última publicação do sistema. */
+export async function publishScheduledNewsIfDue() {
+  const db = await getDb();
+  const systemAuthor = (
+    await db.select({ id: users.id }).from(users).where(eq(users.role, "admin")).limit(1)
+  )[0];
+  if (!systemAuthor) return;
+  const previousSystemPosts = await db
+    .select({ id: newsArticles.id, publishedAt: newsArticles.publishedAt })
+    .from(newsArticles)
+    .where(eq(newsArticles.authorName, AUTO_NEWS_AUTHOR_NAME))
+    .orderBy(desc(newsArticles.publishedAt))
+    .limit(1);
+  const lastPost = previousSystemPosts[0];
+  if (lastPost && Date.now() - new Date(lastPost.publishedAt).getTime() < AUTO_NEWS_INTERVAL_MS) return;
+  const totalSystemPosts = (
+    await db.select({ id: newsArticles.id }).from(newsArticles).where(eq(newsArticles.authorName, AUTO_NEWS_AUTHOR_NAME))
+  ).length;
+  const item = pickAutoNewsItem(totalSystemPosts);
+  await db.insert(newsArticles).values({
+    authorUserId: systemAuthor.id,
+    authorName: AUTO_NEWS_AUTHOR_NAME,
+    title: item.title,
+    category: item.category,
+    content: item.content,
+  });
+}
+
 export async function listNewsArticles() {
   const db = await getDb();
   await db.execute(sql`CREATE TABLE IF NOT EXISTS news_articles (
@@ -1872,6 +1940,11 @@ export async function listNewsArticles() {
     updatedAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
   )`);
+  try {
+    await publishScheduledNewsIfDue();
+  } catch (error) {
+    console.error("Falha ao publicar notícia automática", error);
+  }
   const articles = await db.select().from(newsArticles).orderBy(desc(newsArticles.pinned), desc(newsArticles.publishedAt)).limit(100);
   return [...DEFAULT_NEWS_ARTICLES, ...articles];
 }

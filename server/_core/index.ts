@@ -7,6 +7,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { applySecurityHeaders, limitSensitiveAuthMutations, rejectUntrustedTrpcMutationOrigin } from "./requestSecurity";
 import { serveStatic, setupVite } from "./vite";
+import { publishScheduledNewsIfDue } from "../db";
 
 export function createApp(): Express {
   const app = express();
@@ -33,6 +34,14 @@ export async function startServer() {
     server.listen(port, () => resolve());
   });
   console.log(`Nova Odisseia running on port ${port}`);
+  // Verifica a cada 30 minutos se é hora de publicar a próxima notícia da rotação de 12h.
+  const checkScheduledNews = () => {
+    publishScheduledNewsIfDue().catch(error =>
+      console.error("Falha ao verificar publicação automática de notícias", error)
+    );
+  };
+  checkScheduledNews();
+  setInterval(checkScheduledNews, 30 * 60 * 1000);
   return server;
 }
 
@@ -42,3 +51,4 @@ if (process.env.NOVA_START_SERVER !== "false" && process.env.NODE_ENV !== "test"
     process.exitCode = 1;
   });
 }
+

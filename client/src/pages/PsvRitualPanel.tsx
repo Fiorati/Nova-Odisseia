@@ -15,6 +15,12 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
+const previousDayKey = () => {
+  const value = new Date();
+  value.setDate(value.getDate() - 1);
+  return value.toISOString().slice(0, 10);
+};
+const brl = (value: number) => `R$ ${value.toLocaleString("pt-BR")}`;
 
 export default function PsvRitualPanel() {
   const utils = trpc.useUtils();
@@ -24,6 +30,14 @@ export default function PsvRitualPanel() {
   const portfolio = trpc.portfolio.getForMyRoute.useQuery({
     portfolioType: "route",
   });
+  const previousDayKeyValue = previousDayKey();
+  const previousDayPromise = trpc.team.promises.useQuery({
+    promiseDate: previousDayKeyValue,
+  });
+  const previousDayEntry = previousDayPromise.data?.[0];
+  const previousDaySummary = previousDayEntry
+    ? `Tarefas de venda: ${previousDayEntry.salesTasks ?? 0} · Propostas: ${previousDayEntry.proposals} · Novos clientes: ${previousDayEntry.newClients} · TPV novo: ${brl(Number(previousDayEntry.closedTpv ?? previousDayEntry.newClientsTpv ?? 0))}`
+    : `Nenhum registro do Checklist semanal para ${new Date(`${previousDayKeyValue}T12:00:00`).toLocaleDateString("pt-BR")}.`;
   const [dailyResult, setDailyResult] = useState("");
   const [dailyPlan, setDailyPlan] = useState("");
   const [weeklyRoute, setWeeklyRoute] = useState("");
@@ -39,6 +53,9 @@ export default function PsvRitualPanel() {
     setPreparedIds(item?.preparedLeadIds ?? []);
     setPreparedPortfolioIds(item?.preparedPortfolioIds ?? []);
   }, [ritual.data]);
+  useEffect(() => {
+    setDailyResult(previousDaySummary);
+  }, [previousDaySummary]);
   const leads = useMemo(
     () =>
       [...(pipeline.data ?? [])]
@@ -184,13 +201,15 @@ export default function PsvRitualPanel() {
             </div>
           </div>
           <div className="mt-5 grid gap-4">
-            <label className="grid gap-1 text-xs">
+            <div className="grid gap-1 text-xs">
               Resultado do dia anterior
-              <Textarea
-                value={dailyResult}
-                onChange={event => setDailyResult(event.target.value)}
-              />
-            </label>
+              <span className="mt-0.5 text-[10px] font-normal text-emerald-700/60">
+                Puxado automaticamente do Checklist semanal ({new Date(`${previousDayKeyValue}T12:00:00`).toLocaleDateString("pt-BR")}).
+              </span>
+              <p className="rounded-md border border-emerald-100 bg-[#f6f8f2] p-3 text-sm text-emerald-950">
+                {previousDaySummary}
+              </p>
+            </div>
             <label className="grid gap-1 text-xs">
               Plano do dia
               <Textarea
