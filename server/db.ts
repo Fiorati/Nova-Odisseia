@@ -1712,7 +1712,7 @@ export async function listBestPracticePosts() {
     ...row,
     imageUrl: row.imageKey ? `/storage/${row.imageKey}` : null,
     attachmentUrl: row.imageKey ? `/storage/${row.imageKey}` : null,
-    attachmentMimeType: row.attachmentMimeType ?? (row.imageKey ? "image/*" : null),
+    attachmentMimeType: row.imageKey && /\.pdf$/i.test(row.imageKey) ? "application/pdf" : row.imageKey ? "image/*" : null,
   }));
 }
 
@@ -1762,7 +1762,6 @@ export async function createBestPracticePost(
     title,
     content,
     imageKey,
-    attachmentMimeType: input.imageMimeType || null,
   });
   return listBestPracticePosts();
 }

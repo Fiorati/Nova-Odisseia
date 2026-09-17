@@ -25,7 +25,9 @@ type TeamMember = {
   polo: string;
   route: string;
   formalRoutes: string[];
-  teamRoles: Array<"agente" | "interino" | "polo" | "distrital" | "agendamento">;
+  teamRoles: Array<
+    "agente" | "interino" | "polo" | "distrital" | "agendamento"
+  >;
   hasAccess: boolean;
   teamProfile: {
     about: string | null;
@@ -55,7 +57,13 @@ type ChecklistEntry = {
   notes: string;
 };
 
-const emptyChecklistEntry = (): ChecklistEntry => ({ salesTasks: 0, proposals: 0, newClients: 0, closedTpv: 0, notes: "" });
+const emptyChecklistEntry = (): ChecklistEntry => ({
+  salesTasks: 0,
+  proposals: 0,
+  newClients: 0,
+  closedTpv: 0,
+  notes: "",
+});
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
 const mondayOf = (value: Date) => {
   const date = new Date(value);
@@ -69,35 +77,80 @@ const addDays = (value: Date, amount: number) => {
   date.setDate(date.getDate() + amount);
   return date;
 };
-const formatWeek = (start: Date) => `${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} - ${addDays(start, 4).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`;
+const formatWeek = (start: Date) =>
+  `${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} - ${addDays(start, 4).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`;
 
-function WeeklyChecklist({ member, canEdit }: { member?: TeamMember; canEdit: boolean }) {
+function WeeklyChecklist({
+  member,
+  canEdit,
+}: {
+  member?: TeamMember;
+  canEdit: boolean;
+}) {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [entries, setEntries] = useState<Record<string, ChecklistEntry>>({});
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const days = Array.from({ length: 5 }, (_, index) => addDays(weekStart, index));
-  const promises = trpc.team.promises.useQuery({ targetUserId: member?.userId }, { enabled: Boolean(member) });
+  const days = Array.from({ length: 5 }, (_, index) =>
+    addDays(weekStart, index)
+  );
+  const promises = trpc.team.promises.useQuery(
+    { targetUserId: member?.userId },
+    { enabled: Boolean(member) }
+  );
   const savePromise = trpc.team.savePromise.useMutation({
-      onSuccess: () => setSavedAt(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })),
+    onSuccess: () =>
+      setSavedAt(
+        new Date().toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      ),
     onError: error => toast.error(error.message),
   });
   useEffect(() => {
     const next: Record<string, ChecklistEntry> = {};
-    for (const item of promises.data ?? []) next[item.promiseDate] = { salesTasks: item.salesTasks ?? 0, proposals: item.proposals, newClients: item.newClients, closedTpv: Number(item.closedTpv ?? item.newClientsTpv ?? 0), notes: item.notes ?? "" };
+    for (const item of promises.data ?? [])
+      next[item.promiseDate] = {
+        salesTasks: item.salesTasks ?? 0,
+        proposals: item.proposals,
+        newClients: item.newClients,
+        closedTpv: Number(item.closedTpv ?? item.newClientsTpv ?? 0),
+        notes: item.notes ?? "",
+      };
     setEntries(next);
     setSavedAt(null);
   }, [promises.data, member?.userId]);
   if (!member) return null;
-  const update = (key: string, field: keyof ChecklistEntry, value: string) => setEntries(current => ({ ...current, [key]: { ...(current[key] ?? emptyChecklistEntry()), [field]: field === "notes" ? value : Number(value) || 0 } }));
-  const totals = days.reduce((total, day) => {
-    const entry = entries[dateKey(day)] ?? emptyChecklistEntry();
-    return { salesTasks: total.salesTasks + entry.salesTasks, proposals: total.proposals + entry.proposals, newClients: total.newClients + entry.newClients, closedTpv: total.closedTpv + entry.closedTpv };
-  }, { salesTasks: 0, proposals: 0, newClients: 0, closedTpv: 0 });
+  const update = (key: string, field: keyof ChecklistEntry, value: string) =>
+    setEntries(current => ({
+      ...current,
+      [key]: {
+        ...(current[key] ?? emptyChecklistEntry()),
+        [field]: field === "notes" ? value : Number(value) || 0,
+      },
+    }));
+  const totals = days.reduce(
+    (total, day) => {
+      const entry = entries[dateKey(day)] ?? emptyChecklistEntry();
+      return {
+        salesTasks: total.salesTasks + entry.salesTasks,
+        proposals: total.proposals + entry.proposals,
+        newClients: total.newClients + entry.newClients,
+        closedTpv: total.closedTpv + entry.closedTpv,
+      };
+    },
+    { salesTasks: 0, proposals: 0, newClients: 0, closedTpv: 0 }
+  );
   const saveWeek = async () => {
     for (const day of days) {
       const key = dateKey(day);
       const entry = entries[key] ?? emptyChecklistEntry();
-      await savePromise.mutateAsync({ targetUserId: member.userId, promiseDate: key, ...entry, newClientsTpv: entry.closedTpv });
+      await savePromise.mutateAsync({
+        targetUserId: member.userId,
+        promiseDate: key,
+        ...entry,
+        newClientsTpv: entry.closedTpv,
+      });
     }
     await promises.refetch();
     toast.success("Checklist semanal salvo.");
@@ -105,15 +158,142 @@ function WeeklyChecklist({ member, canEdit }: { member?: TeamMember; canEdit: bo
   return (
     <section className="rounded-[10px] border border-[#1f3a2e] bg-[#10201a] p-5 text-[#edefe9] shadow-xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="font-mono text-[10px] uppercase tracking-[.14em] text-[#00d47e]">CHECKLIST SEMANAL</p><h3 className="mt-1 text-2xl font-semibold">Painel <span className="text-[#00d47e]">{member.displayName}</span></h3><p className="mt-1 text-xs text-[#9fb0a6]">{member.polo || "Polo não informado"} · {member.formalRoutes.join(" · ") || member.route || "Rotas não informadas"}</p></div>
-        <div className="flex items-center gap-2"><Button variant="outline" className="border-[#1f3a2e] bg-transparent text-[#edefe9]" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft size={16} /></Button><span className="min-w-32 text-center font-mono text-xs text-[#9fb0a6]">{formatWeek(weekStart)}</span><Button variant="outline" className="border-[#1f3a2e] bg-transparent text-[#edefe9]" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight size={16} /></Button></div>
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.14em] text-[#00d47e]">
+            CHECKLIST SEMANAL
+          </p>
+          <h3 className="mt-1 text-2xl font-semibold">
+            Painel <span className="text-[#00d47e]">{member.displayName}</span>
+          </h3>
+          <p className="mt-1 text-xs text-[#9fb0a6]">
+            {member.polo || "Polo não informado"} ·{" "}
+            {member.formalRoutes.join(" · ") ||
+              member.route ||
+              "Rotas não informadas"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="border-[#1f3a2e] bg-transparent text-[#edefe9]"
+            onClick={() => setWeekStart(addDays(weekStart, -7))}
+          >
+            <ChevronLeft size={16} />
+          </Button>
+          <span className="min-w-32 text-center font-mono text-xs text-[#9fb0a6]">
+            {formatWeek(weekStart)}
+          </span>
+          <Button
+            variant="outline"
+            className="border-[#1f3a2e] bg-transparent text-[#edefe9]"
+            onClick={() => setWeekStart(addDays(weekStart, 7))}
+          >
+            <ChevronRight size={16} />
+          </Button>
+        </div>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[["TPV REALIZADO", `R$ ${totals.closedTpv.toLocaleString("pt-BR")}`], ["TAREFAS", totals.salesTasks], ["PROPOSTAS", totals.proposals], ["CLIENTES FECHADOS", totals.newClients]].map(([label, value]) => <article key={label} className="rounded-lg border border-[#1f3a2e] bg-[#142a21] p-4"><p className="font-mono text-[10px] text-[#9fb0a6]">{label}</p><strong className="mt-2 block text-2xl">{value}</strong></article>)}
+        {[
+          ["TPV REALIZADO", `R$ ${totals.closedTpv.toLocaleString("pt-BR")}`],
+          ["TAREFAS", totals.salesTasks],
+          ["PROPOSTAS", totals.proposals],
+          ["CLIENTES FECHADOS", totals.newClients],
+        ].map(([label, value]) => (
+          <article
+            key={label}
+            className="rounded-lg border border-[#1f3a2e] bg-[#142a21] p-4"
+          >
+            <p className="font-mono text-[10px] text-[#9fb0a6]">{label}</p>
+            <strong className="mt-2 block text-2xl">{value}</strong>
+          </article>
+        ))}
       </div>
-        <div className="mt-6 overflow-x-auto"><table className="w-full min-w-[760px] border-collapse text-left text-xs"><thead><tr className="border-b border-[#1f3a2e] font-mono text-[10px] uppercase text-[#9fb0a6]"><th className="p-3">Dia</th><th className="p-3">Tarefas</th><th className="p-3">Propostas</th><th className="p-3">Clientes</th><th className="p-3">TPV (R$)</th><th className="p-3">Observação</th></tr></thead><tbody>{days.map(day => { const key = dateKey(day); const entry = entries[key] ?? emptyChecklistEntry(); return <tr key={key} className="border-b border-[#1f3a2e]"><td className="p-3 font-semibold">{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}</td>{(["salesTasks", "proposals", "newClients", "closedTpv"] as const).map(field => <td className="p-2" key={field}><Input className="border-[#1f3a2e] bg-[#0b1410] text-black placeholder:text-black/50" type="number" min="0" value={entry[field] || ""} disabled={!canEdit || savePromise.isPending} onChange={event => update(key, field, event.target.value)} /></td>)}<td className="p-2"><Input className="min-w-40 border-[#1f3a2e] bg-[#0b1410] text-black placeholder:text-black/50" value={entry.notes} disabled={!canEdit || savePromise.isPending} onChange={event => update(key, "notes", event.target.value)} /></td></tr>; })}</tbody><tfoot><tr className="font-semibold text-[#00d47e]"><td className="p-3">Total semana</td><td className="p-3">{totals.salesTasks}</td><td className="p-3">{totals.proposals}</td><td className="p-3">{totals.newClients}</td><td className="p-3">{totals.closedTpv.toLocaleString("pt-BR")}</td><td /></tr></tfoot></table></div>
-      {canEdit && <Button className="mt-5 bg-[#00d47e] text-[#0b1410] hover:bg-[#5ce89c]" disabled={savePromise.isPending} onClick={saveWeek}><Save size={16} /> {savePromise.isPending ? "Salvando..." : "Salvar checklist"}</Button>}
-      {savedAt && <span className="ml-3 text-xs text-[#9fb0a6]">Salvo às {savedAt}</span>}
+      <div className="mt-6 overflow-x-auto">
+        <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+          <thead>
+            <tr className="border-b border-[#1f3a2e] font-mono text-[10px] uppercase text-[#9fb0a6]">
+              <th className="p-3">Dia</th>
+              <th className="p-3">Tarefas</th>
+              <th className="p-3">Propostas</th>
+              <th className="p-3">Clientes</th>
+              <th className="p-3">TPV (R$)</th>
+              <th className="p-3">Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {days.map(day => {
+              const key = dateKey(day);
+              const entry = entries[key] ?? emptyChecklistEntry();
+              return (
+                <tr key={key} className="border-b border-[#1f3a2e]">
+                  <td className="p-3 font-semibold">
+                    {day.toLocaleDateString("pt-BR", {
+                      weekday: "short",
+                      day: "2-digit",
+                    })}
+                  </td>
+                  {(
+                    [
+                      "salesTasks",
+                      "proposals",
+                      "newClients",
+                      "closedTpv",
+                    ] as const
+                  ).map(field => (
+                    <td className="p-2" key={field}>
+                      <Input
+                        className="border-[#1f3a2e] bg-[#0b1410] !text-black placeholder:!text-black/50"
+                        type="number"
+                        min="0"
+                        value={entry[field] || ""}
+                        disabled={!canEdit || savePromise.isPending}
+                        onChange={event =>
+                          update(key, field, event.target.value)
+                        }
+                      />
+                    </td>
+                  ))}
+                  <td className="p-2">
+                    <Input
+                      className="min-w-40 border-[#1f3a2e] bg-[#0b1410] !text-black placeholder:!text-black/50"
+                      value={entry.notes}
+                      disabled={!canEdit || savePromise.isPending}
+                      onChange={event =>
+                        update(key, "notes", event.target.value)
+                      }
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="font-semibold text-[#00d47e]">
+              <td className="p-3">Total semana</td>
+              <td className="p-3">{totals.salesTasks}</td>
+              <td className="p-3">{totals.proposals}</td>
+              <td className="p-3">{totals.newClients}</td>
+              <td className="p-3">
+                {totals.closedTpv.toLocaleString("pt-BR")}
+              </td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {canEdit && (
+        <Button
+          className="mt-5 bg-[#00d47e] text-[#0b1410] hover:bg-[#5ce89c]"
+          disabled={savePromise.isPending}
+          onClick={saveWeek}
+        >
+          <Save size={16} />{" "}
+          {savePromise.isPending ? "Salvando..." : "Salvar checklist"}
+        </Button>
+      )}
+      {savedAt && (
+        <span className="ml-3 text-xs text-[#9fb0a6]">Salvo às {savedAt}</span>
+      )}
     </section>
   );
 }
@@ -233,60 +413,188 @@ function TeamOrganizationForm({
     });
   }, [member]);
   const update = trpc.team.updateMember.useMutation({
-    onSuccess: async () => { toast.success("Funções, polo e rotas atualizados."); await onSaved(); },
+    onSuccess: async () => {
+      toast.success("Funções, polo e rotas atualizados.");
+      await onSaved();
+    },
     onError: error => toast.error(error.message),
   });
   const create = trpc.team.createMember.useMutation({
-    onSuccess: async () => { toast.success("Pessoa criada como acesso pendente."); setCreateMode(false); await onSaved(); },
+    onSuccess: async () => {
+      toast.success("Pessoa criada como acesso pendente.");
+      setCreateMode(false);
+      await onSaved();
+    },
     onError: error => toast.error(error.message),
   });
   if (!canManage) return null;
   const pending = update.isPending || create.isPending;
-  const routes = form.routes.split(",").map(route => route.trim()).filter(Boolean);
-  const toggleRole = (role: (typeof roleOptions)[number][0]) => setForm(current => ({
-    ...current,
-    roles: current.roles.includes(role) ? current.roles.filter(item => item !== role) : [...current.roles, role],
-  }));
+  const routes = form.routes
+    .split(",")
+    .map(route => route.trim())
+    .filter(Boolean);
+  const toggleRole = (role: (typeof roleOptions)[number][0]) =>
+    setForm(current => ({
+      ...current,
+      roles: current.roles.includes(role)
+        ? current.roles.filter(item => item !== role)
+        : [...current.roles, role],
+    }));
   return (
     <section className="rounded-xl border border-lime-200 bg-lime-50/60 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] font-semibold tracking-[.13em] text-emerald-700">FUNÇÕES E ACESSOS</p>
-          <h3 className="mt-1 text-xl font-semibold">{createMode ? "Cadastrar pessoa sem acesso" : `Editar ${member?.displayName}`}</h3>
-          <p className="mt-1 text-xs text-emerald-800/70">Combine funções na mesma pessoa. Rotas devem ser separadas por vírgula.</p>
+          <p className="font-mono text-[10px] font-semibold tracking-[.13em] text-emerald-700">
+            FUNÇÕES E ACESSOS
+          </p>
+          <h3 className="mt-1 text-xl font-semibold">
+            {createMode
+              ? "Cadastrar pessoa sem acesso"
+              : `Editar ${member?.displayName}`}
+          </h3>
+          <p className="mt-1 text-xs text-emerald-800/70">
+            Combine funções na mesma pessoa. Rotas devem ser separadas por
+            vírgula.
+          </p>
         </div>
-        {createMode ? <UserPlus className="text-emerald-700" size={20} /> : <ShieldCheck className="text-emerald-700" size={20} />}
+        {createMode ? (
+          <UserPlus className="text-emerald-700" size={20} />
+        ) : (
+          <ShieldCheck className="text-emerald-700" size={20} />
+        )}
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <label className="grid gap-1 text-xs">Nome<Input value={form.displayName} disabled={pending} onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))} /></label>
-        <label className="grid gap-1 text-xs">E-mail {createMode ? "para ativação" : ""}<Input type="email" value={form.email} disabled={!createMode || pending} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} /></label>
-        <label className="grid gap-1 text-xs">Regional<Input value={form.regional} disabled={pending} onChange={event => setForm(current => ({ ...current, regional: event.target.value }))} /></label>
-        <label className="grid gap-1 text-xs">Distrito<Input value={form.district} disabled={pending} onChange={event => setForm(current => ({ ...current, district: event.target.value }))} /></label>
-        <label className="grid gap-1 text-xs">Polo<Input value={form.polo} disabled={pending} onChange={event => setForm(current => ({ ...current, polo: event.target.value }))} /></label>
-        <label className="grid gap-1 text-xs md:col-span-2">Rotas<Input placeholder="Tremembé, Center Norte" value={form.routes} disabled={pending} onChange={event => setForm(current => ({ ...current, routes: event.target.value }))} /></label>
+        <label className="grid gap-1 text-xs">
+          Nome
+          <Input
+            value={form.displayName}
+            disabled={pending}
+            onChange={event =>
+              setForm(current => ({
+                ...current,
+                displayName: event.target.value,
+              }))
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-xs">
+          E-mail {createMode ? "para ativação" : ""}
+          <Input
+            type="email"
+            value={form.email}
+            disabled={!createMode || pending}
+            onChange={event =>
+              setForm(current => ({ ...current, email: event.target.value }))
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-xs">
+          Regional
+          <Input
+            value={form.regional}
+            disabled={pending}
+            onChange={event =>
+              setForm(current => ({ ...current, regional: event.target.value }))
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-xs">
+          Distrito
+          <Input
+            value={form.district}
+            disabled={pending}
+            onChange={event =>
+              setForm(current => ({ ...current, district: event.target.value }))
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-xs">
+          Polo
+          <Input
+            value={form.polo}
+            disabled={pending}
+            onChange={event =>
+              setForm(current => ({ ...current, polo: event.target.value }))
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-xs md:col-span-2">
+          Rotas
+          <Input
+            placeholder="Tremembé, Center Norte"
+            value={form.routes}
+            disabled={pending}
+            onChange={event =>
+              setForm(current => ({ ...current, routes: event.target.value }))
+            }
+          />
+        </label>
       </div>
       <div className="mt-4">
         <p className="text-xs font-medium">Funções</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {roleOptions.map(([role, label]) => (
-            <label key={role} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${form.roles.includes(role) ? "border-emerald-500 bg-white" : "border-emerald-100 bg-white/60"}`}>
-              <input type="checkbox" checked={form.roles.includes(role)} disabled={pending || (!canAssignLeadership && (role === "polo" || role === "distrital"))} onChange={() => toggleRole(role)} />
+            <label
+              key={role}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${form.roles.includes(role) ? "border-emerald-500 bg-white" : "border-emerald-100 bg-white/60"}`}
+            >
+              <input
+                type="checkbox"
+                checked={form.roles.includes(role)}
+                disabled={
+                  pending ||
+                  (!canAssignLeadership &&
+                    (role === "polo" || role === "distrital"))
+                }
+                onChange={() => toggleRole(role)}
+              />
               {label}
             </label>
           ))}
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button className="bg-[#002b1d]" disabled={pending || !form.roles.length} onClick={() => {
-          const payload = { displayName: form.displayName, roles: form.roles, regional: form.regional, district: form.district, polo: form.polo, routes };
-          if (createMode) create.mutate({ ...payload, email: form.email });
-          else if (member) update.mutate({ ...payload, targetUserId: member.userId });
-        }}>
-          {createMode ? <Plus size={16} /> : <Save size={16} />} {pending ? "Salvando..." : createMode ? "Criar pessoa" : "Salvar funções"}
+        <Button
+          className="bg-[#002b1d]"
+          disabled={pending || !form.roles.length}
+          onClick={() => {
+            const payload = {
+              displayName: form.displayName,
+              roles: form.roles,
+              regional: form.regional,
+              district: form.district,
+              polo: form.polo,
+              routes,
+            };
+            if (createMode) create.mutate({ ...payload, email: form.email });
+            else if (member)
+              update.mutate({ ...payload, targetUserId: member.userId });
+          }}
+        >
+          {createMode ? <Plus size={16} /> : <Save size={16} />}{" "}
+          {pending
+            ? "Salvando..."
+            : createMode
+              ? "Criar pessoa"
+              : "Salvar funções"}
         </Button>
-        {!createMode && <Button variant="outline" disabled={pending} onClick={() => setCreateMode(true)}><UserPlus size={16} /> Nova pessoa</Button>}
+        {!createMode && (
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => setCreateMode(true)}
+          >
+            <UserPlus size={16} /> Nova pessoa
+          </Button>
+        )}
       </div>
-      {!createMode && member && <p className="mt-3 text-xs text-emerald-800/70">{member.hasAccess ? "Acesso já criado." : "Acesso pendente: a pessoa poderá concluir o cadastro com este e-mail."}</p>}
+      {!createMode && member && (
+        <p className="mt-3 text-xs text-emerald-800/70">
+          {member.hasAccess
+            ? "Acesso já criado."
+            : "Acesso pendente: a pessoa poderá concluir o cadastro com este e-mail."}
+        </p>
+      )}
     </section>
   );
 }
@@ -301,13 +609,22 @@ export default function TeamManagementPanel() {
   const currentId = selected?.userId;
   const actorMember = team.data?.find(member => member.userId === user?.id);
   const actorRoles = actorMember?.teamRoles ?? [];
-  const canManageOrganization = Boolean(user?.role === "admin" || actorMember?.leadershipRole !== "none" || actorRoles.some(role => ["polo", "distrital", "interino", "agendamento"].includes(role)));
+  const canManageOrganization = Boolean(
+    user?.role === "admin" ||
+      actorMember?.leadershipRole !== "none" ||
+      actorRoles.some(role =>
+        ["polo", "distrital", "interino", "agendamento"].includes(role)
+      )
+  );
   const canAssignLeadership = user?.role === "admin";
   const canManageSelected = Boolean(
     selected &&
-      (selected.userId === user?.id || user?.role === "admin" ||
+      (selected.userId === user?.id ||
+        user?.role === "admin" ||
         actorMember?.leadershipRole !== "none" ||
-        actorRoles.some(role => ["polo", "distrital", "interino", "agendamento"].includes(role)))
+        actorRoles.some(role =>
+          ["polo", "distrital", "interino", "agendamento"].includes(role)
+        ))
   );
   if (team.isLoading)
     return (
@@ -357,7 +674,12 @@ export default function TeamManagementPanel() {
           </button>
         ))}
       </section>
-      <TeamOrganizationForm member={selected} canManage={canManageOrganization} canAssignLeadership={canAssignLeadership} onSaved={() => utils.team.list.invalidate()} />
+      <TeamOrganizationForm
+        member={selected}
+        canManage={canManageOrganization}
+        canAssignLeadership={canAssignLeadership}
+        onSaved={() => utils.team.list.invalidate()}
+      />
       {selected && (
         <TeamProfileForm
           member={selected}
