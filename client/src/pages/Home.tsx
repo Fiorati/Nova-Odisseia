@@ -6,6 +6,7 @@ import { calculateRmrKpi } from "@shared/metrics";
 import {
   BarChart3,
   BookOpen,
+  BookOpenText,
   CalendarDays,
   Calculator,
   CheckCircle2,
@@ -71,7 +72,8 @@ type View =
   | "spartacus"
   | "reunioes"
   | "descricao-tarefa"
-  | "tutorial";
+  | "tutorial"
+  | "noticias";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -936,6 +938,7 @@ export default function Home() {
       "descricao-tarefa",
       "reunioes",
       "tutorial",
+      "noticias",
     ].includes(value ?? "")
       ? (value as View)
       : "painel";
@@ -1031,6 +1034,7 @@ export default function Home() {
         ["descricao-tarefa", FileText, "Descrição da tarefa"],
         ["reunioes", CalendarDays, "Agendamento de reuniões"],
         ["tutorial", BookOpen, "Tutorial"],
+        ["noticias", BookOpenText, "Notícias"],
         ["ranking", Trophy, "Troféus"],
         ["perfil", Users, "Meu perfil"],
       ] as const)
@@ -1045,6 +1049,7 @@ export default function Home() {
         ["descricao-tarefa", FileText, "Descrição da tarefa"],
         ["reunioes", CalendarDays, "Agendamento de reuniões"],
         ["tutorial", BookOpen, "Tutorial"],
+        ["noticias", BookOpenText, "Notícias"],
         ["rmr", BarChart3, "RMR"],
         ["card-final", Flag, "Card final"],
         ["ranking", Trophy, "Troféus"],
@@ -1076,6 +1081,10 @@ export default function Home() {
 
     if (view === "tutorial") {
       return <PlatformTutorialPanel />;
+    }
+
+    if (view === "noticias") {
+      return <NewsFeed />;
     }
 
     if (isLeader && view === "painel") {
@@ -1292,7 +1301,7 @@ export default function Home() {
       {/* NAVEGAÇÃO MOBILE */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-emerald-100 bg-white p-2 lg:hidden">
         {nav
-          .filter(([key]) => key === "painel" || key === "reunioes" || key === "tutorial" || key === "psv" || key === "nordica" || key === "periodo")
+          .filter(([key]) => key === "painel" || key === "reunioes" || key === "tutorial" || key === "noticias" || key === "psv" || key === "nordica" || key === "periodo")
           .slice(0, 5)
           .map(([key, Icon, label]) => (
           <button
