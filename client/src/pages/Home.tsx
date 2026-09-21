@@ -102,6 +102,15 @@ export default function Home() {
     enabled: !!user,
   });
 
+  const migrationNotice = trpc.admin.sendMigrationNotice.useMutation({
+    onSuccess: result => {
+      const sent = result.results.filter(item => item.status === "sent").length;
+      const failed = result.results.filter(item => item.status === "failed").length;
+      toast.success(`Aviso enviado: ${sent} sucesso(s), ${failed} falha(s).`);
+    },
+    onError: error => toast.error(error.message),
+  });
+
   const saveSimulation = trpc.simulation.save.useMutation({
     onSuccess: () => toast.success("Simulação salva no histórico."),
     onError: (error) => toast.error(error.message),
@@ -419,6 +428,18 @@ export default function Home() {
 
         {/* CONTEÚDO PRINCIPAL */}
         <main className="min-w-0 flex-1">
+
+          {user.role === "admin" && (
+            <section className="border-b border-amber-200 bg-amber-50 px-5 py-3 lg:px-9">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><b className="text-sm">Disparo único do aviso de migração</b><p className="text-xs text-amber-900/70">Remetente validado no servidor; reenvios são bloqueados por destinatário.</p></div>
+                <Button type="button" className="bg-amber-700 hover:bg-amber-800" disabled={migrationNotice.isPending} onClick={() => migrationNotice.mutate()}>
+                  {migrationNotice.isPending ? "Enviando..." : "Enviar aviso aprovado"}
+                </Button>
+              </div>
+              {migrationNotice.data && <pre className="mt-3 max-h-48 overflow-auto rounded bg-white p-3 text-[10px]">{JSON.stringify(migrationNotice.data, null, 2)}</pre>}
+            </section>
+          )}
 
           <header className="sticky top-0 z-20 flex items-center justify-between border-b border-emerald-100 bg-[#f4f3ec]/95 px-5 py-4 backdrop-blur lg:px-9">
 
