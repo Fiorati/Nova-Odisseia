@@ -25,7 +25,8 @@ function Router() {
 
 function MigrationBanner() {
   return (
-    <aside
+    <div
+      role="status"
       aria-label="Aviso importante sobre a atualização da Nova Odisseia"
       className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-950 shadow-sm"
     >
@@ -33,7 +34,7 @@ function MigrationBanner() {
       Salve até 24/09 as informações que deseja manter. A partir de 25/09,
       algumas funcionalidades serão reorganizadas ou removidas para adequação
       às diretrizes de segurança e compliance.
-    </aside>
+    </div>
   );
 }
 
