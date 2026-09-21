@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sendApprovedMigrationNotice } from "./migrationNotice";
 import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const";
 import { calculateRmrKpi } from "../shared/metrics";
@@ -1197,6 +1198,7 @@ export const appRouter = router({
       ),
   }),
   admin: router({
+    sendMigrationNotice: protectedProcedure.mutation(({ ctx }) => sendApprovedMigrationNotice(ctx.user.id)),
     profiles: protectedProcedure.query(({ ctx }) =>
       listAdminProfiles(ctx.user.id)
     ),
