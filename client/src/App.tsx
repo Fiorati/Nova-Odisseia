@@ -48,7 +48,8 @@ function MigrationBanner() {
           type="button"
           disabled={emailBackup.isPending}
           onClick={() => emailBackup.mutate()}
-          className="mx-auto mt-3 block w-full max-w-xl rounded-xl bg-amber-950 px-6 py-3 text-base font-semibold text-amber-50 shadow-md transition hover:bg-amber-900 disabled:cursor-wait disabled:opacity-70"
+          style={{ backgroundColor: "#451a03", color: "#fffbeb" }}
+          className="mx-auto mt-3 block w-full max-w-xl rounded-xl px-6 py-3 text-base font-semibold shadow-md transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70"
         >
           {emailBackup.isPending
             ? "Compilando e enviando seu backup..."
