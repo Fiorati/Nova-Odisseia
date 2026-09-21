@@ -23,6 +23,20 @@ function Router() {
 //   to keep consistent foreground/background color across components
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
+function MigrationBanner() {
+  return (
+    <aside
+      aria-label="Aviso importante sobre a atualização da Nova Odisseia"
+      className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-950 shadow-sm"
+    >
+      <strong className="font-semibold">A Nova Odisseia está mudando.</strong>{" "}
+      Salve até 24/09 as informações que deseja manter. A partir de 25/09,
+      algumas funcionalidades serão reorganizadas ou removidas para adequação
+      às diretrizes de segurança e compliance.
+    </aside>
+  );
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -31,6 +45,7 @@ function App() {
         // switchable
       >
         <TooltipProvider>
+          <MigrationBanner />
           <Toaster />
           <Router />
         </TooltipProvider>
