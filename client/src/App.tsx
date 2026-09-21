@@ -5,6 +5,9 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -24,6 +27,12 @@ function Router() {
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function MigrationBanner() {
+  const { user } = useAuth();
+  const emailBackup = trpc.agent.emailBackup.useMutation({
+    onSuccess: result => toast.success(`Backup enviado para ${result.email}.`),
+    onError: error => toast.error(error.message),
+  });
+
   return (
     <div
       role="status"
@@ -34,6 +43,18 @@ function MigrationBanner() {
       Salve até 24/09 as informações que deseja manter. A partir de 25/09,
       algumas funcionalidades serão reorganizadas ou removidas para adequação
       às diretrizes de segurança e compliance.
+      {user && (
+        <button
+          type="button"
+          disabled={emailBackup.isPending}
+          onClick={() => emailBackup.mutate()}
+          className="mx-auto mt-3 block w-full max-w-xl rounded-xl bg-amber-950 px-6 py-3 text-base font-semibold text-amber-50 shadow-md transition hover:bg-amber-900 disabled:cursor-wait disabled:opacity-70"
+        >
+          {emailBackup.isPending
+            ? "Compilando e enviando seu backup..."
+            : "Receber Backup da minha odisseia por email!"}
+        </button>
+      )}
     </div>
   );
 }
