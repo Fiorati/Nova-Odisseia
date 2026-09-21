@@ -26,7 +26,7 @@ export async function sendApprovedMigrationNotice(actorUserId: number) {
 
   const from = process.env.EMAIL_FROM?.trim();
   const apiKey = process.env.RESEND_API_KEY;
-  if (from?.toLowerCase() !== "fiorati@novaodisseia.com") {
+  if (!from || !/^fiorati@novaodisseia\.com$/i.test(from.match(/<([^<>]+)>$/)?.[1] ?? from)) {
     throw new Error("EMAIL_FROM não corresponde a fiorati@novaodisseia.com.");
   }
   if (!apiKey) throw new Error("RESEND_API_KEY não configurada.");
