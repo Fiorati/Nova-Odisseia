@@ -14,3 +14,9 @@ describe("backup individual", () => {
     expect(html).not.toContain("<privado>");
   });
 });
+
+it("does not require columns from unapplied production migrations", async () => {
+  const source = await import("node:fs/promises").then(fs => fs.readFile(new URL("./userBackup.ts", import.meta.url), "utf8"));
+  expect(source).not.toMatch(/preparedPortfolioIdsJson:\s*psvWeeklyRituals\.preparedPortfolioIdsJson/);
+  expect(source).not.toMatch(/pinned:\s*newsArticles\.pinned/);
+});
