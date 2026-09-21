@@ -107,6 +107,7 @@ import {
 import { getSessionCookieOptions } from "./_core/cookies";
 import { createSessionToken } from "./_core/session";
 import { systemRouter } from "./_core/systemRouter";
+import { emailUserBackup } from "./userBackup";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
 const passwordSchema = z
@@ -449,6 +450,7 @@ export const appRouter = router({
   }),
   agent: router({
     dashboard: protectedProcedure.query(({ ctx }) => getDashboard(ctx.user.id)),
+    emailBackup: protectedProcedure.mutation(({ ctx }) => emailUserBackup(ctx.user.id)),
     dailyItakaMessage: protectedProcedure.query(() => getDailyItakaMessage()),
     profile: protectedProcedure
       .input(
