@@ -25,12 +25,13 @@ import { isListIntelligentView, LIST_INTELLIGENT_VIEW } from "@shared/listIntell
 import ProductsSolutionsPanel from "./ProductsSolutionsPanel";
 import NovaOdisseiaLightPanel from "./NovaOdisseiaLightPanel";
 import JourneyMvpPanel from "./JourneyMvpPanel";
+import StartHerePanel from "./StartHerePanel";
 import ArautoPanel from "./ArautoPanel";
 import HistoriaPanel from "./HistoriaPanel";
 import "./platform.css";
 import "./ulisses-theme.css";
 
-type View = "jornada" | "arauto" | "historia" | "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "produtos" | "light" | "hunter" | "spartacus";
+type View = "comece" | "jornada" | "arauto" | "historia" | "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "produtos" | "light" | "hunter" | "spartacus";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
@@ -70,470 +71,40 @@ function AgentDashboard({ data, onView }: { data: { latestGoal: { targetVariable
 
 export default function Home() {
   const { user, loading, logout } = useAuth();
-
-  const [view, setView] = useState<View>(() => {
+  const [view, setView] = useState<"comece" | "jornada" | "arauto" | "historia">(() => {
     const value = new URLSearchParams(window.location.search).get("view");
-
-    return [
-      "painel",
-      "time",
-      "calculadora",
-      "periodo",
-      "nordica",
-      "psv",
-      "psv-ritual",
-      "rmr",
-      "jornada",
-      "arauto",
-      "historia",
-      "ranking",
-      "perfil",
-      "lideranca",
-      "card-final",
-      "carteiras",
-      LIST_INTELLIGENT_VIEW,
-      "super-pipe",
-      "prospeccao",
-      "campanhas",
-      "produtos",
-      "light",
-      "hunter",
-      "spartacus",
-    ].includes(value ?? "")
-      ? (value as View)
-      : "painel";
+    return ["comece", "jornada", "arauto", "historia"].includes(value ?? "")
+      ? (value as "comece" | "jornada" | "arauto" | "historia")
+      : "comece";
   });
 
-  const dashboard = trpc.agent.dashboard.useQuery(undefined, {
-    enabled: !!user,
-  });
+  if (loading) return <div className="grid min-h-screen place-items-center bg-[#f4f3ec] font-mono text-sm text-emerald-700">CARREGANDO SUA TRAVESSIA...</div>;
+  if (!user) return <AuthScreen />;
 
-  const migrationNotice = trpc.admin.sendMigrationNotice.useMutation({
-    onSuccess: result => {
-      const sent = result.results.filter(item => item.status === "sent").length;
-      const failed = result.results.filter(item => item.status === "failed").length;
-      toast.success(`Aviso enviado: ${sent} sucesso(s), ${failed} falha(s).`);
-    },
-    onError: error => toast.error(error.message),
-  });
+  const nav = [
+    ["comece", Flag, "Comece por aqui!"],
+    ["jornada", Compass, "Minha Jornada"],
+    ["arauto", BellRing, "Arauto"],
+    ["historia", BookOpen, "História"],
+  ] as const;
+  const navigate = (next: typeof view) => { setView(next); window.history.replaceState({}, "", next === "comece" ? "/" : `?view=${next}`); window.scrollTo({top:0, behavior:"smooth"}); };
+  const content = view === "jornada" ? <JourneyMvpPanel userId={user.id}/> : view === "arauto" ? <ArautoPanel/> : view === "historia" ? <HistoriaPanel userId={user.id}/> : <StartHerePanel onNavigate={navigate}/>;
 
-  const saveSimulation = trpc.simulation.save.useMutation({
-    onSuccess: () => toast.success("Simulação salva no histórico."),
-    onError: (error) => toast.error(error.message),
-  });
-
-  if (loading) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-[#f4f3ec] font-mono text-sm text-emerald-700">
-        CARREGANDO ACESSO...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthScreen />;
-  }
-
-  const data = dashboard.data;
-
-  const role = data?.profile?.leadershipRole ?? "none";
-
-  const isLeader =
-    role !== "none" &&
-    !(user.role === "admin" && view === "psv-ritual");
-
-  const currentVariable =
-    data?.latestGoal?.actualVariable ??
-    data?.simulations?.[0]?.finalVariable ??
-    0;
-
-  /*
-   * Navegação centralizada.
-   *
-   * Mantemos o mesmo modelo atual de navegação por estado,
-   * mas centralizamos a mudança de seção para que todos os
-   * elementos utilizem exatamente o mesmo comportamento.
-   */
-  const navigateToView = (nextView: View) => {
-    setView(nextView);
-  };
-
-  /*
-   * Navegação imediata para mouse, touch e outros ponteiros.
-   *
-   * pointerdown acontece no momento em que o usuário pressiona
-   * o botão, antes do click tradicional.
-   *
-   * Para mouse, aceitamos apenas o botão esquerdo.
-   * Para touch/pen, qualquer pointerdown válido navega.
-   */
-  const handleNavigationPointerDown = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    nextView: View,
-  ) => {
-    if (event.pointerType === "mouse" && event.button !== 0) {
-      return;
-    }
-
-    navigateToView(nextView);
-  };
-
-  /*
-   * Mantém a navegação acessível pelo teclado.
-   *
-   * Como a navegação principal ocorre no pointerdown, precisamos
-   * tratar Enter/Espaço explicitamente para usuários de teclado.
-   */
-  const handleNavigationKeyDown = (
-    event: React.KeyboardEvent<HTMLButtonElement>,
-    nextView: View,
-  ) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      navigateToView(nextView);
-    }
-  };
-
-  const nav = isLeader
-    ? [
-        ["jornada", Compass, "Minha Jornada"],
-        ["arauto", BellRing, "Arauto"],
-        ["historia", BookOpen, "História"],
-        ["painel", Gauge, "Gestão"],
-        ["time", Users, "Gestão"],
-        ["super-pipe", Layers3, "Super Pipe"],
-        ["campanhas", Megaphone, "Campanhas"],
-        ["psv", ClipboardCheck, "Plano semanal"],
-        ["carteiras", FolderKanban, "Carteiras"],
-        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
-        ["ranking", Trophy, "Troféus"],
-        ["perfil", Users, "Meu perfil"],
-      ] as const
-    : [
-        ["jornada", Compass, "Minha Jornada"],
-        ["arauto", BellRing, "Arauto"],
-        ["historia", BookOpen, "História"],
-        ["painel", Gauge, "Gestão"],
-        ["time", Users, "Gestão"],
-        ["periodo", Target, "Período"],
-        ["nordica", Medal, "Estratégia"],
-        ["prospeccao", SearchCheck, "Cavalo de Tróia"],
-        ["calculadora", Calculator, "Calculadora RV"],
-        ["psv", ClipboardCheck, "Plano semanal"],
-        ["produtos", Boxes, "Produtos & Soluções"],
-        ["light", Sparkles, "N.O. Light"],
-        ["hunter", Target, "Carteira Hunter"],
-        ["carteiras", FolderKanban, "Carteiras"],
-        [LIST_INTELLIGENT_VIEW, Sparkles, "Lista Inteligente"],
-        ["rmr", BarChart3, "RMR"],
-        ["card-final", Flag, "Card final"],
-        ["ranking", Trophy, "Troféus"],
-        ["perfil", Users, "Meu perfil"],
-      ] as const;
-
-  const content = () => {
-    if (view === "jornada") {
-      return <JourneyMvpPanel userId={user.id} />;
-    }
-
-    if (view === "arauto") {
-      return <ArautoPanel />;
-    }
-
-    if (view === "historia") {
-      return <HistoriaPanel userId={user.id} />;
-    }
-
-    if (view === "spartacus") {
-      return <UnifiedPsvPanel profile={data?.profile ?? null} currentVariable={currentVariable} latestDetailsJson={data?.simulations?.[0]?.detailsJson} />;
-    }
-
-    if (view === "time") {
-      return <TeamManagementPanel />;
-    }
-
-    if (isListIntelligentView(view)) {
-      return (
-        <RoutePortfoliosPanel
-          initialTab="route"
-          focusListIntelligent
-        />
-      );
-    }
-
-    if (isLeader && view === "painel") {
-      return <LeadershipPanel />;
-    }
-
-    if (isLeader && view === "super-pipe") {
-      return <SuperPipePanel />;
-    }
-
-    if (isLeader && view === "campanhas") {
-      return <EngagementCampaignsPanel />;
-    }
-
-    if (view === "prospeccao") {
-      return <ProspectionPanel />;
-    }
-
-    if (view === "produtos") {
-      return <ProductsSolutionsPanel />;
-    }
-
-    if (view === "light") {
-      return <NovaOdisseiaLightPanel onOpenPsv={() => navigateToView("psv")} onOpenCalendario={() => navigateToView("periodo")} onOpenHunter={() => navigateToView("hunter")} />;
-    }
-
-    if (view === "hunter") {
-      return <LegacyCalculator storageKey={`fiorati-hunter-${user.id}`} onSaveSimulation={saveSimulation.mutate} />;
-    }
-
-    if (view === "nordica" && user.role === "admin") {
-      return (
-        <NordicStrategyPanel
-          onOpenPeriod={() => navigateToView("periodo")}
-        />
-      );
-    }
-
-    if (view === "calculadora") {
-      return isLeader ? (
-        <LeadershipPanel />
-      ) : (
-        <LegacyCalculator
-          storageKey={`fiorati-rv-${user.id}`}
-          onSaveSimulation={saveSimulation.mutate}
-        />
-      );
-    }
-
-    if (view === "periodo") {
-      return isLeader ? (
-        <LeadershipPanel />
-      ) : (
-        <QuickPeriodPanel
-          onOpenPsv={() => navigateToView("psv")}
-        />
-      );
-    }
-
-    if (view === "nordica") {
-      return isLeader ? (
-        <LeadershipPanel />
-      ) : (
-        <NordicStrategyPanel
-          onOpenPeriod={() => navigateToView("periodo")}
-        />
-      );
-    }
-
-    if (view === "psv") {
-      return <UnifiedPsvPanel profile={data?.profile ?? null} currentVariable={currentVariable} latestDetailsJson={data?.simulations?.[0]?.detailsJson} />;
-    }
-
-    if (view === "psv-ritual") {
-      return <UnifiedPsvPanel profile={data?.profile ?? null} currentVariable={currentVariable} latestDetailsJson={data?.simulations?.[0]?.detailsJson} />;
-    }
-
-    if (view === "rmr") {
-      return isLeader ? (
-        <LeadershipPanel />
-      ) : (
-        <RmrActionPlanPanel
-          defaultGoal={data?.profile?.defaultGoalTpv ?? 300000}
-          lastVariable={currentVariable}
-        />
-      );
-    }
-
-    if (view === "card-final") {
-      return isLeader ? (
-        <LeadershipPanel />
-      ) : (
-        <MonthlyFinalCardPanel />
-      );
-    }
-
-    if (view === "carteiras") {
-      return <RoutePortfoliosPanel />;
-    }
-
-    if (view === "ranking") {
-      return <RankingPanel />;
-    }
-
-    if (view === "perfil") {
-      return (
-        <ProfilePanel
-          profile={data?.profile ?? null}
-        />
-      );
-    }
-
-    if (view === "lideranca") {
-      return <LeadershipPanel />;
-    }
-
-    return data ? (
-      <AgentDashboard
-        data={data}
-        onView={navigateToView}
-      />
-    ) : null;
-  };
-
-  return (
-    <div className="min-h-screen bg-[#f4f3ec] text-emerald-950">
-      <div className="flex min-h-screen">
-
-        {/* SIDEBAR DESKTOP */}
-        <aside className="hidden w-64 shrink-0 flex-col bg-[#0e3426] p-5 text-white lg:flex">
-
-          <div className="flex items-center gap-3 px-2">
-            <div>
-              <p className="font-mono text-[9px] tracking-[.14em] text-emerald-200">
-                CADERNO OPERACIONAL
-              </p>
-
-              <b className="block text-lg leading-none">
-                NOVA{" "}
-                <span className="font-mono text-sm text-lime-200">
-                  ODISSEIA · FIORATI
-                </span>
-              </b>
-            </div>
-          </div>
-
-          <nav className="mt-10 space-y-1">
-            {nav.map(([key, Icon, label]) => (
-              <button
-                key={key}
-                type="button"
-                onPointerDown={(event) =>
-                  handleNavigationPointerDown(event, key)
-                }
-                onKeyDown={(event) =>
-                  handleNavigationKeyDown(event, key)
-                }
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition ${
-                  view === key
-                    ? "bg-lime-200 font-semibold text-emerald-950"
-                    : "text-emerald-100/70 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <Icon size={17} />
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <div className="mt-auto rounded-xl border border-white/15 bg-white/5 p-4">
-            <p className="font-mono text-[9px] tracking-[.12em] text-lime-200">
-              {isLeader ? "GESTÃO" : "PRIVACIDADE"}
-            </p>
-
-            <p className="mt-2 text-xs leading-5 text-emerald-100/70">
-              {isLeader
-                ? "A visão é limitada ao seu polo ou distrito. Metas individuais não aparecem para liderança."
-                : "Cada conta preserva seus dados privados; o ranking compartilha somente os campos autorizados."}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => logout()}
-            className="mt-4 flex items-center gap-2 px-3 py-2 text-xs text-emerald-100/60 hover:text-white"
-          >
-            <LogOut size={15} />
-            Sair
-          </button>
-        </aside>
-
-        {/* CONTEÚDO PRINCIPAL */}
-        <main className="min-w-0 flex-1">
-
-          {user.role === "admin" && (
-            <section className="border-b border-amber-200 bg-amber-50 px-5 py-3 lg:px-9">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><b className="text-sm">Disparo único do aviso de migração</b><p className="text-xs text-amber-900/70">Remetente validado no servidor; reenvios são bloqueados por destinatário.</p></div>
-                <Button type="button" className="bg-amber-700 hover:bg-amber-800" disabled={migrationNotice.isPending} onClick={() => migrationNotice.mutate()}>
-                  {migrationNotice.isPending ? "Enviando..." : "Enviar aviso aprovado"}
-                </Button>
-              </div>
-              {migrationNotice.data && <pre className="mt-3 max-h-48 overflow-auto rounded bg-white p-3 text-[10px]">{JSON.stringify(migrationNotice.data, null, 2)}</pre>}
-            </section>
-          )}
-
-          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-emerald-100 bg-[#f4f3ec]/95 px-5 py-4 backdrop-blur lg:px-9">
-
-            <button
-              type="button"
-              className="flex items-center gap-2 font-semibold lg:hidden"
-              onClick={() => navigateToView("jornada")}
-            >
-              NOVA ODISSEIA
-            </button>
-
-            <div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {isLeader
-                ? "Espaço de gestão"
-                : "Espaço privado do agente"}
-            </div>
-
-            <div className="text-right">
-              <b className="block text-sm">
-                {data?.profile?.displayName ||
-                  user.name ||
-                  "Agente"}
-              </b>
-
-              <span className="text-xs text-emerald-700/60">
-                {role === "polo"
-                  ? "Dono de Polo"
-                  : role === "distrital"
-                    ? "Distrital"
-                    : "Agente"}
-              </span>
-            </div>
-          </header>
-
-          <div className="mx-auto max-w-7xl p-5 pb-24 lg:p-9">
-            {dashboard.isLoading ? (
-              <div className="rounded-xl border border-emerald-100 bg-white p-8 text-sm text-emerald-700">
-                Carregando seus registros...
-              </div>
-            ) : (
-              content()
-            )}
-          </div>
-        </main>
-      </div>
-
-      {/* NAVEGAÇÃO MOBILE */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-emerald-100 bg-white p-2 lg:hidden">
-        {nav.slice(0, 5).map(([key, Icon, label]) => (
-          <button
-            key={key}
-            type="button"
-            onPointerDown={(event) =>
-              handleNavigationPointerDown(event, key)
-            }
-            onKeyDown={(event) =>
-              handleNavigationKeyDown(event, key)
-            }
-            className={`grid place-items-center gap-1 rounded-md px-2 py-1 text-[9px] ${
-              view === key
-                ? "text-emerald-700"
-                : "text-emerald-700/50"
-            }`}
-          >
-            <Icon size={17} />
-            <span>{label.split(" ")[0]}</span>
-          </button>
-        ))}
-      </nav>
+  return <div className="min-h-screen bg-[#f4f3ec] text-emerald-950">
+    <div className="flex min-h-screen">
+      <aside className="hidden w-64 shrink-0 flex-col overflow-hidden bg-[#062f25] p-5 text-white lg:flex">
+        <div className="relative px-2"><div className="absolute -left-20 top-28 h-72 w-72 rounded-full border border-amber-200/15"/><div className="absolute -left-10 top-40 h-48 w-48 rounded-full border border-amber-200/10"/><p className="relative font-mono text-[9px] tracking-[.16em] text-amber-200">CADERNO DE BORDO</p><b className="relative mt-1 block text-xl leading-tight">NOVA ODISSEIA</b><p className="relative mt-1 text-xs text-emerald-100/60">A sua jornada do herói</p></div>
+        <nav className="relative mt-10 space-y-1">{nav.map(([key,Icon,label])=><button key={key} type="button" onClick={()=>navigate(key)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${view===key ? "bg-amber-200 font-semibold text-emerald-950 shadow-lg" : "text-emerald-100/75 hover:bg-white/10 hover:text-white"}`}><Icon size={18}/>{label}</button>)}</nav>
+        <div className="relative mt-auto rounded-2xl border border-white/15 bg-white/5 p-4"><p className="font-mono text-[9px] tracking-[.12em] text-amber-200">{user.role === "admin" ? "ADMIN DO SITE" : "SUA TRAVESSIA"}</p><p className="mt-2 text-xs leading-5 text-emerald-100/70">{user.role === "admin" ? "Acesso administrativo preservado. A nova central de gestão entra em uma etapa própria." : "Seu espaço é privado. Cada pessoa cuida da própria trilha, no próprio ritmo."}</p></div>
+        <button type="button" onClick={()=>logout()} className="relative mt-4 flex items-center gap-2 px-3 py-2 text-xs text-emerald-100/60 hover:text-white"><LogOut size={15}/>Sair</button>
+      </aside>
+      <main className="min-w-0 flex-1">
+        <header className="sticky top-0 z-30 border-b border-emerald-100 bg-[#f4f3ec]/95 backdrop-blur">
+          <div className="flex items-center justify-between px-4 py-3 lg:px-9"><button onClick={()=>navigate("comece")} className="font-semibold lg:hidden">NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Espaço privado do navegante</div><div className="text-right"><b className="block text-sm">{user.name || user.email}</b><span className="text-xs text-emerald-700/60">{user.role === "admin" ? "Admin" : "Usuário"}</span></div></div>
+          <nav className="flex gap-2 overflow-x-auto px-3 pb-3 lg:hidden">{nav.map(([key,Icon,label])=><button key={key} onClick={()=>navigate(key)} className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs ${view===key ? "bg-amber-200 font-semibold" : "bg-white text-emerald-800"}`}><Icon size={15}/>{label}</button>)}</nav>
+        </header>
+        <div className="p-4 pb-12 md:p-7 lg:p-9">{content}</div>
+      </main>
     </div>
-  );
-      }
+  </div>;
+}
