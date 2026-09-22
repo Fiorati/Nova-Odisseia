@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
-import { BarChart3, Boxes, Calculator, CheckCircle2, ClipboardCheck, Compass, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
+import { BarChart3, BellRing, BookOpen, Boxes, Calculator, CheckCircle2, ClipboardCheck, Compass, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
@@ -25,10 +25,12 @@ import { isListIntelligentView, LIST_INTELLIGENT_VIEW } from "@shared/listIntell
 import ProductsSolutionsPanel from "./ProductsSolutionsPanel";
 import NovaOdisseiaLightPanel from "./NovaOdisseiaLightPanel";
 import JourneyMvpPanel from "./JourneyMvpPanel";
+import ArautoPanel from "./ArautoPanel";
+import HistoriaPanel from "./HistoriaPanel";
 import "./platform.css";
 import "./ulisses-theme.css";
 
-type View = "jornada" | "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "produtos" | "light" | "hunter" | "spartacus";
+type View = "jornada" | "arauto" | "historia" | "painel" | "time" | "calculadora" | "periodo" | "nordica" | "psv" | "psv-ritual" | "rmr" | "ranking" | "perfil" | "lideranca" | "card-final" | "carteiras" | typeof LIST_INTELLIGENT_VIEW | "super-pipe" | "prospeccao" | "campanhas" | "produtos" | "light" | "hunter" | "spartacus";
 type LeadershipRole = "none" | "polo" | "distrital";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
@@ -82,6 +84,8 @@ export default function Home() {
       "psv-ritual",
       "rmr",
       "jornada",
+      "arauto",
+      "historia",
       "ranking",
       "perfil",
       "lideranca",
@@ -193,6 +197,8 @@ export default function Home() {
   const nav = isLeader
     ? [
         ["jornada", Compass, "Minha Jornada"],
+        ["arauto", BellRing, "Arauto"],
+        ["historia", BookOpen, "História"],
         ["painel", Gauge, "Gestão"],
         ["time", Users, "Gestão"],
         ["super-pipe", Layers3, "Super Pipe"],
@@ -205,6 +211,8 @@ export default function Home() {
       ] as const
     : [
         ["jornada", Compass, "Minha Jornada"],
+        ["arauto", BellRing, "Arauto"],
+        ["historia", BookOpen, "História"],
         ["painel", Gauge, "Gestão"],
         ["time", Users, "Gestão"],
         ["periodo", Target, "Período"],
@@ -226,6 +234,14 @@ export default function Home() {
   const content = () => {
     if (view === "jornada") {
       return <JourneyMvpPanel userId={user.id} />;
+    }
+
+    if (view === "arauto") {
+      return <ArautoPanel />;
+    }
+
+    if (view === "historia") {
+      return <HistoriaPanel userId={user.id} />;
     }
 
     if (view === "spartacus") {
@@ -520,4 +536,4 @@ export default function Home() {
       </nav>
     </div>
   );
-}
+      }
