@@ -204,7 +204,7 @@ export const appRouter = router({
         const email = normalizedEmail(input.email);
         if (!isAllowedRegistrationEmail(email))
           throw new Error(
-            "Novos cadastros são exclusivos para e-mails @stone.com.br."
+            "Novos cadastros estão fechados durante o piloto. Solicite um convite."
           );
         const exists = await getUserByEmail(email);
         if (

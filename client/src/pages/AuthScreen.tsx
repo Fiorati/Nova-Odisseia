@@ -265,11 +265,13 @@ export default function AuthScreen() {
                 ? "Confirme o código."
                 : "Defina uma nova senha.";
 
+  const registrationOpen = import.meta.env.VITE_REGISTRATION_MODE === "open";
+
   const helper =
     mode === "login"
       ? "Entre com o e-mail e a senha cadastrados."
       : mode === "register"
-        ? "O cadastro é exclusivo para e-mails corporativos @stone.com.br, exceto acessos Master autorizados."
+        ? registrationOpen ? "Cadastro liberado para a lista autorizada." : "O piloto está fechado. Quem já tem acesso entra com o mesmo e-mail e senha; novos participantes entram por convite."
         : mode === "register-verify"
           ? "Digite o código de seis números enviado ao seu e-mail."
           : mode === "register-password"
@@ -358,7 +360,7 @@ export default function AuthScreen() {
                   Entrar
                 </button>
 
-                <button
+                {registrationOpen && <button
                   type="button"
                   className={`flex-1 rounded-md px-3 py-2 text-sm ${
                     mode === "register"
@@ -374,7 +376,7 @@ export default function AuthScreen() {
                   }}
                 >
                   Criar acesso
-                </button>
+                </button>}
               </div>
             )}
 

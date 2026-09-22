@@ -1,0 +1,53 @@
+import { useEffect, useMemo, useState } from "react";
+import { Activity, BookHeart, BriefcaseBusiness, CheckCircle2, ChevronRight, Compass, HeartPulse, Home, Sparkles, Target, Trophy, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+
+type AreaKey = "profissional" | "pessoal" | "emocional" | "comunidade";
+type Area = { key: AreaKey; label: string; score: number; focus: string };
+type Mission = { id: string; title: string; area: AreaKey; done: boolean; xp: number };
+type Checkin = { date: string; energy: number; reflection: string; nextAction: string };
+type JourneyState = { calling: string; cycleGoal: string; stage: "Chamado" | "Provação" | "Maestria" | "Retorno"; xp: number; streak: number; areas: Area[]; missions: Mission[]; checkins: Checkin[] };
+
+const defaults: JourneyState = {
+  calling: "Construir uma vida com direção, presença e evolução real.",
+  cycleGoal: "Escolha a transformação que fará os próximos 30 dias valerem a pena.",
+  stage: "Chamado", xp: 0, streak: 0,
+  areas: [
+    { key: "profissional", label: "Profissional", score: 6, focus: "Metas, competências e execução" },
+    { key: "pessoal", label: "Pessoal", score: 5, focus: "Hábitos, saúde, finanças e tempo" },
+    { key: "emocional", label: "Emocional", score: 6, focus: "Consciência, diário e gratidão" },
+    { key: "comunidade", label: "Comunidade", score: 4, focus: "Mentoria, squads e contribuição" },
+  ],
+  missions: [
+    { id: "m1", title: "Definir o Chamado do ciclo", area: "pessoal", done: false, xp: 40 },
+    { id: "m2", title: "Escolher três indicadores que realmente importam", area: "profissional", done: false, xp: 30 },
+    { id: "m3", title: "Fazer três check-ins de 60 segundos", area: "emocional", done: false, xp: 30 },
+  ], checkins: [],
+};
+
+const areaIcons = { profissional: BriefcaseBusiness, pessoal: Home, emocional: HeartPulse, comunidade: Users };
+const stageForXp = (xp: number): JourneyState["stage"] => xp >= 3500 ? "Retorno" : xp >= 1500 ? "Maestria" : xp >= 500 ? "Provação" : "Chamado";
+const nextStage = (stage: JourneyState["stage"]) => ({ Chamado: 500, Provação: 1500, Maestria: 3500, Retorno: 5000 }[stage]);
+
+export default function JourneyMvpPanel({ userId }: { userId: number }) {
+  const key = `nova-odisseia-journey-v1-${userId}`;
+  const [state, setState] = useState<JourneyState>(() => { try { return JSON.parse(localStorage.getItem(key) || "null") || defaults; } catch { return defaults; } });
+  const [energy, setEnergy] = useState(3); const [reflection, setReflection] = useState(""); const [nextAction, setNextAction] = useState("");
+  useEffect(() => localStorage.setItem(key, JSON.stringify(state)), [key, state]);
+  const completed = state.missions.filter(m => m.done).length;
+  const progress = Math.min(100, Math.round((state.xp / nextStage(state.stage)) * 100));
+  const balance = useMemo(() => Math.round(state.areas.reduce((sum, area) => sum + area.score, 0) / state.areas.length * 10), [state.areas]);
+  const update = (patch: Partial<JourneyState>) => setState(current => ({ ...current, ...patch }));
+  const toggleMission = (id: string) => setState(current => { const mission = current.missions.find(item => item.id === id); if (!mission) return current; const nowDone = !mission.done; const xp = Math.max(0, current.xp + (nowDone ? mission.xp : -mission.xp)); return { ...current, xp, stage: stageForXp(xp), missions: current.missions.map(item => item.id === id ? { ...item, done: nowDone } : item) }; });
+  const saveCheckin = () => { if (!reflection.trim() || !nextAction.trim()) return toast.error("Registre o aprendizado e a próxima ação."); setState(current => { const today = new Date().toISOString().slice(0,10); const prior = current.checkins.some(item => item.date === today); const xp = current.xp + (prior ? 0 : 10); return { ...current, xp, stage: stageForXp(xp), streak: prior ? current.streak : current.streak + 1, checkins: [{ date: today, energy, reflection: reflection.trim(), nextAction: nextAction.trim() }, ...current.checkins.filter(item => item.date !== today)].slice(0,30) }; }); setReflection(""); setNextAction(""); toast.success("Check-in salvo. Sua jornada continua."); };
+  return <div className="space-y-6">
+    <section className="overflow-hidden rounded-2xl bg-[#002b1d] p-6 text-white md:p-8"><div className="grid gap-6 lg:grid-cols-[1.4fr_.6fr]"><div><p className="font-mono text-[10px] tracking-[.16em] text-lime-200">NOVA ODISSEIA · A SUA JORNADA DO HERÓI</p><h2 className="mt-3 text-3xl font-semibold tracking-[-.055em] md:text-4xl">A vida inteira cabe numa direção.</h2><p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-100/75">Transforme intenção em ritual, ritual em evidência e evidência em evolução. Comece pequeno. Volte sempre.</p><label className="mt-6 block text-xs text-emerald-100/80">Seu Chamado<Input value={state.calling} onChange={e => update({ calling: e.target.value })} className="mt-2 border-white/15 bg-white/10 text-white" /></label></div><div className="rounded-xl border border-white/15 bg-white/5 p-5"><p className="font-mono text-[10px] tracking-[.12em] text-lime-200">ETAPA ATUAL</p><div className="mt-3 flex items-center gap-3"><Compass className="text-lime-200"/><b className="text-2xl">{state.stage}</b></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-lime-300" style={{width:`${progress}%`}} /></div><div className="mt-2 flex justify-between text-xs text-emerald-100/65"><span>{state.xp} XP</span><span>{nextStage(state.stage)} XP</span></div><p className="mt-4 text-xs text-emerald-100/70">{state.streak} dia(s) de retorno consciente</p></div></div></section>
+    <section className="grid gap-4 md:grid-cols-4">{state.areas.map(area => { const Icon=areaIcons[area.key]; return <article key={area.key} className="rounded-xl border border-emerald-100 bg-white p-5"><div className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Icon size={18}/></span><b className="font-mono text-2xl text-emerald-900">{area.score}</b></div><h3 className="mt-4 font-semibold">{area.label}</h3><p className="mt-1 min-h-10 text-xs leading-5 text-emerald-800/60">{area.focus}</p><input aria-label={`Nota ${area.label}`} className="mt-4 w-full accent-emerald-700" type="range" min="1" max="10" value={area.score} onChange={e => update({ areas: state.areas.map(item => item.key === area.key ? {...item, score:Number(e.target.value)} : item) })}/></article>})}</section>
+    <section className="grid gap-4 lg:grid-cols-[1.05fr_.95fr]"><article className="rounded-xl border border-emerald-100 bg-white p-5"><div className="flex items-start justify-between"><div><p className="font-mono text-[10px] tracking-[.12em] text-emerald-600">MISSÕES DA SEMANA</p><h3 className="mt-1 text-xl font-semibold">Atravessar é agir.</h3></div><span className="rounded-full bg-lime-100 px-3 py-1 text-xs font-semibold">{completed}/{state.missions.length}</span></div><div className="mt-5 space-y-2">{state.missions.map(mission => <button type="button" onClick={()=>toggleMission(mission.id)} key={mission.id} className={`flex w-full items-center gap-3 rounded-lg border p-4 text-left ${mission.done ? "border-lime-300 bg-lime-50" : "border-emerald-100"}`}><CheckCircle2 size={19} className={mission.done ? "text-emerald-700" : "text-emerald-200"}/><span className="flex-1"><b className="block text-sm">{mission.title}</b><small className="text-emerald-700/55">{mission.area}</small></span><span className="font-mono text-xs text-emerald-700">+{mission.xp} XP</span></button>)}</div></article>
+    <article className="rounded-xl border border-emerald-100 bg-white p-5"><p className="font-mono text-[10px] tracking-[.12em] text-emerald-600">CHECK-IN DE HOJE</p><h3 className="mt-1 text-xl font-semibold">Pausa. Presença. Próximo passo.</h3><label className="mt-4 block text-xs">Energia: <b>{energy}/5</b><input className="mt-2 w-full accent-emerald-700" type="range" min="1" max="5" value={energy} onChange={e=>setEnergy(Number(e.target.value))}/></label><label className="mt-4 block text-xs">O que você percebeu hoje?<textarea value={reflection} onChange={e=>setReflection(e.target.value)} rows={2} className="mt-2 w-full rounded-md border border-emerald-100 p-3 text-sm" placeholder="Aprendizado, emoção ou obstáculo..."/></label><label className="mt-3 block text-xs">Qual é a próxima ação pequena?<Input value={nextAction} onChange={e=>setNextAction(e.target.value)} className="mt-2" placeholder="Algo possível até num dia difícil"/></label><Button onClick={saveCheckin} className="mt-4 w-full bg-[#0e3426]"><Sparkles size={16}/> Salvar check-in</Button></article></section>
+    <section className="grid gap-4 md:grid-cols-3"><article className="rounded-xl border border-emerald-100 bg-white p-5"><Activity className="text-emerald-600"/><p className="mt-3 text-xs text-emerald-700/60">EQUILÍBRIO VIDA 360</p><b className="mt-1 block text-3xl">{balance}%</b></article><article className="rounded-xl border border-emerald-100 bg-white p-5"><Target className="text-emerald-600"/><p className="mt-3 text-xs text-emerald-700/60">META DO CICLO</p><textarea className="mt-2 w-full resize-none rounded-md border border-emerald-100 p-2 text-sm" rows={2} value={state.cycleGoal} onChange={e=>update({cycleGoal:e.target.value})}/></article><article className="rounded-xl border border-emerald-100 bg-white p-5"><Trophy className="text-amber-500"/><p className="mt-3 text-xs text-emerald-700/60">EVIDÊNCIAS</p><b className="mt-1 block text-3xl">{state.checkins.length}</b><p className="mt-1 text-xs text-emerald-700/60">check-ins registrados neste navegador</p></article></section>
+    <section className="rounded-xl border border-lime-300 bg-lime-50 p-5"><div className="flex gap-3"><BookHeart className="shrink-0 text-emerald-700"/><div><b>O piloto começa com você.</b><p className="mt-1 text-sm leading-6 text-emerald-900/70">Esta primeira camada reúne Chamado, Vida 360, missões, check-in e evolução. PDI, metas, PSV e ferramentas já existentes continuam disponíveis no menu legado enquanto a jornada ganha profundidade.</p></div><ChevronRight className="ml-auto shrink-0 text-emerald-700"/></div></section>
+  </div>;
+}
