@@ -76,6 +76,7 @@ function AgentDashboard({ data, onView }: { data: { latestGoal: { targetVariable
 
 export default function Home() {
   const { user, loading, logout } = useAuth();
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [view, setView] = useState<"comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "admin" | "jornada" | "arauto" | "historia">(() => {
     const value = new URLSearchParams(window.location.search).get("view");
     return ["comece", "navegante", "ulisses", "esparta", "delfos", "admin", "jornada", "arauto", "historia"].includes(value ?? "")
@@ -110,7 +111,7 @@ export default function Home() {
       </aside>
       <main className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 border-b border-emerald-100 bg-[#f4f3ec]/95 backdrop-blur">
-          <div className="flex items-center justify-between px-4 py-3 lg:px-9"><button onClick={()=>navigate("comece")} className="font-semibold lg:hidden">NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Espaço privado do navegante</div><div className="text-right"><b className="block text-sm">{user.name || user.email}</b><span className="text-xs text-emerald-700/60">{user.role === "admin" ? "Admin" : "Usuário"}</span></div></div>
+          <div className="flex items-center justify-between px-4 py-3 lg:px-9"><button onClick={()=>navigate("comece")} className="font-semibold lg:hidden">NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Espaço privado do navegante</div><div className="relative"><button type="button" aria-expanded={profileMenuOpen} onClick={()=>setProfileMenuOpen(open=>!open)} className="rounded-lg px-3 py-1 text-right transition hover:bg-white"><b className="block text-sm">{user.name || user.email}</b><span className="text-xs text-emerald-700/60">{user.role === "admin" ? "Admin" : "Usuário"}</span></button>{profileMenuOpen&&<div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-emerald-100 bg-white p-2 shadow-xl"><button type="button" onClick={()=>logout()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><LogOut size={16}/> Encerrar sessão</button></div>}</div></div>
           <nav className="flex gap-2 overflow-x-auto px-3 pb-3 lg:hidden">{nav.map(([key,Icon,label])=><button key={key} onClick={()=>navigate(key)} className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs ${view===key ? "bg-amber-200 font-semibold" : "bg-white text-emerald-800"}`}><Icon size={15}/>{label}</button>)}</nav>
         </header>
         <div className="p-4 pb-12 md:p-7 lg:p-9">{content}</div>
