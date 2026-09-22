@@ -11,7 +11,7 @@ import type { TrpcContext } from "./_core/context";
 
 describe("regras de cadastro confirmado", () => {
   it("aceita Stone e a exceção administrativa, mas bloqueia domínios externos", () => {
-    expect(isAllowedRegistrationEmail("agente@stone.com.br")).toBe(true);
+    expect(isAllowedRegistrationEmail("agente@stone.com.br")).toBe(false);
     expect(isAllowedRegistrationEmail(SYSTEM_ADMIN_EMAIL)).toBe(true);
     expect(isAllowedRegistrationEmail("agente@gmail.com")).toBe(false);
     expect(isAllowedRegistrationEmail("agente@stone.com.br.evil.com")).toBe(false);
@@ -48,7 +48,7 @@ describe("regras de cadastro confirmado", () => {
         leadershipRole: "none",
       })
     ).rejects.toThrow(
-      "Novos cadastros são exclusivos para e-mails @stone.com.br."
+      "Novos cadastros estão fechados durante o piloto. Solicite um convite."
     );
   });
 });
