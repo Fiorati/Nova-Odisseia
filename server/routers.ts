@@ -64,7 +64,6 @@ import {
   updateTeamProfile,
   updateTeamMemberOrganization,
   createTeamMember,
-  createPendingNavigatorInvite,
   saveTeamDailyPromise,
   saveTeamSchedule,
   deactivateTeamSchedule,
@@ -98,6 +97,7 @@ import {
   researchProspectionCnpj,
 } from "./db";
 import { createPassword, normalizedEmail, verifyPassword } from "./credentials";
+import { createPendingNavigatorInvite } from "./navigatorInvites";
 import { getDailyItakaMessage } from "./itakaDailyMessage";
 import { journeyStateSchema } from "./journeyState";
 import { getJourneyState, saveJourneyState } from "./journeyPersistence";
