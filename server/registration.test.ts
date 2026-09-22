@@ -52,3 +52,5 @@ describe("regras de cadastro confirmado", () => {
     );
   });
 });
+
+// Convites pendentes são a única exceção ao cadastro fechado; coberto também pelo fluxo de integração.
