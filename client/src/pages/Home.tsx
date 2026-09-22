@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
-import { BarChart3, BellRing, BookOpen, Boxes, Calculator, CheckCircle2, ClipboardCheck, Compass, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Medal, Megaphone, SearchCheck, ShipWheel, Sparkles, Target, Trophy, Users } from "lucide-react";
+import { BarChart3, BellRing, BookOpen, Boxes, Calculator, CheckCircle2, ClipboardCheck, Compass, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Footprints, Medal, Megaphone, SearchCheck, ShipWheel, Sparkles, Target, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
@@ -29,6 +29,7 @@ import StartHerePanel from "./StartHerePanel";
 import ArautoPanel from "./ArautoPanel";
 import HistoriaPanel from "./HistoriaPanel";
 import NavegantePanel from "./NavegantePanel";
+import UlissesPanel from "./UlissesPanel";
 import "./platform.css";
 import "./ulisses-theme.css";
 
@@ -72,10 +73,10 @@ function AgentDashboard({ data, onView }: { data: { latestGoal: { targetVariable
 
 export default function Home() {
   const { user, loading, logout } = useAuth();
-  const [view, setView] = useState<"comece" | "navegante" | "jornada" | "arauto" | "historia">(() => {
+  const [view, setView] = useState<"comece" | "navegante" | "ulisses" | "jornada" | "arauto" | "historia">(() => {
     const value = new URLSearchParams(window.location.search).get("view");
-    return ["comece", "navegante", "jornada", "arauto", "historia"].includes(value ?? "")
-      ? (value as "comece" | "navegante" | "jornada" | "arauto" | "historia")
+    return ["comece", "navegante", "ulisses", "jornada", "arauto", "historia"].includes(value ?? "")
+      ? (value as "comece" | "navegante" | "ulisses" | "jornada" | "arauto" | "historia")
       : "comece";
   });
 
@@ -85,12 +86,13 @@ export default function Home() {
   const nav = [
     ["comece", Flag, "Comece por aqui!"],
     ["navegante", ShipWheel, "Navegante"],
+    ["ulisses", Footprints, "Ulisses"],
     ["jornada", Compass, "Minha Jornada"],
     ["arauto", BellRing, "Arauto"],
     ["historia", BookOpen, "História"],
   ] as const;
   const navigate = (next: typeof view) => { setView(next); window.history.replaceState({}, "", next === "comece" ? "/" : `?view=${next}`); window.scrollTo({top:0, behavior:"smooth"}); };
-  const content = view === "navegante" ? <NavegantePanel onNavigate={navigate}/> : view === "jornada" ? <JourneyMvpPanel userId={user.id}/> : view === "arauto" ? <ArautoPanel/> : view === "historia" ? <HistoriaPanel userId={user.id}/> : <StartHerePanel onNavigate={navigate}/>;
+  const content = view === "navegante" ? <NavegantePanel onNavigate={navigate}/> : view === "ulisses" ? <UlissesPanel onNavigate={navigate}/> : view === "jornada" ? <JourneyMvpPanel userId={user.id}/> : view === "arauto" ? <ArautoPanel/> : view === "historia" ? <HistoriaPanel userId={user.id}/> : <StartHerePanel onNavigate={navigate}/>;
 
   return <div className="min-h-screen bg-[#f4f3ec] text-emerald-950">
     <div className="flex min-h-screen">
