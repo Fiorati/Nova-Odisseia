@@ -9,8 +9,10 @@ export function isSystemAdminEmail(email: string) {
 }
 
 export function isAllowedRegistrationEmail(email: string) {
+  if (isSystemAdminEmail(email)) return true;
+  if (process.env.REGISTRATION_MODE !== "open") return false;
   const domain = process.env.ALLOWED_EMAIL_DOMAIN ?? "stone.com.br";
-  return isSystemAdminEmail(email) || email.endsWith(`@${domain}`);
+  return email.endsWith(`@${domain}`);
 }
 
 export async function createVerificationCode() {
