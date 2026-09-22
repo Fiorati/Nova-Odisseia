@@ -98,6 +98,8 @@ import {
 } from "./db";
 import { createPassword, normalizedEmail, verifyPassword } from "./credentials";
 import { getDailyItakaMessage } from "./itakaDailyMessage";
+import { journeyStateSchema } from "./journeyState";
+import { getJourneyState, saveJourneyState } from "./journeyPersistence";
 import {
   createVerificationCode,
   createVerificationToken,
@@ -451,6 +453,8 @@ export const appRouter = router({
   }),
   agent: router({
     dashboard: protectedProcedure.query(({ ctx }) => getDashboard(ctx.user.id)),
+    journey: protectedProcedure.query(({ ctx }) => getJourneyState(ctx.user.id)),
+    saveJourney: protectedProcedure.input(journeyStateSchema).mutation(({ ctx, input }) => saveJourneyState(ctx.user.id, input)),
     emailBackup: protectedProcedure.mutation(({ ctx }) => emailUserBackup(ctx.user.id)),
     dailyItakaMessage: protectedProcedure.query(() => getDailyItakaMessage()),
     profile: protectedProcedure
