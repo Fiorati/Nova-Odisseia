@@ -5,9 +5,6 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -27,35 +24,10 @@ function Router() {
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function MigrationBanner() {
-  const { user } = useAuth();
-  const emailBackup = trpc.agent.emailBackup.useMutation({
-    onSuccess: result => toast.success(`Backup enviado para ${result.email}.`),
-    onError: error => toast.error(error.message),
-  });
-
   return (
-    <div
-      role="status"
-      aria-label="Aviso importante sobre a atualização da Nova Odisseia"
-      className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-950 shadow-sm"
-    >
-      <strong className="font-semibold">A Nova Odisseia está mudando.</strong>{" "}
-      Salve até 24/09 as informações que deseja manter. A partir de 25/09,
-      algumas funcionalidades serão reorganizadas ou removidas para adequação
-      às diretrizes de segurança e compliance.
-      {user && (
-        <button
-          type="button"
-          disabled={emailBackup.isPending}
-          onClick={() => emailBackup.mutate()}
-          style={{ backgroundColor: "#451a03", color: "#fffbeb" }}
-          className="mx-auto mt-3 block w-full max-w-xl rounded-xl px-6 py-3 text-base font-semibold shadow-md transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70"
-        >
-          {emailBackup.isPending
-            ? "Compilando e enviando seu backup..."
-            : "Receber Backup da minha odisseia por email!"}
-        </button>
-      )}
+    <div role="status" aria-label="Novidades da Nova Odisseia" className="sticky top-0 z-50 border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-950 shadow-sm">
+      <strong className="font-semibold">A Nova Odisseia está diferente!</strong>{" "}
+      Confira na aba <strong>"Arauto"</strong> as principais mudanças e funcionalidades.
     </div>
   );
 }
