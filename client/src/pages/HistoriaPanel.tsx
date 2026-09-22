@@ -1,0 +1,23 @@
+import { BookOpen, CheckCircle2, Compass, Flag, Map, ShipWheel } from "lucide-react";
+
+type Stage = "Chamado" | "Provação" | "Maestria" | "Retorno";
+type JourneySnapshot = { calling?: string; cycleGoal?: string; stage?: Stage; xp?: number };
+const chapters = [
+  { stage: "Chamado" as Stage, title: "O chamado de Ítaca", story: "Telêmaco procura notícias do pai. Longe dali, Odisseu recebe a chance de deixar a ilha de Calipso e voltar para casa.", mirror: "Toda travessia começa quando permanecer igual pesa mais do que partir." },
+  { stage: "Provação" as Stage, title: "O mar das provas", story: "Ciclopes, tempestades, sereias e escolhas difíceis testam Odisseu e sua tripulação.", mirror: "A prova não é castigo: revela recursos, limites e alianças." },
+  { stage: "Maestria" as Stage, title: "Reconhecer e ser reconhecido", story: "Em terra estrangeira, Odisseu aprende a narrar sua história, pedir ajuda e preparar o retorno.", mirror: "Maestria é transformar experiência em direção consciente." },
+  { stage: "Retorno" as Stage, title: "A volta a Ítaca", story: "Odisseu retorna disfarçado, reconhece seu território e restaura o que importa sem esquecer quem se tornou.", mirror: "Retornar é integrar a mudança e devolvê-la ao mundo em forma de presença." },
+];
+
+export default function HistoriaPanel({ userId }: { userId: number }) {
+  let journey: JourneySnapshot = {};
+  try { journey = JSON.parse(localStorage.getItem(`nova-odisseia-journey-v1-${userId}`) || "{}"); } catch { journey = {}; }
+  const stage = journey.stage || "Chamado";
+  const current = chapters.find(item => item.stage === stage) || chapters[0];
+  return <div className="space-y-6">
+    <section className="overflow-hidden rounded-2xl bg-[#071f31] p-6 text-white md:p-8"><div className="grid gap-6 lg:grid-cols-[1.35fr_.65fr]"><div><p className="font-mono text-[10px] tracking-[.16em] text-sky-200">HISTÓRIA · A ODISSEIA DE HOMERO</p><h2 className="mt-3 text-3xl font-semibold tracking-[-.055em] md:text-4xl">A história antiga encontra a sua travessia.</h2><p className="mt-3 max-w-3xl text-sm leading-6 text-sky-100/70">Navegue pelos grandes movimentos do poema e use cada capítulo como espelho para seus objetivos, sem confundir mito com fato histórico.</p></div><div className="rounded-xl border border-white/15 bg-white/5 p-5"><p className="font-mono text-[10px] tracking-[.12em] text-sky-200">VOCÊ ESTÁ AQUI</p><div className="mt-3 flex items-center gap-3"><Compass className="text-sky-200"/><b className="text-2xl">{stage}</b></div><p className="mt-4 text-sm text-sky-100/70">{current.title}</p><p className="mt-2 font-mono text-xs text-sky-200">{journey.xp || 0} XP</p></div></div></section>
+    <section className="rounded-xl border border-sky-100 bg-white p-6"><div className="flex gap-3"><Flag className="shrink-0 text-sky-700"/><div><p className="font-mono text-[10px] tracking-[.12em] text-sky-700">SEU NORTE NESTE CAPÍTULO</p><b className="mt-1 block text-lg">{journey.calling || "Defina seu Chamado em Minha Jornada."}</b><p className="mt-2 text-sm text-emerald-800/60">Meta do ciclo: {journey.cycleGoal || "escolha a transformação dos próximos 30 dias"}</p></div></div></section>
+    <section className="relative grid gap-4 lg:grid-cols-4">{chapters.map((chapter,index) => { const reached = chapters.findIndex(item=>item.stage===stage) >= index; const active = chapter.stage===stage; return <article key={chapter.stage} className={`rounded-xl border p-5 ${active ? "border-sky-400 bg-sky-50 ring-2 ring-sky-100" : reached ? "border-emerald-200 bg-white" : "border-slate-200 bg-slate-50 opacity-60"}`}><div className="flex items-center justify-between"><span className={`grid h-9 w-9 place-items-center rounded-full ${active ? "bg-sky-700 text-white" : reached ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-500"}`}>{reached ? <CheckCircle2 size={18}/> : index+1}</span>{index===0 ? <ShipWheel size={18}/> : index===3 ? <Map size={18}/> : <BookOpen size={18}/>}</div><p className="mt-4 font-mono text-[10px] tracking-[.1em] text-sky-700">{chapter.stage.toUpperCase()}</p><h3 className="mt-1 font-semibold">{chapter.title}</h3><p className="mt-3 text-xs leading-5 text-emerald-900/65">{chapter.story}</p><p className="mt-3 rounded-lg bg-white/70 p-3 text-xs leading-5 text-emerald-900/70"><b>Espelho:</b> {chapter.mirror}</p></article>})}</section>
+    <p className="text-xs leading-5 text-emerald-800/55">Base narrativa: movimentos centrais da Odisseia atribuída a Homero. A correspondência com sua jornada é uma leitura simbólica para reflexão, não uma avaliação psicológica.</p>
+  </div>;
+}
