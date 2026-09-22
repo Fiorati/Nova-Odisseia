@@ -12,6 +12,14 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 }, table => ({ emailUnique: uniqueIndex("users_email_unique").on(table.email) }));
 
+export const journeyStates = mysqlTable("journey_states", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stateJson: text("stateJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ userUnique: uniqueIndex("journey_states_user_unique").on(table.userId) }));
+
 export const emailCredentials = mysqlTable("email_credentials", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
