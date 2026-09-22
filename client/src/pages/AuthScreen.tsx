@@ -9,7 +9,7 @@ import {
   LockKeyhole,
   MailCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type Mode =
@@ -70,6 +70,12 @@ export default function AuthScreen() {
   const [code, setCode] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [leadershipRole, setLeadershipRole] = useState<"none" | "polo" | "distrital">("none");
+  const invited = new URLSearchParams(window.location.search).get("convite") === "1";
+  useEffect(() => {
+    if (!invited) return;
+    const params = new URLSearchParams(window.location.search);
+    setEmail(params.get("email") || ""); setName(params.get("nome") || ""); setLeadershipRole("none"); setMode("register-verify");
+  }, [invited]);
 
   const utils = trpc.useUtils();
 
@@ -265,7 +271,7 @@ export default function AuthScreen() {
                 ? "Confirme o código."
                 : "Defina uma nova senha.";
 
-  const registrationOpen = import.meta.env.VITE_REGISTRATION_MODE === "open";
+  const registrationOpen = import.meta.env.VITE_REGISTRATION_MODE === "open" || invited;
 
   const helper =
     mode === "login"
