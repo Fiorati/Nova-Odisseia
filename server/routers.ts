@@ -64,6 +64,7 @@ import {
   updateTeamProfile,
   updateTeamMemberOrganization,
   createTeamMember,
+  createPendingNavigatorInvite,
   saveTeamDailyPromise,
   saveTeamSchedule,
   deactivateTeamSchedule,
@@ -111,7 +112,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createSessionToken } from "./_core/session";
 import { systemRouter } from "./_core/systemRouter";
 import { emailUserBackup } from "./userBackup";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
 const passwordSchema = z
   .string()
@@ -204,11 +205,14 @@ export const appRouter = router({
       .input(accountSchema)
       .mutation(async ({ input }) => {
         const email = normalizedEmail(input.email);
-        if (!isAllowedRegistrationEmail(email))
+        if (!isAllowedRegistrationEmail(email) && !process.env.DATABASE_URL)
+          throw new Error("Novos cadastros estão fechados durante o piloto. Solicite um convite.");
+        const exists = await getUserByEmail(email);
+        const pendingInvite = exists?.loginMethod === "team-invite" && !(await getCredentialsForUser(exists.id));
+        if (!isAllowedRegistrationEmail(email) && !pendingInvite)
           throw new Error(
             "Novos cadastros estão fechados durante o piloto. Solicite um convite."
           );
-        const exists = await getUserByEmail(email);
         if (
           exists &&
           (exists.loginMethod !== "team-invite" ||
@@ -1204,6 +1208,15 @@ export const appRouter = router({
       ),
   }),
   admin: router({
+    inviteNavigator: adminProcedure
+      .input(z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email() }))
+      .mutation(async ({ ctx, input }) => {
+        const invited = await createPendingNavigatorInvite(ctx.user.id, input);
+        const verification = await createVerificationCode();
+        await saveEmailVerificationChallenge({ email: invited.email, name: invited.name, leadershipRole: "none", codeHash: verification.passwordHash, codeSalt: verification.passwordSalt, expiresAt: new Date(Date.now() + 15 * 60 * 1000) });
+        await sendRegistrationCode({ email: invited.email, name: invited.name, code: verification.code });
+        return { ...invited, inviteUrl: `/?convite=1&email=${encodeURIComponent(invited.email)}&nome=${encodeURIComponent(invited.name)}` };
+      }),
     sendMigrationNotice: protectedProcedure.mutation(({ ctx }) => sendApprovedMigrationNotice(ctx.user.id)),
     profiles: protectedProcedure.query(({ ctx }) =>
       listAdminProfiles(ctx.user.id)
