@@ -2,12 +2,24 @@ import { describe, expect, it } from "vitest";
 import { isMutationAllowedWhileViewing, parseViewAsHeader, resolveViewAs } from "../shared/viewAs";
 
 const admin = { id: 1, role: "admin", email: "fiorati@novaodisseia.com" };
+const otherAdmin = { id: 7, role: "admin", email: "fioratigabriel.8@gmail.com" };
+const fakeOwner = { id: 8, role: "user", email: "fiorati@novaodisseia.com" };
 const kaike = { id: 4159, role: "user", email: "kaike@example.com" };
 const load = async (id: number) => (id === kaike.id ? kaike : id === admin.id ? admin : null);
 
 describe("ver como usuário", () => {
   it("admin passa a ver como o usuário escolhido", async () => {
     await expect(resolveViewAs(admin, "4159", load)).resolves.toEqual({ user: kaike, viewer: admin });
+  });
+  it("outro admin (inclusive o de teste) não consegue ver como usuário", async () => {
+    await expect(resolveViewAs(otherAdmin, "4159", load)).resolves.toEqual({ user: otherAdmin, viewer: null });
+  });
+  it("e-mail do dono sem papel admin também não consegue", async () => {
+    await expect(resolveViewAs(fakeOwner, "4159", load)).resolves.toEqual({ user: fakeOwner, viewer: null });
+  });
+  it("e-mail do dono com maiúsculas ainda é reconhecido", async () => {
+    const upper = { ...admin, email: "Fiorati@NovaOdisseia.com" };
+    await expect(resolveViewAs(upper, "4159", load)).resolves.toEqual({ user: kaike, viewer: upper });
   });
   it("usuário comum não consegue usar o cabeçalho", async () => {
     await expect(resolveViewAs(kaike, "1", load)).resolves.toEqual({ user: kaike, viewer: null });
@@ -56,6 +68,9 @@ describe("ver como usuário no servidor", () => {
   });
   it("lista de e-mails só existe para o admin real", async () => {
     await expect(appRouter.createCaller(ctxFor(kaike, null)).admin.viewAsOptions()).rejects.toThrow();
+  });
+  it("lista de e-mails bloqueada para outro admin", async () => {
+    await expect(appRouter.createCaller(ctxFor(otherAdmin, null)).admin.viewAsOptions()).rejects.toThrow();
   });
   it("logout continua liberado", async () => {
     await expect(appRouter.createCaller(ctxFor(kaike, admin)).auth.logout()).resolves.toBeTruthy();
