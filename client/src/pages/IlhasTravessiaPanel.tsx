@@ -1,0 +1,41 @@
+import { trpc } from "@/lib/trpc";
+import { Anchor, ArrowRight, BriefcaseBusiness, Compass, HeartPulse, Home, Info, Map, Users, Waves } from "lucide-react";
+
+type Destination = "jornada" | "esparta";
+type AreaKey = "profissional" | "pessoal" | "emocional" | "comunidade";
+type Area = { key: AreaKey; label: string; score: number; focus: string };
+type Journey = { areas?: Area[]; cycleGoal?: string; checkins?: { energy: number }[] };
+
+const islands: Record<AreaKey, { name: string; subtitle: string; icon: typeof Home; question: string; practice: string }> = {
+  profissional: { name: "Ilha do Ofício", subtitle: "Direção e realização", icon: BriefcaseBusiness, question: "Qual entrega prova que você avançou?", practice: "Escolha uma entrega observável para os próximos 7 dias." },
+  pessoal: { name: "Ilha do Lar", subtitle: "Base e sustentação", icon: Home, question: "O que precisa de cuidado para sustentar a rota?", practice: "Proteja um hábito pequeno que devolva energia à travessia." },
+  emocional: { name: "Ilha do Ânimo", subtitle: "Presença e consciência", icon: HeartPulse, question: "Que estado interno está guiando suas escolhas?", practice: "Nomeie o que sente e separe fato de interpretação." },
+  comunidade: { name: "Ilha da Ágora", subtitle: "Vínculo e contribuição", icon: Users, question: "Com quem vale atravessar este trecho?", practice: "Peça uma perspectiva ou devolva um aprendizado útil." },
+};
+
+export default function IlhasTravessiaPanel({ onNavigate }: { onNavigate: (view: Destination) => void }) {
+  const journey = trpc.agent.journey.useQuery();
+  const state = (journey.data?.state || {}) as Journey;
+  const areas = state.areas || [];
+  const ordered = [...areas].sort((a, b) => a.score - b.score);
+  const attention = ordered[0];
+  const support = ordered[ordered.length - 1];
+  const average = areas.length ? Math.round((areas.reduce((sum, area) => sum + area.score, 0) / areas.length) * 10) : 0;
+  const energy = state.checkins?.length ? (state.checkins.reduce((sum, item) => sum + item.energy, 0) / state.checkins.length).toFixed(1) : "-";
+
+  return <div className="space-y-6">
+    <section className="relative overflow-hidden rounded-3xl bg-[#073d40] p-7 text-white shadow-xl md:p-10">
+      <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_25%_20%,#fde68a_0_2px,transparent_3px),radial-gradient(circle_at_70%_65%,#a7f3d0_0_2px,transparent_3px)] [background-size:56px_56px,74px_74px]"/>
+      <Waves className="absolute -bottom-7 right-5 text-cyan-100/10" size={260} strokeWidth={.65}/>
+      <div className="relative max-w-3xl"><span className="inline-flex items-center gap-2 rounded-full border border-amber-100/25 bg-white/5 px-3 py-1 font-mono text-[10px] tracking-[.15em] text-amber-100"><Map size={13}/> ORÁCULO · ILHAS DA TRAVESSIA</span><h2 className="mt-5 text-4xl font-semibold tracking-[-.06em] md:text-5xl">Toda travessia muda<br/>quando o mapa fica legível.</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-cyan-50/75">As Ilhas organizam as quatro áreas que você avaliou na Vida 360. Elas não preveem o futuro nem diagnosticam sua personalidade: apenas transformam seus próprios registros em perguntas e próximos passos visíveis.</p><div className="mt-6 flex flex-wrap gap-2"><span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs">DADOS DECLARADOS</span><span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs">REGRA VISÍVEL</span><span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs">SEM PREVISÃO</span></div></div>
+    </section>
+
+    <section className="grid gap-4 md:grid-cols-3"><article className="rounded-2xl border border-cyan-100 bg-white p-5"><Compass className="text-cyan-700"/><p className="mt-4 font-mono text-[10px] tracking-[.12em] text-cyan-800">ILHA QUE PEDE FAROL</p><b className="mt-1 block text-2xl">{attention ? islands[attention.key].name : "Complete a Vida 360"}</b><p className="mt-2 text-sm text-emerald-950/60">{attention ? `${attention.label}: ${attention.score}/10, a menor nota declarada.` : "O mapa nasce das suas quatro notas."}</p></article><article className="rounded-2xl border border-amber-100 bg-white p-5"><Anchor className="text-amber-700"/><p className="mt-4 font-mono text-[10px] tracking-[.12em] text-amber-800">ILHA DE APOIO</p><b className="mt-1 block text-2xl">{support ? islands[support.key].name : "Ainda não revelada"}</b><p className="mt-2 text-sm text-emerald-950/60">{support ? `${support.label}: ${support.score}/10, a maior nota declarada.` : "Sua maior nota será usada como apoio."}</p></article><article className="rounded-2xl border border-emerald-100 bg-white p-5"><Waves className="text-emerald-700"/><p className="mt-4 font-mono text-[10px] tracking-[.12em] text-emerald-800">MARÉ REGISTRADA</p><b className="mt-1 block text-3xl">{average}%</b><p className="mt-2 text-sm text-emerald-950/60">média Vida 360 · energia média {energy}/5</p></article></section>
+
+    <section className="grid gap-4 md:grid-cols-2">{(Object.keys(islands) as AreaKey[]).map(key => { const island = islands[key]; const area = areas.find(item => item.key === key); const Icon = island.icon; const isAttention = attention?.key === key; return <article key={key} className={`relative overflow-hidden rounded-2xl border p-6 ${isAttention ? "border-amber-300 bg-amber-50" : "border-emerald-100 bg-white"}`}><div className="flex items-start justify-between gap-4"><span className={`grid h-12 w-12 place-items-center rounded-full ${isAttention ? "bg-amber-200 text-emerald-950" : "bg-cyan-50 text-cyan-800"}`}><Icon/></span><span className="rounded-full bg-white/70 px-3 py-1 font-mono text-xs text-emerald-900">{area?.score ?? "-"}/10</span></div><p className="mt-5 font-mono text-[10px] tracking-[.12em] text-cyan-800">{island.subtitle.toUpperCase()}</p><h3 className="mt-1 text-2xl font-semibold">{island.name}</h3><p className="mt-3 text-sm font-semibold text-emerald-950">{island.question}</p><p className="mt-2 text-sm leading-6 text-emerald-950/60">{island.practice}</p>{isAttention && <span className="mt-4 inline-block rounded-full bg-amber-200 px-3 py-1 text-[10px] font-semibold tracking-[.1em] text-emerald-950">PRÓXIMO PORTO SUGERIDO</span>}</article>})}</section>
+
+    <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]"><article className="rounded-2xl bg-[#123c33] p-6 text-white"><p className="font-mono text-[10px] tracking-[.12em] text-amber-200">ROTA SUGERIDA</p><h3 className="mt-2 text-2xl font-semibold">Use força para cuidar do ponto frágil.</h3><p className="mt-3 text-sm leading-7 text-emerald-50/75">{attention && support ? `Leve recursos de ${islands[support.key].name} para uma ação em ${islands[attention.key].name}. ${islands[attention.key].practice}` : "Preencha a Vida 360 em Minha Jornada para gerar uma rota baseada nos seus registros."}</p><button onClick={() => onNavigate("jornada")} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-amber-200">Revisar meu mapa <ArrowRight size={16}/></button></article><article className="rounded-2xl border border-cyan-100 bg-cyan-50 p-6"><div className="flex gap-3"><Info className="shrink-0 text-cyan-800"/><div><p className="font-mono text-[10px] tracking-[.12em] text-cyan-900">COMO A LEITURA É FEITA</p><h3 className="mt-1 text-xl font-semibold">Sem caixa-preta.</h3></div></div><ol className="mt-4 space-y-2 text-sm leading-6 text-emerald-950/70"><li>1. Menor nota = ilha que pede atenção.</li><li>2. Maior nota = ilha de apoio.</li><li>3. Média das quatro notas = maré registrada.</li><li>4. Empates seguem a ordem mostrada na Vida 360.</li></ol><button onClick={() => onNavigate("esparta")} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-cyan-900">Levar a leitura para o treino <ArrowRight size={16}/></button></article></section>
+
+    <section className="rounded-2xl border border-emerald-100 bg-white p-5 text-sm leading-6 text-emerald-950/65"><b className="text-emerald-950">Limite do módulo:</b> esta leitura é reflexiva e usa apenas informações que você registrou. Não é teste psicológico, diagnóstico, recomendação clínica ou previsão. Você pode alterar as notas e ver exatamente por que o mapa muda.</section>
+  </div>;
+}
