@@ -10,5 +10,6 @@ describe("constancia30Pdi", () => {
     expect(pdi.cycleGoal).toContain("PLACAR DIÁRIO");
     expect(pdi.missions.some(m => m.title.includes("sexta com Gabriel"))).toBe(true);
     expect(pdi.checkins).toHaveLength(0);
+    expect(journeyStateSchema.parse(pdi).pdi?.focus.length).toBe(6);
   });
 });
