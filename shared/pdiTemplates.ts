@@ -8,13 +8,29 @@ export type PdiJourneyState = {
   areas: { key: PdiArea; label: string; score: number; focus: string }[];
   missions: { id: string; title: string; area: PdiArea; done: false; xp: number }[];
   checkins: [];
+  pdi: { mentor: string; title: string; summary: string; focus: string[]; createdAt: string };
 };
 
 /** PDI de 30 dias com foco em constância. O mentor preenche; o navegante executa e registra. */
 export function constancia30Pdi(input: { mentorName: string; name: string }): PdiJourneyState {
   const mentor = input.mentorName.trim() || "seu mentor";
   const name = input.name.trim() || "Navegante";
+  const summary = [
+    "Meta: constância. Não é volume nem talento: aparecer e executar todo dia.",
+    "Rotina: véspera com 3 prioridades na agenda física, Golden Hour (1ª hora só ligação e agendamento) e meta mínima diária de PaP e visitas.",
+    "Alavanca: o rapport abre portas. Medir visitas → conversas com decisor → reuniões marcadas.",
+    `Emocional: o ambiente é estratégia. Check-in de 15 min com ${mentor} toda sexta.`,
+    "Placar diário no check-in: Planejei? Golden Hour? Bati a meta de PaP? Sim ou não.",
+  ].join("\n");
   return {
+    pdi: { mentor, title: `PDI 30 dias - Constância (${name})`, summary, focus: [
+      "Rotina da véspera: 10 min, 3 prioridades",
+      "Golden Hour: 1ª hora só ligação e agendamento",
+      "Meta diária de PaP e visitas, sem negociar",
+      "Funil do rapport: visitas → decisor → reuniões",
+      "Regra do ambiente: quem te jogou pra cima?",
+      `Check-in de sexta com ${mentor}`,
+    ], createdAt: new Date().toISOString().slice(0, 10) },
     calling: "Ser um consultor constante: aparecer e executar todo dia, usando meu rapport para transformar visitas em reuniões.",
     cycleGoal: [
       `PDI 30 dias - ${name}. Mentor: ${mentor}.`,
