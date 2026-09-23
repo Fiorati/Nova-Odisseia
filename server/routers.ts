@@ -113,7 +113,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createSessionToken } from "./_core/session";
 import { systemRouter } from "./_core/systemRouter";
 import { emailUserBackup } from "./userBackup";
-import { adminProcedure, protectedProcedure, publicProcedure, realAdminProcedure, router } from "./_core/trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router, viewAsOwnerProcedure } from "./_core/trpc";
 import { listUsersForViewAs } from "./viewAsDb";
 import { generateOraculoReading, getOraculo, saveOraculoDraft, toggleOraculoPlanStep } from "./oraculo";
 import { oraculoAnswersSchema } from "../shared/oraculo";
@@ -1225,7 +1225,7 @@ export const appRouter = router({
       .mutation(({ ctx, input }) => toggleOraculoPlanStep(ctx.user.id, input.readingId, input.index)),
   }),
   admin: router({
-    viewAsOptions: realAdminProcedure.query(async () => listUsersForViewAs()),
+    viewAsOptions: viewAsOwnerProcedure.query(async () => listUsersForViewAs()),
     inviteNavigator: adminProcedure
       .input(z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email() }))
       .mutation(async ({ ctx, input }) => {
