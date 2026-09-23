@@ -82,6 +82,7 @@ export default function Home() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [view, setView] = useState<"comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "itaca" | "ilhas" | "louros" | "admin" | "jornada" | "arauto" | "historia">(() => {
     const value = new URLSearchParams(window.location.search).get("view");
+    if (value === "comece") window.localStorage.setItem("no-comece-visto", "1");
     return ["comece", "navegante", "ulisses", "esparta", "delfos", "itaca", "ilhas", "louros", "admin", "jornada", "arauto", "historia"].includes(value ?? "")
       ? (value as "comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "itaca" | "ilhas" | "louros" | "admin" | "jornada" | "arauto" | "historia")
       : "jornada";
