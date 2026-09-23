@@ -58,3 +58,22 @@ describe("Provedor de IA do Oráculo", () => {
     expect(oraculoModelFor("gemini", "gemini-2.5-flash")).toBe("gemini-2.5-flash");
   });
 });
+
+import { buildMapaAstralMessages } from "../shared/mapaAstral";
+describe("Mapa Astral - de quem é o mapa", () => {
+  const chart = computeNatalChart("2026-03-27", "05:23", { latitude: -23.36417, longitude: -46.74056, timezone: "America/Sao_Paulo" });
+  it("mapa próprio leva Chamado e meta para a IA", () => {
+    const [, user] = buildMapaAstralMessages({ fullName: "Ana", forSelf: true }, chart, { calling: "Ser consultor", cycleGoal: "Meta X" });
+    expect(user.content).toContain("Chamado: Ser consultor");
+  });
+  it("mapa de outra pessoa não leva a jornada de quem pediu", () => {
+    const [system, user] = buildMapaAstralMessages({ fullName: "Bebê", forSelf: false }, chart, null);
+    expect(user.content).not.toContain("Chamado");
+    expect(user.content).not.toContain("Meta do ciclo");
+    expect(system.content).toContain("outra pessoa");
+  });
+  it("schema assume mapa próprio por padrão", () => {
+    const parsed = mapaAstralInputSchema.parse({ fullName: "Ana Lima", birthDate: "2026-03-27", birthTime: "05:23", city: "Caieiras", place: { name: "Caieiras", latitude: -23.36, longitude: -46.74, timezone: "America/Sao_Paulo" } });
+    expect(parsed.forSelf).toBe(true);
+  });
+});
