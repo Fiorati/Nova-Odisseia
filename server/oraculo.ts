@@ -3,11 +3,13 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { journeyDateKey } from "../shared/journeyDate";
 import {
-  ORACULO_MIN_ANSWERS, ORACULO_MODEL, answeredCount, buildOraculoMessages, formatDateKeyBR, oraculoAvailability,
+  ORACULO_MIN_ANSWERS, oraculoModelFor, answeredCount, buildOraculoMessages, formatDateKeyBR, oraculoAvailability,
   oraculoAnswersSchema, oraculoReportJsonSchema, parseOraculoReport, readingForAudience, togglePlanStep,
   type OraculoAnswers, type OraculoContext, type OraculoReading,
 } from "../shared/oraculo";
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM, resolveLLMProvider } from "./_core/llm";
+
+const currentModel = () => oraculoModelFor(resolveLLMProvider(), process.env.ORACULO_MODEL);
 import { getJourneyState } from "./journeyPersistence";
 
 const database = () => {
@@ -98,13 +100,13 @@ export async function generateOraculoReading(user: { id: number; name?: string |
   const messages = buildOraculoMessages(contextFromJourney(user.name, (journey?.state ?? null) as Record<string, any> | null), parsed);
   let report;
   try {
-    const result = await invokeLLM({ model: ORACULO_MODEL, messages, response_format: { type: "json_schema", json_schema: oraculoReportJsonSchema as any } });
+    const result = await invokeLLM({ model: currentModel(), messages, response_format: { type: "json_schema", json_schema: oraculoReportJsonSchema as any } });
     report = parseOraculoReport(result.choices?.[0]?.message?.content);
   } catch (error) {
     console.error("Oráculo: falha ao gerar leitura", error instanceof Error ? error.message.slice(0, 300) : error);
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "O Oráculo não conseguiu responder agora. Suas respostas ficaram salvas; tente de novo em alguns minutos." });
   }
-  await database().execute(sql`INSERT INTO oraculo_readings (userId, dateKey, answersJson, reportJson, planDoneJson, model, kind) VALUES (${user.id}, ${today}, ${JSON.stringify(parsed)}, ${JSON.stringify(report)}, '[]', ${ORACULO_MODEL}, 'leitura')`);
+  await database().execute(sql`INSERT INTO oraculo_readings (userId, dateKey, answersJson, reportJson, planDoneJson, model, kind) VALUES (${user.id}, ${today}, ${JSON.stringify(parsed)}, ${JSON.stringify(report)}, '[]', ${currentModel()}, 'leitura')`);
   return { report };
 }
 

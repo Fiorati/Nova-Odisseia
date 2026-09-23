@@ -117,6 +117,8 @@ import { adminProcedure, protectedProcedure, publicProcedure, router, viewAsOwne
 import { listUsersForViewAs } from "./viewAsDb";
 import { generateOraculoReading, getOraculo, saveOraculoDraft, toggleOraculoPlanStep } from "./oraculo";
 import { oraculoAnswersSchema } from "../shared/oraculo";
+import { generateMapaAstral, getMapaAstral, searchBirthCity } from "./mapaAstral";
+import { mapaAstralInputSchema } from "../shared/mapaAstral";
 
 const passwordSchema = z
   .string()
@@ -1220,6 +1222,9 @@ export const appRouter = router({
     get: protectedProcedure.query(({ ctx }) => getOraculo(ctx.user.id, Boolean(ctx.viewer))),
     saveDraft: protectedProcedure.input(oraculoAnswersSchema).mutation(({ ctx, input }) => saveOraculoDraft(ctx.user.id, input)),
     generate: protectedProcedure.input(oraculoAnswersSchema).mutation(({ ctx, input }) => generateOraculoReading(ctx.user, input)),
+    mapaAstral: protectedProcedure.query(({ ctx }) => getMapaAstral(ctx.user.id)),
+    searchCity: protectedProcedure.input(z.object({ query: z.string().max(120) })).query(({ input }) => searchBirthCity(input.query)),
+    generateMapaAstral: protectedProcedure.input(mapaAstralInputSchema).mutation(({ ctx, input }) => generateMapaAstral(ctx.user, input)),
     togglePlanStep: protectedProcedure
       .input(z.object({ readingId: z.number().int().positive(), index: z.number().int().min(0).max(2) }))
       .mutation(({ ctx, input }) => toggleOraculoPlanStep(ctx.user.id, input.readingId, input.index)),

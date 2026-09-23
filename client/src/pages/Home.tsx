@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { calculateRmrKpi } from "@shared/metrics";
-import { BarChart3, BellRing, BookOpen, Boxes, Calculator, CheckCircle2, ClipboardCheck, Compass, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Eye, Home as HomeIcon, Footprints, Award, MapPinned, Medal, Megaphone, SearchCheck, ShipWheel, ShieldCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
+import { MoonStar, BarChart3, BellRing, BookOpen, Boxes, Calculator, CheckCircle2, ClipboardCheck, Compass, Crown, Flag, FolderKanban, Gauge, Layers3, LogOut, Eye, Home as HomeIcon, Footprints, Award, MapPinned, Medal, Megaphone, SearchCheck, ShipWheel, ShieldCheck, Sparkles, Target, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import AuthScreen from "./AuthScreen";
@@ -32,6 +32,7 @@ import NavegantePanel from "./NavegantePanel";
 import UlissesPanel from "./UlissesPanel";
 import EspartaPanel from "./EspartaPanel";
 import DelfosPanel from "./DelfosPanel";
+import OraculoPage from "./OraculoPage";
 import ItacaPanel from "./ItacaPanel";
 import LourosPanel from "./LourosPanel";
 import AdminInvitePanel from "./AdminInvitePanel";
@@ -80,11 +81,11 @@ function AgentDashboard({ data, onView }: { data: { latestGoal: { targetVariable
 export default function Home() {
   const { user, loading, logout } = useAuth();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [view, setView] = useState<"comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "itaca" | "ilhas" | "louros" | "admin" | "jornada" | "arauto" | "historia">(() => {
+  const [view, setView] = useState<"comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "itaca" | "ilhas" | "louros" | "admin" | "jornada" | "arauto" | "historia" | "oraculo">(() => {
     const value = new URLSearchParams(window.location.search).get("view");
     if (value === "comece") window.localStorage.setItem("no-comece-visto", "1");
-    return ["comece", "navegante", "ulisses", "esparta", "delfos", "itaca", "ilhas", "louros", "admin", "jornada", "arauto", "historia"].includes(value ?? "")
-      ? (value as "comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "itaca" | "ilhas" | "louros" | "admin" | "jornada" | "arauto" | "historia")
+    return ["comece", "navegante", "ulisses", "esparta", "delfos", "itaca", "ilhas", "louros", "admin", "jornada", "arauto", "historia", "oraculo"].includes(value ?? "")
+      ? (value as "comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "itaca" | "ilhas" | "louros" | "admin" | "jornada" | "arauto" | "historia" | "oraculo")
       : "jornada";
   });
 
@@ -95,6 +96,7 @@ export default function Home() {
   const groups = [
     { key: "jornada", Icon: Compass, label: "Minha Jornada", helper: "Declarar, agir, registrar", views: ["jornada"] },
     { key: "preparacao", Icon: ShipWheel, label: "Preparação", helper: "Ulisses, Esparta, Delfos, Ilhas", views: ["ulisses", "esparta", "delfos", "ilhas"] },
+    { key: "oraculo", Icon: MoonStar, label: "Oráculo", helper: "Leitura, mapas e DISC", views: ["oraculo"] },
     { key: "recompensa", Icon: Trophy, label: "Recompensa", helper: "Ítaca e Louros", views: ["itaca", "louros"] },
   ] as const;
   const subnav: Record<string, readonly (readonly [typeof view, typeof Compass, string])[]> = {
@@ -109,7 +111,7 @@ export default function Home() {
   ] as const;
   const activeGroup = groups.find(group => (group.views as readonly string[]).includes(view))?.key;
   const navigate = (next: typeof view) => { if (next === "comece") window.localStorage.setItem("no-comece-visto", "1"); setView(next); window.history.replaceState({}, "", next === "jornada" ? "/" : `?view=${next}`); window.scrollTo({top:0, behavior:"smooth"}); };
-  const content = view === "navegante" ? <NavegantePanel onNavigate={navigate}/> : view === "ulisses" ? <UlissesPanel onNavigate={navigate}/> : view === "esparta" ? <EspartaPanel onNavigate={navigate}/> : view === "delfos" ? <DelfosPanel onNavigate={navigate}/> : view === "ilhas" ? <IlhasTravessiaPanel onNavigate={navigate}/> : view === "itaca" ? <ItacaPanel onNavigate={navigate}/> : view === "louros" ? <LourosPanel/> : view === "admin" ? <AdminInvitePanel/> : view === "jornada" ? <JourneyMvpPanel userId={user.id}/> : view === "arauto" ? <ArautoPanel/> : view === "historia" ? <HistoriaPanel userId={user.id}/> : <StartHerePanel onNavigate={navigate}/>;
+  const content = view === "navegante" ? <NavegantePanel onNavigate={navigate}/> : view === "ulisses" ? <UlissesPanel onNavigate={navigate}/> : view === "esparta" ? <EspartaPanel onNavigate={navigate}/> : view === "delfos" ? <DelfosPanel onNavigate={navigate}/> : view === "oraculo" ? <OraculoPage onNavigate={navigate}/> : view === "ilhas" ? <IlhasTravessiaPanel onNavigate={navigate}/> : view === "itaca" ? <ItacaPanel onNavigate={navigate}/> : view === "louros" ? <LourosPanel/> : view === "admin" ? <AdminInvitePanel/> : view === "jornada" ? <JourneyMvpPanel userId={user.id}/> : view === "arauto" ? <ArautoPanel/> : view === "historia" ? <HistoriaPanel userId={user.id}/> : <StartHerePanel onNavigate={navigate}/>;
 
   return <div className="min-h-screen bg-[#f4f3ec] text-emerald-950">
     <div className="flex min-h-screen">
@@ -123,7 +125,7 @@ export default function Home() {
       <main className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 border-b border-emerald-100 bg-[#f4f3ec]/95 backdrop-blur">
           <div className="flex items-center justify-between px-4 py-3 lg:px-9"><button onClick={()=>navigate("jornada")} className="font-semibold lg:hidden">NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Espaço privado do navegante</div><div className="relative"><button type="button" aria-expanded={profileMenuOpen} onClick={()=>setProfileMenuOpen(open=>!open)} className="rounded-lg px-3 py-1 text-right transition hover:bg-white"><b className="block text-sm">{user.name || user.email}</b><span className="text-xs text-emerald-700/60">{user.role === "admin" ? "Admin" : "Usuário"}</span></button>{profileMenuOpen&&<div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-emerald-100 bg-white p-2 shadow-xl"><button type="button" onClick={()=>logout()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><LogOut size={16}/> Encerrar sessão</button></div>}</div></div>
-          <nav aria-label="Navegação principal" className="grid grid-cols-3 gap-2 px-3 pb-3 lg:hidden">{groups.map(({key,Icon,label,views})=><button key={key} onClick={()=>navigate(views[0])} className={`flex items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs ${activeGroup===key ? "bg-amber-200 font-semibold" : "bg-white text-emerald-800"}`}><Icon size={15}/>{label}</button>)}</nav>
+          <nav aria-label="Navegação principal" className="grid grid-cols-2 gap-2 px-3 pb-3 sm:grid-cols-4 lg:hidden">{groups.map(({key,Icon,label,views})=><button key={key} onClick={()=>navigate(views[0])} className={`flex items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs ${activeGroup===key ? "bg-amber-200 font-semibold" : "bg-white text-emerald-800"}`}><Icon size={15}/>{label}</button>)}</nav>
         </header>
         <div className="p-4 pb-12 md:p-7 lg:p-9">{activeGroup && subnav[activeGroup] && <nav aria-label="Portais do grupo" className="mb-5 flex gap-2 overflow-x-auto">{subnav[activeGroup].map(([key,Icon,label])=><button key={key} type="button" onClick={()=>navigate(key)} className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${view===key ? "border-emerald-900 bg-emerald-900 font-semibold text-amber-100" : "border-emerald-200 bg-white text-emerald-800 hover:border-emerald-400"}`}><Icon size={15}/>{label}</button>)}</nav>}{content}<footer className="mt-12 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-emerald-100 pt-5 text-xs text-emerald-700/70 lg:hidden"><span className="font-mono text-[9px] tracking-[.14em]">APOIO</span>{support.map(([key,,label])=><button key={key} type="button" onClick={()=>navigate(key)} className={view===key ? "font-semibold text-emerald-950" : "hover:text-emerald-950"}>{label}</button>)}</footer></div>
       </main>
