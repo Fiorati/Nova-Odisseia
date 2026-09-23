@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { ORACULO_MIN_ANSWERS, answeredCount, oraculoPrompts, type OraculoAnswers, type OraculoKey } from "@shared/oraculo";
+import { ORACULO_MIN_ANSWERS, answeredCount, formatDateKeyBR, oraculoPrompts, type OraculoAnswers, type OraculoKey } from "@shared/oraculo";
 import { CheckCircle2, Flame, Lightbulb, Lock, MoonStar, Save, Sparkles, Waves } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -43,10 +43,11 @@ export default function OraculoPanel({ weakestLabel }: { weakestLabel?: string }
         <article className="rounded-2xl border border-sky-100 bg-sky-50 p-6"><div className="flex items-center gap-3"><Sparkles className="text-sky-800" /><div><p className="font-mono text-[10px] tracking-[.12em] text-sky-800">RITUAL DE CLAREZA</p><h3 className="text-xl font-semibold">Fato, sentido, escolha.</h3></div></div><div className="mt-5 space-y-4">{(["fato", "sentido", "escolha"] as const).map(k => <Field key={k} k={k} value={answers[k]} onChange={set(k)} disabled={generate.isPending} />)}</div></article>
         <article className="rounded-2xl border border-amber-100 bg-amber-50 p-6"><p className="font-mono text-[10px] tracking-[.12em] text-amber-800">TENSÃO A OBSERVAR{weakestLabel ? ` · ${weakestLabel.toUpperCase()}` : ""}</p><div className="mt-4"><Field k="tensao" value={answers.tensao} onChange={set("tensao")} disabled={generate.isPending} /></div>
           <div className="mt-6 rounded-xl border border-violet-200 bg-white p-4"><p className="flex items-center gap-2 text-xs text-violet-900/70"><Lock size={13} /> Suas respostas são privadas. O mentor vê apenas o plano de ação.</p>
-            <p className="mt-2 text-xs text-violet-900/70">{count}/7 respondidas · mínimo {ORACULO_MIN_ANSWERS} · 1 leitura por dia</p>
+            <p className="mt-2 text-xs text-violet-900/70">{count}/7 respondidas · mínimo {ORACULO_MIN_ANSWERS} · 1 leitura por semana</p>
+            {oraculo.data && !oraculo.data.canGenerate && oraculo.data.nextDateKey && <p className="mt-1 text-xs font-semibold" style={{ color: "#6d28d9" }}>Leitura desta semana já feita. A próxima libera em {formatDateKeyBR(oraculo.data.nextDateKey)}.</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={() => save.mutate(answers)} disabled={save.isPending} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 px-3 py-2 text-sm font-semibold" style={{ color: "#4c1d95" }}><Save size={15} /> Salvar respostas</button>
-              <button type="button" onClick={() => generate.mutate(answers)} disabled={!canGenerate} className="inline-flex items-center gap-2 rounded-lg bg-[#201a39] px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ color: "#fef3c7" }}><MoonStar size={15} /> {generate.isPending ? "O Oráculo está lendo..." : oraculo.data && !oraculo.data.canGenerate ? "Leitura de hoje já feita" : "Gerar leitura do Oráculo"}</button>
+              <button type="button" onClick={() => generate.mutate(answers)} disabled={!canGenerate} className="inline-flex items-center gap-2 rounded-lg bg-[#201a39] px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ color: "#fef3c7" }}><MoonStar size={15} /> {generate.isPending ? "O Oráculo está lendo..." : oraculo.data && !oraculo.data.canGenerate ? `Próxima em ${formatDateKeyBR(oraculo.data.nextDateKey ?? "")}` : "Gerar leitura do Oráculo"}</button>
             </div></div>
         </article>
       </section>
