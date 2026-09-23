@@ -119,6 +119,8 @@ import { generateOraculoReading, getOraculo, saveOraculoDraft, toggleOraculoPlan
 import { oraculoAnswersSchema } from "../shared/oraculo";
 import { deleteVideo, getVideoSlot, saveVideo } from "./videos";
 import { saveVideoSchema, VIDEO_PLACEMENTS } from "../shared/videos";
+import { deleteCourse, deleteLesson, getAcademy, saveCourse, saveLesson, setLessonDone } from "./courses";
+import { COURSE_AREAS, saveCourseSchema, saveLessonSchema } from "../shared/courses";
 import { generateMapaAstral, getMapaAstral, searchBirthCity } from "./mapaAstral";
 import { mapaAstralInputSchema } from "../shared/mapaAstral";
 import { generateMapaNumerologico, getMapaNumerologico } from "./mapaNumerologico";
@@ -1247,6 +1249,18 @@ export const appRouter = router({
     remove: viewAsOwnerProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(({ input }) => deleteVideo(input.id)),
+  }),
+  academy: router({
+    list: protectedProcedure
+      .input(z.object({ area: z.enum(COURSE_AREAS).optional() }).optional())
+      .query(({ ctx, input }) => getAcademy(ctx.user, ctx.viewer ?? ctx.user, input?.area)),
+    setDone: protectedProcedure
+      .input(z.object({ lessonId: z.number().int().positive(), done: z.boolean() }))
+      .mutation(({ ctx, input }) => setLessonDone(ctx.user, input.lessonId, input.done)),
+    saveCourse: viewAsOwnerProcedure.input(saveCourseSchema).mutation(({ ctx, input }) => saveCourse(ctx.realAdmin.id, input)),
+    removeCourse: viewAsOwnerProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteCourse(input.id)),
+    saveLesson: viewAsOwnerProcedure.input(saveLessonSchema).mutation(({ input }) => saveLesson(input)),
+    removeLesson: viewAsOwnerProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteLesson(input.id)),
   }),
   admin: router({
     viewAsOptions: viewAsOwnerProcedure.query(async () => listUsersForViewAs()),
