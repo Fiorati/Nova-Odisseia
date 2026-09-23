@@ -1,6 +1,7 @@
-import { Compass, Hash, Lock, MoonStar, ScrollText, Sparkles, Sun, Target, Users } from "lucide-react";
+import { Compass, Lock, MoonStar, ScrollText, Sparkles, Sun, Target, Users } from "lucide-react";
 import OraculoPanel from "@/components/OraculoPanel";
 import MapaAstralPanel from "@/components/MapaAstralPanel";
+import MapaNumerologicoPanel from "@/components/MapaNumerologicoPanel";
 import { useJourneyStore } from "@/lib/journeyStore";
 import { oraculoLimitLabel } from "@shared/oraculo";
 
@@ -10,7 +11,6 @@ type Destination = "jornada" | "delfos" | "ulisses" | "esparta";
 
 /** Módulos do Oráculo. A leitura do momento já funciona; os mapas e o DISC entram em seguida, cada um com seu limite. */
 const modules = [
-  { kind: "mapa_numerologico", title: "Mapa Numerológico", Icon: Hash, text: "Seu nome completo e sua data de nascimento viram números de trabalho para reflexão.", status: "Na fila" },
   { kind: "disc", title: "DISC", Icon: Users, text: "Um questionário curto mostra seu estilo de comportamento no trabalho e como ele conversa com a sua rota.", status: "Na fila" },
 ] as const;
 
@@ -52,6 +52,7 @@ export default function OraculoPage({ onNavigate }: { onNavigate: (view: Destina
     <section aria-label="Outros caminhos do Oráculo">
       <p className="font-mono text-[10px] tracking-[.14em] text-violet-700">OUTROS CAMINHOS DO ORÁCULO</p>
       <div className="mt-3"><MapaAstralPanel /></div>
+      <div className="mt-4"><MapaNumerologicoPanel /></div>
       <div className="mt-4 grid gap-4 md:grid-cols-2">{modules.map(({ kind, title, Icon, text, status }) => <article key={kind} className="relative overflow-hidden rounded-2xl border border-amber-200/40 bg-[#201a39] p-5" style={{ color: "#f5f3ff" }}>
         <div className="flex items-center justify-between"><span className="grid h-11 w-11 place-items-center rounded-full border border-amber-200/40 bg-white/5"><Icon size={20} color="#fde68a" /></span><span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[10px]" style={{ color: "#fde68a" }}><Lock size={11} /> {status}</span></div>
         <h3 className="mt-4 text-xl font-semibold">{title}</h3>
