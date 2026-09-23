@@ -6,8 +6,10 @@ export const mapaAstralInputSchema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data no formato AAAA-MM-DD"),
   birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora no formato HH:MM"),
   city: z.string().trim().min(2).max(120),
+  /** true = o mapa é da própria pessoa logada (liga à jornada dela). false = mapa de outra pessoa (filho, cônjuge...). */
+  forSelf: z.boolean().default(true),
   /** Cidade escolhida na busca (evita homônimos). */
-  place: z.object({ name: z.string(), admin1: z.string().optional().default(""), country: z.string().optional().default(""), latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), timezone: z.string().min(3) }),
+  place: z.object({ name: z.string(), admin1: z.string().optional().default(""), admin2: z.string().optional().default(""), country: z.string().optional().default(""), latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), timezone: z.string().min(3) }),
 });
 export type MapaAstralInput = z.infer<typeof mapaAstralInputSchema>;
 
@@ -115,17 +117,24 @@ export function chartSummaryLines(chart: NatalChart): string[] {
   return lines;
 }
 
-export function buildMapaAstralMessages(input: Pick<MapaAstralInput, "fullName">, chart: NatalChart, journey: { calling?: string; cycleGoal?: string }) {
+export function buildMapaAstralMessages(input: Pick<MapaAstralInput, "fullName"> & { forSelf?: boolean }, chart: NatalChart, journey: { calling?: string; cycleGoal?: string } | null) {
+  const forSelf = input.forSelf !== false && journey !== null;
   const system = [
     "Você é o Oráculo da Nova Odisseia e escreve uma leitura simbólica de mapa astral, em português do Brasil, segunda pessoa (você).",
     "As posições foram calculadas astronomicamente e estão abaixo; use SOMENTE essas posições e não invente outras.",
     "A astrologia aqui é linguagem simbólica para autoconhecimento: não prevê o futuro, não faz diagnóstico, não decide pela pessoa e não promete resultado.",
-    "Evite fatalismo e rótulos. Conecte os símbolos ao Chamado e à meta do ciclo quando existirem. Seja concreto, caloroso e breve.",
+    forSelf
+      ? "Evite fatalismo e rótulos. Conecte os símbolos ao Chamado e à meta do ciclo quando existirem. Seja concreto, caloroso e breve."
+      : "Este mapa é de outra pessoa, não de quem está usando a plataforma: NÃO mencione Chamado, meta, plataforma ou trabalho de quem pediu. No campo jornada, escreva uma reflexão geral sobre como cultivar essas forças, sem ação ligada à rotina de quem pediu. Evite fatalismo e rótulos. Seja concreto, caloroso e breve.",
   ].join(" ");
+  const lines = [`Nome: ${input.fullName}`];
+  if (forSelf) {
+    lines.push(`Chamado: ${journey?.calling?.trim() || "(não declarado)"}`, `Meta do ciclo: ${journey?.cycleGoal?.trim() || "(não declarada)"}`);
+  } else {
+    lines.push("(Mapa de outra pessoa: sem ligação com a jornada de quem pediu.)");
+  }
   const user = [
-    `Nome: ${input.fullName}`,
-    `Chamado: ${journey.calling?.trim() || "(não declarado)"}`,
-    `Meta do ciclo: ${journey.cycleGoal?.trim() || "(não declarada)"}`,
+    ...lines,
     "", "Mapa natal calculado (zodíaco tropical, casas " + (chart.houseSystem === "placidus" ? "Placidus" : "Porfírio") + "):",
     ...chartSummaryLines(chart),
   ].join("\n");

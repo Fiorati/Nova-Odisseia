@@ -5,8 +5,9 @@ import { Lock, MapPin, Search, Sparkles, Star } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-type City = { name: string; admin1: string; country: string; latitude: number; longitude: number; timezone: string };
-const cityLabel = (c: City) => [c.name, c.admin1, c.country].filter(Boolean).join(", ");
+type City = { name: string; admin1: string; admin2?: string; country: string; latitude: number; longitude: number; timezone: string };
+/** Mostra o município quando difere do nome (ex.: bairro "Caieiras" em Ipeúna) para evitar homônimos. */
+const cityLabel = (c: City) => [c.name, c.admin2 && c.admin2 !== c.name ? `município de ${c.admin2}` : "", c.admin1, c.country].filter(Boolean).join(", ");
 
 function ChartTable({ chart }: { chart: NatalChart }) {
   const rows = [
@@ -23,7 +24,7 @@ function ChartTable({ chart }: { chart: NatalChart }) {
 export default function MapaAstralPanel() {
   const utils = trpc.useUtils();
   const data = trpc.oraculo.mapaAstral.useQuery(undefined, { retry: false });
-  const [form, setForm] = useState({ fullName: "", birthDate: "", birthTime: "", city: "" });
+  const [form, setForm] = useState({ fullName: "", birthDate: "", birthTime: "", city: "", forSelf: true });
   const [place, setPlace] = useState<City | null>(null);
   const [query, setQuery] = useState("");
   const cities = trpc.oraculo.searchCity.useQuery({ query }, { enabled: query.length >= 2, retry: false });
@@ -42,6 +43,7 @@ export default function MapaAstralPanel() {
     </div>
 
     {canGenerate && <div className="mt-5 grid gap-3 md:grid-cols-2">
+      <div className="md:col-span-2 flex flex-wrap gap-2 text-sm">{[{ v: true, t: "O mapa é meu" }, { v: false, t: "É de outra pessoa" }].map(o => <button type="button" key={String(o.v)} onClick={() => setForm({ ...form, forSelf: o.v })} className="rounded-full border px-3 py-1" style={form.forSelf === o.v ? { backgroundColor: "#fde68a", color: "#16122b", borderColor: "#fde68a" } : { color: "#fde68a", borderColor: "rgba(253,230,138,.4)" }}>{o.t}</button>)}<span className="self-center text-xs" style={{ color: "rgba(237,233,254,.55)" }}>{form.forSelf ? "A leitura conversa com o seu Chamado e a sua meta." : "A leitura não usa os dados da sua jornada."}</span></div>
       <label className="text-xs md:col-span-2" style={{ color: "rgba(237,233,254,.7)" }}>Nome completo<input style={inputStyle} className={`${input} mt-1`} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} placeholder="Como está na certidão" /></label>
       <label className="text-xs" style={{ color: "rgba(237,233,254,.7)" }}>Data de nascimento<input style={inputStyle} type="date" className={`${input} mt-1`} value={form.birthDate} onChange={e => setForm({ ...form, birthDate: e.target.value })} /></label>
       <label className="text-xs" style={{ color: "rgba(237,233,254,.7)" }}>Hora de nascimento<input style={inputStyle} type="time" className={`${input} mt-1`} value={form.birthTime} onChange={e => setForm({ ...form, birthTime: e.target.value })} /></label>
@@ -60,7 +62,7 @@ export default function MapaAstralPanel() {
         <div className="grid gap-2">{(["sol", "lua", "ascendente"] as const).map(k => <p key={k} className="rounded-lg bg-white/5 p-3"><b style={{ color: "#fde68a" }}>{k === "sol" ? "Sol" : k === "lua" ? "Lua" : "Ascendente"}:</b> {latest.report.tripe[k]}</p>)}</div>
         <div><p className="font-mono text-[10px] tracking-[.12em]" style={{ color: "#e4cf88" }}>FORÇAS</p><ul className="mt-1 list-disc pl-5">{latest.report.forcas.map(f => <li key={f}>{f}</li>)}</ul></div>
         <div><p className="font-mono text-[10px] tracking-[.12em]" style={{ color: "#e4cf88" }}>PONTOS DE ATENÇÃO</p><ul className="mt-1 list-disc pl-5">{latest.report.atencao.map(f => <li key={f}>{f}</li>)}</ul></div>
-        <p className="rounded-lg border border-amber-200/30 p-3"><b style={{ color: "#fde68a" }}>Na sua jornada:</b> {latest.report.jornada}</p>
+        <p className="rounded-lg border border-amber-200/30 p-3"><b style={{ color: "#fde68a" }}>{latest.input?.forSelf === false ? "Para refletir:" : "Na sua jornada:"}</b> {latest.report.jornada}</p>
         <p className="italic" style={{ color: "#fde68a" }}>{latest.report.pergunta}</p>
         <p className="text-xs" style={{ color: "rgba(237,233,254,.5)" }}>Posições calculadas astronomicamente (zodíaco tropical, casas {latest.chart.houseSystem === "placidus" ? "Placidus" : "Porfírio"}). A leitura é simbólica, gerada por IA: não é previsão nem diagnóstico.</p>
       </div>
