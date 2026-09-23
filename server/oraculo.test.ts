@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ORACULO_MODEL, answeredCount, buildOraculoMessages, canGenerateToday, oraculoAnswersSchema,
+  ORACULO_MODEL, answeredCount, buildOraculoMessages, oraculoAvailability, addDaysToKey, formatDateKeyBR, oraculoAnswersSchema,
   oraculoReportJsonSchema, parseOraculoReport, readingForAudience, togglePlanStep,
 } from "../shared/oraculo";
 import { appRouter } from "./routers";
@@ -12,10 +12,21 @@ const report = { leitura: "Você já sabe o caminho.", padroes: ["a", "b", "c"],
 describe("Oráculo IA", () => {
   it("usa o modelo mais barato combinado", () => expect(ORACULO_MODEL).toBe("gpt-5-mini"));
   it("conta só respostas preenchidas", () => expect(answeredCount(answers)).toBe(3));
-  it("limita a 1 leitura por dia", () => {
-    expect(canGenerateToday([], "2026-09-23")).toBe(true);
-    expect(canGenerateToday(["2026-09-22"], "2026-09-23")).toBe(true);
-    expect(canGenerateToday(["2026-09-23"], "2026-09-23")).toBe(false);
+  it("leitura do momento: 1 por semana, com data de liberação", () => {
+    expect(oraculoAvailability([], "2026-09-23")).toEqual({ canGenerate: true, nextDateKey: null });
+    expect(oraculoAvailability(["2026-09-23"], "2026-09-23")).toEqual({ canGenerate: false, nextDateKey: "2026-09-30" });
+    expect(oraculoAvailability(["2026-09-23"], "2026-09-29").canGenerate).toBe(false);
+    expect(oraculoAvailability(["2026-09-23"], "2026-09-30").canGenerate).toBe(true);
+    expect(oraculoAvailability(["2026-09-10", "2026-09-23"], "2026-09-25").nextDateKey).toBe("2026-09-30");
+  });
+  it("mapa astral e numerológico: 1 por mês (30 dias); outros tipos: 1 por semana", () => {
+    expect(oraculoAvailability(["2026-09-23"], "2026-10-22", "mapa_astral")).toEqual({ canGenerate: false, nextDateKey: "2026-10-23" });
+    expect(oraculoAvailability(["2026-09-23"], "2026-10-23", "mapa_numerologico").canGenerate).toBe(true);
+    expect(oraculoAvailability(["2026-09-23"], "2026-09-30", "disc").canGenerate).toBe(true);
+  });
+  it("datas atravessam mês e ano e aparecem em pt-BR", () => {
+    expect(addDaysToKey("2026-12-28", 7)).toBe("2027-01-04");
+    expect(formatDateKeyBR("2026-09-30")).toBe("30/09/2026");
   });
   it("monta o prompt com Chamado, meta, PDI e respostas, sem prometer previsão", () => {
     const [system, user] = buildOraculoMessages({ calling: "Ser constante", cycleGoal: "30 dias", pdiTitle: "PDI Kaike", weakestArea: { label: "Comunidade", score: 4, focus: "f" } }, answers);
