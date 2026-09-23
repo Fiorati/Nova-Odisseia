@@ -12,7 +12,7 @@ export const oraculoModelFor = (provider: "gemini" | "openai", override?: string
  * Mapa Astral e Mapa Numerológico: 1 por mês (30 dias). Todas as outras gerações: 1 por semana (7 dias).
  * A janela conta a partir da última geração do mesmo tipo.
  */
-export type OraculoKind = "leitura" | "mapa_astral" | "mapa_numerologico";
+export type OraculoKind = "leitura" | "mapa_astral" | "mapa_numerologico" | "disc";
 export const ORACULO_LIMIT_DAYS: Record<string, number> = { mapa_astral: 30, mapa_numerologico: 30 };
 export const ORACULO_DEFAULT_LIMIT_DAYS = 7;
 export const oraculoLimitDays = (kind: string) => ORACULO_LIMIT_DAYS[kind] ?? ORACULO_DEFAULT_LIMIT_DAYS;

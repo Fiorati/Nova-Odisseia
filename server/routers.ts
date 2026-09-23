@@ -121,6 +121,8 @@ import { generateMapaAstral, getMapaAstral, searchBirthCity } from "./mapaAstral
 import { mapaAstralInputSchema } from "../shared/mapaAstral";
 import { generateMapaNumerologico, getMapaNumerologico } from "./mapaNumerologico";
 import { mapaNumerologicoInputSchema } from "../shared/mapaNumerologico";
+import { generateDisc, getDisc } from "./disc";
+import { discInputSchema } from "../shared/disc";
 
 const passwordSchema = z
   .string()
@@ -1229,6 +1231,8 @@ export const appRouter = router({
     generateMapaAstral: protectedProcedure.input(mapaAstralInputSchema).mutation(({ ctx, input }) => generateMapaAstral(ctx.user, input)),
     mapaNumerologico: protectedProcedure.query(({ ctx }) => getMapaNumerologico(ctx.user.id)),
     generateMapaNumerologico: protectedProcedure.input(mapaNumerologicoInputSchema).mutation(({ ctx, input }) => generateMapaNumerologico(ctx.user, input)),
+    disc: protectedProcedure.query(({ ctx }) => getDisc(ctx.user.id)),
+    generateDisc: protectedProcedure.input(discInputSchema).mutation(({ ctx, input }) => generateDisc(ctx.user, input)),
     togglePlanStep: protectedProcedure
       .input(z.object({ readingId: z.number().int().positive(), index: z.number().int().min(0).max(2) }))
       .mutation(({ ctx, input }) => toggleOraculoPlanStep(ctx.user.id, input.readingId, input.index)),

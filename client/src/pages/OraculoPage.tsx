@@ -1,18 +1,14 @@
-import { Compass, Lock, MoonStar, ScrollText, Sparkles, Sun, Target, Users } from "lucide-react";
+import { Compass, MoonStar, ScrollText, Sparkles, Sun, Target } from "lucide-react";
 import OraculoPanel from "@/components/OraculoPanel";
 import MapaAstralPanel from "@/components/MapaAstralPanel";
 import MapaNumerologicoPanel from "@/components/MapaNumerologicoPanel";
+import DiscPanel from "@/components/DiscPanel";
 import { useJourneyStore } from "@/lib/journeyStore";
 import { oraculoLimitLabel } from "@shared/oraculo";
 
 const short = (text?: string | null, max = 90) => { const t = (text ?? "").trim(); return t.length > max ? `${t.slice(0, max).trimEnd()}…` : t; };
 
 type Destination = "jornada" | "delfos" | "ulisses" | "esparta";
-
-/** Módulos do Oráculo. A leitura do momento já funciona; os mapas e o DISC entram em seguida, cada um com seu limite. */
-const modules = [
-  { kind: "disc", title: "DISC", Icon: Users, text: "Um questionário curto mostra seu estilo de comportamento no trabalho e como ele conversa com a sua rota.", status: "Na fila" },
-] as const;
 
 export default function OraculoPage({ onNavigate }: { onNavigate: (view: Destination) => void }) {
   const { state } = useJourneyStore();
@@ -53,12 +49,7 @@ export default function OraculoPage({ onNavigate }: { onNavigate: (view: Destina
       <p className="font-mono text-[10px] tracking-[.14em] text-violet-700">OUTROS CAMINHOS DO ORÁCULO</p>
       <div className="mt-3"><MapaAstralPanel /></div>
       <div className="mt-4"><MapaNumerologicoPanel /></div>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">{modules.map(({ kind, title, Icon, text, status }) => <article key={kind} className="relative overflow-hidden rounded-2xl border border-amber-200/40 bg-[#201a39] p-5" style={{ color: "#f5f3ff" }}>
-        <div className="flex items-center justify-between"><span className="grid h-11 w-11 place-items-center rounded-full border border-amber-200/40 bg-white/5"><Icon size={20} color="#fde68a" /></span><span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[10px]" style={{ color: "#fde68a" }}><Lock size={11} /> {status}</span></div>
-        <h3 className="mt-4 text-xl font-semibold">{title}</h3>
-        <p className="mt-2 text-sm leading-6" style={{ color: "rgba(237,233,254,.7)" }}>{text}</p>
-        <p className="mt-4 font-mono text-[10px] tracking-[.12em]" style={{ color: "#e4cf88" }}>LIMITE: {oraculoLimitLabel(kind).toUpperCase()}</p>
-      </article>)}</div>
+      <div className="mt-4"><DiscPanel /></div>
     </section>
 
     <section className="rounded-2xl border border-violet-200 bg-violet-50 p-6"><p className="font-mono text-[10px] tracking-[.12em] text-violet-800">LIMITE DO ORÁCULO</p><p className="mt-2 text-sm leading-7 text-violet-950/70">Leituras geradas por IA a partir do que você declarou. Símbolos servem para reflexão, não para decidir por você. Se algo pesar demais, procure apoio profissional ou o CVV (188).</p><button type="button" onClick={() => onNavigate("delfos")} className="mt-3 text-sm font-semibold text-violet-800">Voltar ao Delfos para refletir →</button></section>
