@@ -1901,6 +1901,7 @@ const AUTO_NEWS_INTERVAL_MS = 12 * 60 * 60 * 1000;
 /** Publica automaticamente o próximo item da rotação editorial quando passam 12h desde a última publicação do sistema. */
 export async function publishScheduledNewsIfDue() {
   const db = await getDb();
+  await ensureNewsArticlesSchema(db);
   const systemAuthor = (
     await db.select({ id: users.id }).from(users).where(eq(users.role, "admin")).limit(1)
   )[0];
@@ -1926,20 +1927,37 @@ export async function publishScheduledNewsIfDue() {
   });
 }
 
-export async function listNewsArticles() {
-  const db = await getDb();
-  await db.execute(sql`CREATE TABLE IF NOT EXISTS news_articles (
+let newsSchemaReady: Promise<void> | null = null;
+
+/** Garante a tabela e a coluna `pinned` (migração 0032) uma vez por processo; bancos antigos ficaram sem a coluna. */
+export async function ensureNewsArticlesSchema(db: { execute: (query: any) => Promise<unknown> }) {
+  newsSchemaReady ??= (async () => {
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS news_articles (
     id int AUTO_INCREMENT NOT NULL,
     authorUserId int NOT NULL,
     authorName varchar(160) NOT NULL,
     title varchar(200) NOT NULL,
     category varchar(80) NOT NULL DEFAULT 'Negócios',
     content text NOT NULL,
+    pinned boolean NOT NULL DEFAULT false,
     publishedAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
   )`);
+    try {
+      await db.execute(sql`ALTER TABLE news_articles ADD COLUMN pinned boolean NOT NULL DEFAULT false`);
+    } catch (error) {
+      // Coluna já existe (bancos que rodaram a migração 0032). Outros erros sobem.
+      if (!/duplicate column/i.test(String((error as any)?.cause?.message ?? (error as any)?.message ?? error))) throw error;
+    }
+  })().catch(error => { newsSchemaReady = null; throw error; });
+  return newsSchemaReady;
+}
+
+export async function listNewsArticles() {
+  const db = await getDb();
+  await ensureNewsArticlesSchema(db);
   try {
     await publishScheduledNewsIfDue();
   } catch (error) {
@@ -1974,6 +1992,7 @@ export async function saveNewsArticle(userId: number, input: { id?: number; titl
 export async function toggleNewsPin(userId: number, id: number, pinned: boolean) {
   if (!(await canManageNews(userId))) throw new Error("Apenas admin e donos de polo podem fixar notícias.");
   const db = await getDb();
+  await ensureNewsArticlesSchema(db);
   await db.update(newsArticles).set({ pinned }).where(eq(newsArticles.id, id));
   return listNewsArticles();
 }
