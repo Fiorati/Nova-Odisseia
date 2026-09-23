@@ -113,7 +113,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createSessionToken } from "./_core/session";
 import { systemRouter } from "./_core/systemRouter";
 import { emailUserBackup } from "./userBackup";
-import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, realAdminProcedure, router } from "./_core/trpc";
+import { listUsersForViewAs } from "./viewAsDb";
 
 const passwordSchema = z
   .string()
@@ -201,6 +202,11 @@ export const appRouter = router({
   }),
   auth: router({
     me: publicProcedure.query(({ ctx }) => ctx.user),
+    viewAsStatus: publicProcedure.query(({ ctx }) =>
+      ctx.viewer && ctx.user
+        ? { viewing: true as const, viewer: { id: ctx.viewer.id, email: ctx.viewer.email }, target: { id: ctx.user.id, email: ctx.user.email, name: ctx.user.name } }
+        : { viewing: false as const, viewer: null, target: null }
+    ),
 
     requestRegistrationCode: publicProcedure
       .input(accountSchema)
@@ -1209,6 +1215,7 @@ export const appRouter = router({
       ),
   }),
   admin: router({
+    viewAsOptions: realAdminProcedure.query(async () => listUsersForViewAs()),
     inviteNavigator: adminProcedure
       .input(z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email() }))
       .mutation(async ({ ctx, input }) => {

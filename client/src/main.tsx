@@ -5,6 +5,7 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
+import { viewAsHeaders } from "./lib/viewAs";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
+      headers: () => viewAsHeaders(),
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),
