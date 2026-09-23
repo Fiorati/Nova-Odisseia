@@ -98,6 +98,7 @@ import {
 } from "./db";
 import { createPassword, normalizedEmail, verifyPassword } from "./credentials";
 import { createPendingNavigatorInvite } from "./navigatorInvites";
+import { createMentoredNavigator } from "./mentoredNavigator";
 import { getDailyItakaMessage } from "./itakaDailyMessage";
 import { journeyStateSchema } from "./journeyState";
 import { getJourneyState, saveJourneyState } from "./journeyPersistence";
@@ -1217,6 +1218,9 @@ export const appRouter = router({
         await sendRegistrationCode({ email: invited.email, name: invited.name, code: verification.code });
         return { ...invited, inviteUrl: `/?convite=1&email=${encodeURIComponent(invited.email)}&nome=${encodeURIComponent(invited.name)}` };
       }),
+    createNavigatorWithPdi: adminProcedure
+      .input(z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email(), password: passwordSchema, journey: journeyStateSchema }))
+      .mutation(({ ctx, input }) => createMentoredNavigator(ctx.user.id, input)),
     sendMigrationNotice: protectedProcedure.mutation(({ ctx }) => sendApprovedMigrationNotice(ctx.user.id)),
     profiles: protectedProcedure.query(({ ctx }) =>
       listAdminProfiles(ctx.user.id)
