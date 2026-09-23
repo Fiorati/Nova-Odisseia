@@ -2,7 +2,16 @@ import { z } from "zod";
 
 /** Modelo definido com o Gabriel: o mais barato (centavos por relatório). */
 export const ORACULO_MODEL = "gpt-5-mini";
-export const ORACULO_DAILY_LIMIT = 1;
+/**
+ * Limites combinados com o Gabriel (23/09): Oráculo aberto a todos.
+ * Mapa Astral e Mapa Numerológico: 1 por mês (30 dias). Todas as outras gerações: 1 por semana (7 dias).
+ * A janela conta a partir da última geração do mesmo tipo.
+ */
+export type OraculoKind = "leitura" | "mapa_astral" | "mapa_numerologico";
+export const ORACULO_LIMIT_DAYS: Record<string, number> = { mapa_astral: 30, mapa_numerologico: 30 };
+export const ORACULO_DEFAULT_LIMIT_DAYS = 7;
+export const oraculoLimitDays = (kind: string) => ORACULO_LIMIT_DAYS[kind] ?? ORACULO_DEFAULT_LIMIT_DAYS;
+export const oraculoLimitLabel = (kind: string) => (oraculoLimitDays(kind) >= 30 ? "1 por mês" : "1 por semana");
 
 export const oraculoPrompts = [
   { key: "verdade", group: "pergunta", label: "Que verdade você já percebeu, mas ainda não transformou em escolha?" },
@@ -117,8 +126,23 @@ export function readingForAudience(reading: OraculoReading, viewingAsMentor: boo
   return rest;
 }
 
-export function canGenerateToday(generatedDateKeys: string[], todayKey: string, limit = ORACULO_DAILY_LIMIT): boolean {
-  return generatedDateKeys.filter(key => key === todayKey).length < limit;
+export function addDaysToKey(dateKey: string, days: number): string {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Pode gerar agora? Se não, devolve a data (AAAA-MM-DD) em que a próxima geração libera. */
+export function oraculoAvailability(generatedDateKeys: string[], todayKey: string, kind: string = "leitura"): { canGenerate: boolean; nextDateKey: string | null } {
+  const last = [...generatedDateKeys].sort().pop();
+  if (!last) return { canGenerate: true, nextDateKey: null };
+  const next = addDaysToKey(last, oraculoLimitDays(kind));
+  return todayKey >= next ? { canGenerate: true, nextDateKey: null } : { canGenerate: false, nextDateKey: next };
+}
+
+export function formatDateKeyBR(dateKey: string): string {
+  const [y, m, d] = dateKey.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 export function togglePlanStep(done: number[], index: number): number[] {
