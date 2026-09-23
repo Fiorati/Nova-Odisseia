@@ -1,7 +1,12 @@
 import { z } from "zod";
 
-/** Modelo definido com o Gabriel: o mais barato (centavos por relatório). */
-export const ORACULO_MODEL = "gpt-5-mini";
+/**
+ * Modelo do Oráculo. Padrão: Gemini Flash (plano gratuito da API do Google); gpt-5-mini se o provedor for OpenAI.
+ * ORACULO_MODEL no ambiente sobrescreve.
+ */
+export const ORACULO_GEMINI_MODEL = "gemini-3.8-flash";
+export const ORACULO_OPENAI_MODEL = "gpt-5-mini";
+export const oraculoModelFor = (provider: "gemini" | "openai", override?: string) => override?.trim() || (provider === "gemini" ? ORACULO_GEMINI_MODEL : ORACULO_OPENAI_MODEL);
 /**
  * Limites combinados com o Gabriel (23/09): Oráculo aberto a todos.
  * Mapa Astral e Mapa Numerológico: 1 por mês (30 dias). Todas as outras gerações: 1 por semana (7 dias).
