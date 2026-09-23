@@ -98,7 +98,7 @@ export function applySecurityHeaders(req: Request, res: Response, next: NextFunc
   const analytics = analyticsOrigin();
   const analyticsSource = analytics ? ` ${analytics}` : "";
   res.setHeader("Content-Security-Policy", process.env.NODE_ENV === "production"
-    ? `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'${analyticsSource}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'${analyticsSource} https://api.brasilapi.com.br; frame-src 'none'`
+    ? `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'${analyticsSource}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'${analyticsSource} https://api.brasilapi.com.br; media-src 'self' https:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com`
     : "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'");
   res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
