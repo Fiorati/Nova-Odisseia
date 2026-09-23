@@ -83,26 +83,25 @@ export default function Home() {
     const value = new URLSearchParams(window.location.search).get("view");
     return ["comece", "navegante", "ulisses", "esparta", "delfos", "itaca", "louros", "admin", "jornada", "arauto", "historia"].includes(value ?? "")
       ? (value as "comece" | "navegante" | "ulisses" | "esparta" | "delfos" | "itaca" | "louros" | "admin" | "jornada" | "arauto" | "historia")
-      : "comece";
+      : "jornada";
   });
 
   if (loading) return <div className="grid min-h-screen place-items-center bg-[#f4f3ec] font-mono text-sm text-emerald-700">CARREGANDO SUA TRAVESSIA...</div>;
   if (!user) return <AuthScreen />;
 
   const nav = [
-    ["comece", Flag, "Comece por aqui!"],
-    ["navegante", ShipWheel, "Navegante"],
+    ["jornada", Compass, "Minha Jornada"],
     ["ulisses", Footprints, "Ulisses"],
     ["esparta", ShieldCheck, "Esparta"],
     ["delfos", Eye, "Delfos"],
     ["itaca", HomeIcon, "Ítaca"],
     ["louros", Award, "Louros"],
-    ["jornada", Compass, "Minha Jornada"],
+    ["comece", Flag, "Comece por aqui"],
     ["arauto", BellRing, "Arauto"],
     ["historia", BookOpen, "História"],
     ...(user.role === "admin" ? [["admin", Users, "Admin"]] as const : []),
   ] as const;
-  const navigate = (next: typeof view) => { setView(next); window.history.replaceState({}, "", next === "comece" ? "/" : `?view=${next}`); window.scrollTo({top:0, behavior:"smooth"}); };
+  const navigate = (next: typeof view) => { setView(next); window.history.replaceState({}, "", next === "jornada" ? "/" : `?view=${next}`); window.scrollTo({top:0, behavior:"smooth"}); };
   const content = view === "navegante" ? <NavegantePanel onNavigate={navigate}/> : view === "ulisses" ? <UlissesPanel onNavigate={navigate}/> : view === "esparta" ? <EspartaPanel onNavigate={navigate}/> : view === "delfos" ? <DelfosPanel onNavigate={navigate}/> : view === "itaca" ? <ItacaPanel onNavigate={navigate}/> : view === "louros" ? <LourosPanel/> : view === "admin" ? <AdminInvitePanel/> : view === "jornada" ? <JourneyMvpPanel userId={user.id}/> : view === "arauto" ? <ArautoPanel/> : view === "historia" ? <HistoriaPanel userId={user.id}/> : <StartHerePanel onNavigate={navigate}/>;
 
   return <div className="min-h-screen bg-[#f4f3ec] text-emerald-950">
@@ -115,7 +114,7 @@ export default function Home() {
       </aside>
       <main className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 border-b border-emerald-100 bg-[#f4f3ec]/95 backdrop-blur">
-          <div className="flex items-center justify-between px-4 py-3 lg:px-9"><button onClick={()=>navigate("comece")} className="font-semibold lg:hidden">NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Espaço privado do navegante</div><div className="relative"><button type="button" aria-expanded={profileMenuOpen} onClick={()=>setProfileMenuOpen(open=>!open)} className="rounded-lg px-3 py-1 text-right transition hover:bg-white"><b className="block text-sm">{user.name || user.email}</b><span className="text-xs text-emerald-700/60">{user.role === "admin" ? "Admin" : "Usuário"}</span></button>{profileMenuOpen&&<div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-emerald-100 bg-white p-2 shadow-xl"><button type="button" onClick={()=>logout()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><LogOut size={16}/> Encerrar sessão</button></div>}</div></div>
+          <div className="flex items-center justify-between px-4 py-3 lg:px-9"><button onClick={()=>navigate("jornada")} className="font-semibold lg:hidden">NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Espaço privado do navegante</div><div className="relative"><button type="button" aria-expanded={profileMenuOpen} onClick={()=>setProfileMenuOpen(open=>!open)} className="rounded-lg px-3 py-1 text-right transition hover:bg-white"><b className="block text-sm">{user.name || user.email}</b><span className="text-xs text-emerald-700/60">{user.role === "admin" ? "Admin" : "Usuário"}</span></button>{profileMenuOpen&&<div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-emerald-100 bg-white p-2 shadow-xl"><button type="button" onClick={()=>logout()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><LogOut size={16}/> Encerrar sessão</button></div>}</div></div>
           <nav className="flex gap-2 overflow-x-auto px-3 pb-3 lg:hidden">{nav.map(([key,Icon,label])=><button key={key} onClick={()=>navigate(key)} className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs ${view===key ? "bg-amber-200 font-semibold" : "bg-white text-emerald-800"}`}><Icon size={15}/>{label}</button>)}</nav>
         </header>
         <div className="p-4 pb-12 md:p-7 lg:p-9">{content}</div>
