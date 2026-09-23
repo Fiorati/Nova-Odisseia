@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { setViewAsUserId } from "@/lib/viewAs";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
 
@@ -27,6 +28,7 @@ export function useAuth(options?: UseAuthOptions) {
   });
 
   const logout = useCallback(async () => {
+    setViewAsUserId(null);
     try {
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
