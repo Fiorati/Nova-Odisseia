@@ -117,6 +117,8 @@ import { adminProcedure, protectedProcedure, publicProcedure, router, viewAsOwne
 import { listUsersForViewAs } from "./viewAsDb";
 import { generateOraculoReading, getOraculo, saveOraculoDraft, toggleOraculoPlanStep } from "./oraculo";
 import { oraculoAnswersSchema } from "../shared/oraculo";
+import { deleteVideo, getVideoSlot, saveVideo } from "./videos";
+import { saveVideoSchema, VIDEO_PLACEMENTS } from "../shared/videos";
 import { generateMapaAstral, getMapaAstral, searchBirthCity } from "./mapaAstral";
 import { mapaAstralInputSchema } from "../shared/mapaAstral";
 import { generateMapaNumerologico, getMapaNumerologico } from "./mapaNumerologico";
@@ -1236,6 +1238,15 @@ export const appRouter = router({
     togglePlanStep: protectedProcedure
       .input(z.object({ readingId: z.number().int().positive(), index: z.number().int().min(0).max(2) }))
       .mutation(({ ctx, input }) => toggleOraculoPlanStep(ctx.user.id, input.readingId, input.index)),
+  }),
+  videos: router({
+    slot: protectedProcedure
+      .input(z.object({ placement: z.enum(VIDEO_PLACEMENTS) }))
+      .query(({ ctx, input }) => getVideoSlot(ctx.user, ctx.viewer ?? ctx.user, input.placement)),
+    save: viewAsOwnerProcedure.input(saveVideoSchema).mutation(({ ctx, input }) => saveVideo(ctx.realAdmin.id, input)),
+    remove: viewAsOwnerProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(({ input }) => deleteVideo(input.id)),
   }),
   admin: router({
     viewAsOptions: viewAsOwnerProcedure.query(async () => listUsersForViewAs()),
