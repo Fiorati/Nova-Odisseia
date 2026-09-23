@@ -44,9 +44,19 @@ export function activeProva(state: Pick<TravessiaState, "missions">) {
   return pending.find(item => item.kind === "prova") ?? pending[0];
 }
 
+export const TRAVESSIA_AREAS: TravessiaArea[] = ["profissional", "pessoal", "emocional", "comunidade"];
+
+/** Prova em andamento de uma área (a prova criada pela pessoa tem prioridade sobre missões antigas da jornada). */
+export function activeProvaForArea(state: Pick<TravessiaState, "missions">, area: TravessiaArea) {
+  const pending = state.missions.filter(item => !item.done && item.area === area);
+  return pending.find(item => item.kind === "prova") ?? pending[0];
+}
+
 export function createProva(state: TravessiaState, input: { title: string; area: TravessiaArea; today: string; id?: string }): TravessiaState {
   const title = input.title.trim().slice(0, 300);
   if (!title) throw new Error("Descreva a ação da prova.");
+  if (!TRAVESSIA_AREAS.includes(input.area)) throw new Error("Escolha uma área da Vida 360.");
+  if (state.missions.some(item => !item.done && item.kind === "prova" && item.area === input.area)) throw new Error("Esta área já tem uma prova em andamento. Conclua a atual para aceitar outra.");
   const prova: TravessiaMission = { id: input.id ?? `prova-${Date.now()}`, title, area: input.area, done: false, xp: PROVA_XP, kind: "prova", dueDate: input.today };
   return { ...state, missions: [prova, ...state.missions].slice(0, 100) };
 }
