@@ -19,7 +19,7 @@ const database = () => {
 const rowsOf = (result: unknown): Record<string, unknown>[] => (Array.isArray(result) ? (Array.isArray(result[0]) ? result[0] : result) : []) as Record<string, unknown>[];
 const safeJson = <T>(value: unknown, fallback: T): T => { try { return JSON.parse(String(value)) as T; } catch { return fallback; } };
 
-export type CityOption = { name: string; admin1: string; country: string; latitude: number; longitude: number; timezone: string };
+export type CityOption = { name: string; admin1: string; admin2: string; country: string; latitude: number; longitude: number; timezone: string };
 
 /** Busca de cidade (Open-Meteo, sem chave). A pessoa escolhe a cidade certa entre homônimos. */
 export async function searchBirthCity(query: string): Promise<CityOption[]> {
@@ -31,7 +31,7 @@ export async function searchBirthCity(query: string): Promise<CityOption[]> {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = (await response.json()) as { results?: Record<string, unknown>[] };
     return (data.results ?? []).filter(r => typeof r.timezone === "string").map(r => ({
-      name: String(r.name), admin1: String(r.admin1 ?? ""), country: String(r.country ?? ""),
+      name: String(r.name), admin1: String(r.admin1 ?? ""), admin2: String(r.admin2 ?? ""), country: String(r.country ?? ""),
       latitude: Number(r.latitude), longitude: Number(r.longitude), timezone: String(r.timezone),
     }));
   } catch (error) {
@@ -66,8 +66,8 @@ export async function generateMapaAstral(user: { id: number }, rawInput: MapaAst
     console.error("Mapa Astral: falha no cálculo", error instanceof Error ? error.message : error);
     throw new TRPCError({ code: "BAD_REQUEST", message: "Não consegui calcular o mapa com esses dados. Confira data, hora e cidade." });
   }
-  const journey = (await getJourneyState(user.id))?.state as Record<string, any> | undefined;
-  const messages = buildMapaAstralMessages(input, chart, { calling: journey?.calling, cycleGoal: journey?.cycleGoal });
+  const journey = input.forSelf ? ((await getJourneyState(user.id))?.state as Record<string, any> | undefined) : undefined;
+  const messages = buildMapaAstralMessages(input, chart, input.forSelf ? { calling: journey?.calling, cycleGoal: journey?.cycleGoal } : null);
   let report: MapaAstralReport;
   try {
     const result = await invokeLLM({ model: currentModel(), messages, response_format: { type: "json_schema", json_schema: mapaAstralReportJsonSchema as any } });
