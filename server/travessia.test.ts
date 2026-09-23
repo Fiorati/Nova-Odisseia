@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeProva, completeProva, createProva, forgeDone, journeyDefaults, lastVictory, toggleForgeMove } from "../shared/travessia";
+import { activeProva, activeProvaForArea, completeProva, createProva, forgeDone, journeyDefaults, lastVictory, toggleForgeMove } from "../shared/travessia";
 import { journeyStateSchema } from "./journeyState";
 
 const base = { ...journeyDefaults, missions: journeyDefaults.missions.map(item => ({ ...item, done: true })) };
@@ -31,5 +31,29 @@ describe("travessia", () => {
     const undone = toggleForgeMove(one, { area: "pessoal", index: 0, today: "2026-09-23" });
     expect(undone.xp).toBe(0);
     expect(journeyStateSchema.safeParse(one).success).toBe(true);
+  });
+});
+
+describe("provas por área da Vida 360", () => {
+  const base = { ...journeyDefaults, missions: [] };
+  it("aceita uma prova em cada uma das 4 áreas ao mesmo tempo", () => {
+    let state = base;
+    for (const area of ["profissional", "pessoal", "emocional", "comunidade"] as const) state = createProva(state, { title: `Prova ${area}`, area, today: "2026-09-23", id: `p-${area}` });
+    expect(activeProvaForArea(state, "profissional")?.id).toBe("p-profissional");
+    expect(activeProvaForArea(state, "comunidade")?.id).toBe("p-comunidade");
+    expect(state.missions.filter(item => item.kind === "prova" && !item.done)).toHaveLength(4);
+  });
+  it("não deixa abrir duas provas na mesma área até concluir a atual", () => {
+    const one = createProva(base, { title: "Ligar para 3 clientes parados da carteira", area: "profissional", today: "2026-09-23", id: "a" });
+    expect(() => createProva(one, { title: "Outra", area: "profissional", today: "2026-09-23", id: "b" })).toThrow(/já tem uma prova/);
+    const done = completeProva(one, { id: "a", today: "2026-09-23", reflection: { fact: "Liguei", meaning: "", next: "" } }).state;
+    expect(createProva(done, { title: "Outra", area: "profissional", today: "2026-09-23", id: "b" }).missions[0].id).toBe("b");
+  });
+  it("prova criada vale 50 XP e tem prioridade sobre missão antiga da área", () => {
+    const withLegacy = { ...journeyDefaults };
+    expect(activeProvaForArea(withLegacy, "pessoal")?.id).toBe("m1");
+    const state = createProva(withLegacy, { title: "Treinar 20 minutos", area: "pessoal", today: "2026-09-23", id: "p" });
+    expect(activeProvaForArea(state, "pessoal")?.id).toBe("p");
+    expect(activeProvaForArea(state, "pessoal")?.xp).toBe(50);
   });
 });
