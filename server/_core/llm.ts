@@ -211,14 +211,33 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  process.env.OPENAI_BASE_URL && process.env.OPENAI_BASE_URL.trim().length > 0
-    ? `${process.env.OPENAI_BASE_URL.replace(/\/$/, "")}/chat/completions`
-    : "https://api.openai.com/v1/chat/completions";
+/**
+ * Provedor de IA. Padrão: Gemini (Google) quando GEMINI_API_KEY existe, pelo endpoint compatível com OpenAI.
+ * LLM_PROVIDER=openai força a OpenAI (OPENAI_API_KEY / OPENAI_BASE_URL) como alternativa.
+ */
+export type LLMProvider = "gemini" | "openai";
+export const GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+export const resolveLLMProvider = (env: NodeJS.ProcessEnv = process.env): LLMProvider => {
+  const forced = env.LLM_PROVIDER?.trim().toLowerCase();
+  if (forced === "openai" && env.OPENAI_API_KEY) return "openai";
+  if (forced === "gemini" && env.GEMINI_API_KEY) return "gemini";
+  if (env.GEMINI_API_KEY) return "gemini";
+  return "openai";
+};
+
+const resolveApiUrl = (provider: LLMProvider = resolveLLMProvider()) =>
+  provider === "gemini"
+    ? `${GEMINI_OPENAI_BASE_URL}/chat/completions`
+    : process.env.OPENAI_BASE_URL && process.env.OPENAI_BASE_URL.trim().length > 0
+      ? `${process.env.OPENAI_BASE_URL.replace(/\/$/, "")}/chat/completions`
+      : "https://api.openai.com/v1/chat/completions";
+
+const resolveApiKey = (provider: LLMProvider = resolveLLMProvider()) =>
+  provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY;
 
 const assertApiKey = () => {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!resolveApiKey()) {
+    throw new Error("Nenhuma chave de IA configurada (GEMINI_API_KEY ou OPENAI_API_KEY)");
   }
 };
 
@@ -400,11 +419,12 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetchWithBackoff(resolveApiUrl(), {
+  const provider = resolveLLMProvider();
+  const response = await fetchWithBackoff(resolveApiUrl(provider), {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      authorization: `Bearer ${resolveApiKey(provider)}`,
     },
     body: JSON.stringify(payload),
   });
