@@ -115,6 +115,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { emailUserBackup } from "./userBackup";
 import { adminProcedure, protectedProcedure, publicProcedure, realAdminProcedure, router } from "./_core/trpc";
 import { listUsersForViewAs } from "./viewAsDb";
+import { generateOraculoReading, getOraculo, saveOraculoDraft, toggleOraculoPlanStep } from "./oraculo";
+import { oraculoAnswersSchema } from "../shared/oraculo";
 
 const passwordSchema = z
   .string()
@@ -1213,6 +1215,14 @@ export const appRouter = router({
       .mutation(({ ctx, input }) =>
         markUserNotificationRead(ctx.user.id, input.id)
       ),
+  }),
+  oraculo: router({
+    get: protectedProcedure.query(({ ctx }) => getOraculo(ctx.user.id, Boolean(ctx.viewer))),
+    saveDraft: protectedProcedure.input(oraculoAnswersSchema).mutation(({ ctx, input }) => saveOraculoDraft(ctx.user.id, input)),
+    generate: protectedProcedure.input(oraculoAnswersSchema).mutation(({ ctx, input }) => generateOraculoReading(ctx.user, input)),
+    togglePlanStep: protectedProcedure
+      .input(z.object({ readingId: z.number().int().positive(), index: z.number().int().min(0).max(2) }))
+      .mutation(({ ctx, input }) => toggleOraculoPlanStep(ctx.user.id, input.readingId, input.index)),
   }),
   admin: router({
     viewAsOptions: realAdminProcedure.query(async () => listUsersForViewAs()),
