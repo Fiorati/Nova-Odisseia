@@ -3,7 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { hasTrustedMutationOrigin } from "./requestSecurity";
-import { VIEW_AS_READ_ONLY_MSG, isMutationAllowedWhileViewing } from "@shared/viewAs";
+import { VIEW_AS_READ_ONLY_MSG, canUseViewAs, isMutationAllowedWhileViewing } from "@shared/viewAs";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -64,6 +64,17 @@ export const realAdminProcedure = publicProcedure.use(
     const real = ctx.viewer ?? ctx.user;
     if (!real) throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
     if (real.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    return next({ ctx: { ...ctx, realAdmin: real } });
+  }),
+);
+
+/** Exclusivo do ADMIN principal (fiorati@novaodisseia.com): usado pelo "ver como usuário". */
+export const viewAsOwnerProcedure = publicProcedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    const real = ctx.viewer ?? ctx.user;
+    if (!real) throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    if (!canUseViewAs(real)) throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     return next({ ctx: { ...ctx, realAdmin: real } });
   }),
 );
