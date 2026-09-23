@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ORACULO_MODEL, answeredCount, buildOraculoMessages, oraculoAvailability, addDaysToKey, formatDateKeyBR, oraculoAnswersSchema,
+  ORACULO_GEMINI_MODEL, ORACULO_OPENAI_MODEL, answeredCount, buildOraculoMessages, oraculoAvailability, addDaysToKey, formatDateKeyBR, oraculoAnswersSchema,
   oraculoReportJsonSchema, parseOraculoReport, readingForAudience, togglePlanStep,
 } from "../shared/oraculo";
 import { appRouter } from "./routers";
@@ -10,7 +10,7 @@ const answers = oraculoAnswersSchema.parse({ verdade: "Preciso ligar antes das 1
 const report = { leitura: "Você já sabe o caminho.", padroes: ["a", "b", "c"], plano: [{ passo: "Ligar às 9h", quando: "Amanhã" }, { passo: "x", quando: "y" }, { passo: "z", quando: "w" }], pergunta: "O que mudou?" };
 
 describe("Oráculo IA", () => {
-  it("usa o modelo mais barato combinado", () => expect(ORACULO_MODEL).toBe("gpt-5-mini"));
+  it("modelos padrão: Gemini Flash e gpt-5-mini como alternativa", () => { expect(ORACULO_GEMINI_MODEL).toBe("gemini-3.8-flash"); expect(ORACULO_OPENAI_MODEL).toBe("gpt-5-mini"); });
   it("conta só respostas preenchidas", () => expect(answeredCount(answers)).toBe(3));
   it("leitura do momento: 1 por semana, com data de liberação", () => {
     expect(oraculoAvailability([], "2026-09-23")).toEqual({ canGenerate: true, nextDateKey: null });
