@@ -90,36 +90,41 @@ export default function Home() {
   if (loading) return <div className="grid min-h-screen place-items-center bg-[#f4f3ec] font-mono text-sm text-emerald-700">CARREGANDO SUA TRAVESSIA...</div>;
   if (!user) return <AuthScreen />;
 
-  const nav = [
-    ["jornada", Compass, "Minha Jornada"],
-    ["ulisses", Footprints, "Ulisses"],
-    ["esparta", ShieldCheck, "Esparta"],
-    ["delfos", Eye, "Delfos"],
-    ["ilhas", MapPinned, "Ilhas"],
-    ["itaca", HomeIcon, "Ítaca"],
-    ["louros", Award, "Louros"],
-    ["comece", Flag, "Comece por aqui"],
+  const comeceSeen = typeof window !== "undefined" && window.localStorage.getItem("no-comece-visto") === "1";
+  const groups = [
+    { key: "jornada", Icon: Compass, label: "Minha Jornada", helper: "Declarar, agir, registrar", views: ["jornada"] },
+    { key: "preparacao", Icon: ShipWheel, label: "Preparação", helper: "Ulisses, Esparta, Delfos, Ilhas", views: ["ulisses", "esparta", "delfos", "ilhas"] },
+    { key: "recompensa", Icon: Trophy, label: "Recompensa", helper: "Ítaca e Louros", views: ["itaca", "louros"] },
+  ] as const;
+  const subnav: Record<string, readonly (readonly [typeof view, typeof Compass, string])[]> = {
+    preparacao: [["ulisses", Footprints, "Ulisses"], ["esparta", ShieldCheck, "Esparta"], ["delfos", Eye, "Delfos"], ["ilhas", MapPinned, "Ilhas"]],
+    recompensa: [["itaca", HomeIcon, "Ítaca"], ["louros", Award, "Louros"]],
+  };
+  const support = [
+    ...(!comeceSeen || view === "comece" ? [["comece", Flag, "Comece por aqui"]] as const : []),
     ["arauto", BellRing, "Arauto"],
     ["historia", BookOpen, "História"],
     ...(user.role === "admin" ? [["admin", Users, "Admin"]] as const : []),
   ] as const;
-  const navigate = (next: typeof view) => { setView(next); window.history.replaceState({}, "", next === "jornada" ? "/" : `?view=${next}`); window.scrollTo({top:0, behavior:"smooth"}); };
+  const activeGroup = groups.find(group => (group.views as readonly string[]).includes(view))?.key;
+  const navigate = (next: typeof view) => { if (next === "comece") window.localStorage.setItem("no-comece-visto", "1"); setView(next); window.history.replaceState({}, "", next === "jornada" ? "/" : `?view=${next}`); window.scrollTo({top:0, behavior:"smooth"}); };
   const content = view === "navegante" ? <NavegantePanel onNavigate={navigate}/> : view === "ulisses" ? <UlissesPanel onNavigate={navigate}/> : view === "esparta" ? <EspartaPanel onNavigate={navigate}/> : view === "delfos" ? <DelfosPanel onNavigate={navigate}/> : view === "ilhas" ? <IlhasTravessiaPanel onNavigate={navigate}/> : view === "itaca" ? <ItacaPanel onNavigate={navigate}/> : view === "louros" ? <LourosPanel/> : view === "admin" ? <AdminInvitePanel/> : view === "jornada" ? <JourneyMvpPanel userId={user.id}/> : view === "arauto" ? <ArautoPanel/> : view === "historia" ? <HistoriaPanel userId={user.id}/> : <StartHerePanel onNavigate={navigate}/>;
 
   return <div className="min-h-screen bg-[#f4f3ec] text-emerald-950">
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col overflow-hidden bg-[#062f25] p-5 text-white lg:flex">
         <div className="relative px-2"><div className="absolute -left-20 top-28 h-72 w-72 rounded-full border border-amber-200/15"/><div className="absolute -left-10 top-40 h-48 w-48 rounded-full border border-amber-200/10"/><p className="relative font-mono text-[9px] tracking-[.16em] text-amber-200">CADERNO DE BORDO</p><b className="relative mt-1 block text-xl leading-tight">NOVA ODISSEIA</b><p className="relative mt-1 text-xs text-emerald-100/60">A sua jornada do herói</p></div>
-        <nav className="relative mt-10 space-y-1">{nav.map(([key,Icon,label])=><button key={key} type="button" onClick={()=>navigate(key)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${view===key ? "bg-amber-200 font-semibold text-emerald-950 shadow-lg" : "text-emerald-100/75 hover:bg-white/10 hover:text-white"}`}><Icon size={18}/>{label}</button>)}</nav>
+        <nav aria-label="Navegação principal" className="relative mt-10 space-y-1">{groups.map(({key,Icon,label,helper,views})=><button key={key} type="button" onClick={()=>navigate(views[0])} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${activeGroup===key ? "bg-amber-200 font-semibold text-emerald-950 shadow-lg" : "text-emerald-100/75 hover:bg-white/10 hover:text-white"}`}><Icon size={18}/><span><span className="block">{label}</span><span className={`block text-[10px] font-normal ${activeGroup===key ? "text-emerald-900/70" : "text-emerald-100/45"}`}>{helper}</span></span></button>)}</nav>
+        <nav aria-label="Apoio" className="relative mt-8 border-t border-white/10 pt-4"><p className="px-3 font-mono text-[9px] tracking-[.14em] text-amber-200/70">APOIO</p><div className="mt-2 space-y-0.5">{support.map(([key,Icon,label])=><button key={key} type="button" onClick={()=>navigate(key)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs transition ${view===key ? "bg-white/15 text-white" : "text-emerald-100/55 hover:bg-white/10 hover:text-white"}`}><Icon size={14}/>{label}</button>)}</div></nav>
         <div className="relative mt-auto rounded-2xl border border-white/15 bg-white/5 p-4"><p className="font-mono text-[9px] tracking-[.12em] text-amber-200">{user.role === "admin" ? "ADMIN DO SITE" : "SUA TRAVESSIA"}</p><p className="mt-2 text-xs leading-5 text-emerald-100/70">{user.role === "admin" ? "Acesso administrativo preservado. A nova central de gestão entra em uma etapa própria." : "Seu espaço é privado. Cada pessoa cuida da própria trilha, no próprio ritmo."}</p></div>
         <button type="button" onClick={()=>logout()} className="relative mt-4 flex items-center gap-2 px-3 py-2 text-xs text-emerald-100/60 hover:text-white"><LogOut size={15}/>Sair</button>
       </aside>
       <main className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 border-b border-emerald-100 bg-[#f4f3ec]/95 backdrop-blur">
           <div className="flex items-center justify-between px-4 py-3 lg:px-9"><button onClick={()=>navigate("jornada")} className="font-semibold lg:hidden">NOVA ODISSEIA</button><div className="hidden items-center gap-2 text-xs text-emerald-700/65 lg:flex"><span className="h-2 w-2 rounded-full bg-emerald-500"/>Espaço privado do navegante</div><div className="relative"><button type="button" aria-expanded={profileMenuOpen} onClick={()=>setProfileMenuOpen(open=>!open)} className="rounded-lg px-3 py-1 text-right transition hover:bg-white"><b className="block text-sm">{user.name || user.email}</b><span className="text-xs text-emerald-700/60">{user.role === "admin" ? "Admin" : "Usuário"}</span></button>{profileMenuOpen&&<div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-emerald-100 bg-white p-2 shadow-xl"><button type="button" onClick={()=>logout()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><LogOut size={16}/> Encerrar sessão</button></div>}</div></div>
-          <nav className="flex gap-2 overflow-x-auto px-3 pb-3 lg:hidden">{nav.map(([key,Icon,label])=><button key={key} onClick={()=>navigate(key)} className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs ${view===key ? "bg-amber-200 font-semibold" : "bg-white text-emerald-800"}`}><Icon size={15}/>{label}</button>)}</nav>
+          <nav aria-label="Navegação principal" className="grid grid-cols-3 gap-2 px-3 pb-3 lg:hidden">{groups.map(({key,Icon,label,views})=><button key={key} onClick={()=>navigate(views[0])} className={`flex items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs ${activeGroup===key ? "bg-amber-200 font-semibold" : "bg-white text-emerald-800"}`}><Icon size={15}/>{label}</button>)}</nav>
         </header>
-        <div className="p-4 pb-12 md:p-7 lg:p-9">{content}</div>
+        <div className="p-4 pb-12 md:p-7 lg:p-9">{activeGroup && subnav[activeGroup] && <nav aria-label="Portais do grupo" className="mb-5 flex gap-2 overflow-x-auto">{subnav[activeGroup].map(([key,Icon,label])=><button key={key} type="button" onClick={()=>navigate(key)} className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${view===key ? "border-emerald-900 bg-emerald-900 font-semibold text-amber-100" : "border-emerald-200 bg-white text-emerald-800 hover:border-emerald-400"}`}><Icon size={15}/>{label}</button>)}</nav>}{content}<footer className="mt-12 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-emerald-100 pt-5 text-xs text-emerald-700/70 lg:hidden"><span className="font-mono text-[9px] tracking-[.14em]">APOIO</span>{support.map(([key,,label])=><button key={key} type="button" onClick={()=>navigate(key)} className={view===key ? "font-semibold text-emerald-950" : "hover:text-emerald-950"}>{label}</button>)}</footer></div>
       </main>
     </div>
   </div>;
