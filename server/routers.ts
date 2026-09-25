@@ -113,6 +113,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createSessionToken } from "./_core/session";
 import { systemRouter } from "./_core/systemRouter";
 import { emailUserBackup } from "./userBackup";
+import { emailJornadaPdf } from "./jornadaHeroi";
 import { adminProcedure, protectedProcedure, publicProcedure, router, viewAsOwnerProcedure } from "./_core/trpc";
 import { listUsersForViewAs } from "./viewAsDb";
 import { generateOraculoReading, getOraculo, saveOraculoDraft, toggleOraculoPlanStep } from "./oraculo";
@@ -1223,6 +1224,12 @@ export const appRouter = router({
       .mutation(({ ctx, input }) =>
         markUserNotificationRead(ctx.user.id, input.id)
       ),
+  }),
+  jornada: router({
+    emailPdf: protectedProcedure.mutation(({ ctx }) => {
+      if (ctx.viewer) throw new Error("Modo visualização: o PDF só pode ser pedido pelo dono da conta.");
+      return emailJornadaPdf(ctx.user.id);
+    }),
   }),
   oraculo: router({
     get: protectedProcedure.query(({ ctx }) => getOraculo(ctx.user.id, Boolean(ctx.viewer))),
