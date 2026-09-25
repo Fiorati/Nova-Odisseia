@@ -5,6 +5,7 @@ import { journeyDateKey } from "@shared/journeyDate";
 import { activeProvaForArea, completeProva, createProva, lastVictory, latestEvidence, PROVA_XP, type TravessiaArea } from "@shared/travessia";
 import { useJourneyStore } from "@/lib/journeyStore";
 import ReflectionWizard, { type ReflectionResult } from "@/components/ReflectionWizard";
+import { ChoiceGrid } from "@/components/StepFlow";
 
 type Destination = "jornada" | "historia";
 const areaOptions: { key: TravessiaArea; label: string; Icon: typeof Target; motto: string }[] = [
@@ -14,10 +15,10 @@ const areaOptions: { key: TravessiaArea; label: string; Icon: typeof Target; mot
   { key: "comunidade", label: "Comunidade", Icon: Users, motto: "Philía · laços e contribuição" },
 ];
 const examples: Record<TravessiaArea, string[]> = {
-  profissional: ["Ligar para 3 clientes parados da carteira", "Fazer 5 PaP antes das 10h"],
-  pessoal: ["Treinar 20 minutos antes do trabalho", "Dormir antes das 23h"],
-  emocional: ["Escrever 3 gratidões no fim do dia", "10 minutos de silêncio sem celular"],
-  comunidade: ["Ajudar um colega com uma dúvida", "Mandar um agradecimento a quem me ajudou"],
+  profissional: ["Ligar para 3 clientes parados da carteira", "Fazer 5 PaP antes das 10h", "Visitar 1 cliente e falar com quem decide", "Revisar a carteira e escolher 5 para amanhã"],
+  pessoal: ["Treinar 20 minutos antes do trabalho", "Dormir antes das 23h", "Caminhar 30 minutos", "Preparar o dia de amanhã na véspera"],
+  emocional: ["Escrever 3 gratidões no fim do dia", "10 minutos de silêncio sem celular", "Uma pausa de 5 minutos antes de reagir", "Ficar 1 hora sem redes sociais"],
+  comunidade: ["Ajudar um colega com uma dúvida", "Mandar um agradecimento a quem me ajudou", "Ligar para alguém da família", "Compartilhar uma dica com o time"],
 };
 
 export default function UlissesPanel({ onNavigate }: { onNavigate:(view:Destination)=>void }) {
@@ -32,7 +33,8 @@ export default function UlissesPanel({ onNavigate }: { onNavigate:(view:Destinat
   const [createArea, setCreateArea] = useState<TravessiaArea | null>(null);
   const [reflectId, setReflectId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const openCreate = (key: TravessiaArea) => { setCreateArea(key); setReflectId(null); setTitle(""); };
+  const [customTitle, setCustomTitle] = useState(false);
+  const openCreate = (key: TravessiaArea) => { setCreateArea(key); setReflectId(null); setTitle(""); setCustomTitle(false); };
   const [reward, setReward] = useState<{ xp:number; done:number; total:number; streak:number; gainedStreak:boolean } | null>(null);
   const acceptProva = async (area: TravessiaArea) => {
     try { await save(createProva(state, { title, area, today: journeyDateKey() })); setTitle(""); setCreateArea(null); setReward(null); toast.success("Prova aceita. Ela vale até o fim do dia."); }
@@ -61,8 +63,9 @@ export default function UlissesPanel({ onNavigate }: { onNavigate:(view:Destinat
             <ReflectionWizard preset="prova" submitLabel={`Registrar e ganhar ${trial.xp} XP`} saving={saving} onSubmit={value=>finishProva(trial.id, value)} onCancel={()=>setReflectId(null)}/>
           </div> : <div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" onClick={()=>{setReflectId(trial.id);setCreateArea(null);}} className="inline-flex items-center gap-2 rounded-lg bg-[#3a1d16] px-4 py-2 text-sm font-semibold" style={{color:"#fef3c7"}}><CheckCircle2 size={16}/> Concluir prova</button>{trial.kind !== "prova" && <button type="button" onClick={()=>openCreate(key)} className="text-xs font-semibold text-orange-800">+ Criar minha prova nesta área</button>}</div>}
         </> : creating ? <div className="mt-4 space-y-3">
-          <label className="grid gap-1 text-sm font-semibold">Qual ação você vai cumprir hoje?<input className={input} value={title} maxLength={300} onChange={e=>setTitle(e.target.value)} placeholder={examples[key][0]}/><span className="text-xs font-normal text-emerald-900/55">Uma ação que alguém conseguiria ver acontecendo.</span></label>
-          <div className="flex flex-wrap gap-2">{examples[key].map(item=><button type="button" key={item} onClick={()=>setTitle(item)} className="rounded-full border border-orange-200 px-3 py-1 text-xs text-orange-800 hover:bg-orange-50">{item}</button>)}</div>
+          <p className="text-sm font-semibold">Qual ação você vai cumprir hoje?</p><p className="-mt-2 text-xs text-emerald-900/55">Uma ação que alguém conseguiria ver acontecendo.</p>
+          <ChoiceGrid options={[...examples[key].map(item => ({ value: item, label: item })), { value: "__outra", label: "Outra ação" }]} value={customTitle ? "__outra" : title || undefined} onChange={v => { if (v === "__outra") { setCustomTitle(true); setTitle(""); } else { setCustomTitle(false); setTitle(v); } }}/>
+          {customTitle && <input autoFocus className={input} value={title} maxLength={300} onChange={e=>setTitle(e.target.value)} placeholder="Descreva a ação em poucas palavras"/>}
           <p className="text-xs text-emerald-900/60">Área <b>{label}</b> · prazo <b>hoje, até o fim do dia</b> · vale <b>{PROVA_XP} XP</b></p>
           <div className="flex items-center gap-3"><button type="button" disabled={saving || !title.trim()} onClick={()=>acceptProva(key)} className="rounded-lg bg-[#3a1d16] px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{color:"#fef3c7"}}>{saving ? "Salvando..." : "Aceitar a prova"}</button><button type="button" onClick={()=>setCreateArea(null)} className="text-xs text-emerald-900/60">Cancelar</button></div>
         </div> : <>
