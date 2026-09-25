@@ -122,6 +122,8 @@ import { mapaAstralInputSchema } from "../shared/mapaAstral";
 import { generateMapaNumerologico, getMapaNumerologico } from "./mapaNumerologico";
 import { mapaNumerologicoInputSchema } from "../shared/mapaNumerologico";
 import { generateDisc, getDisc } from "./disc";
+import { generatePlano, getPlanos, togglePlanoStep } from "./planoAcao";
+import { planoInputSchema } from "../shared/planoAcao";
 import { discInputSchema } from "../shared/disc";
 
 const passwordSchema = z
@@ -1236,6 +1238,11 @@ export const appRouter = router({
     togglePlanStep: protectedProcedure
       .input(z.object({ readingId: z.number().int().positive(), index: z.number().int().min(0).max(2) }))
       .mutation(({ ctx, input }) => toggleOraculoPlanStep(ctx.user.id, input.readingId, input.index)),
+    planos: protectedProcedure.query(({ ctx }) => getPlanos(ctx.user.id)),
+    generatePlano: protectedProcedure.input(planoInputSchema).mutation(({ ctx, input }) => generatePlano(ctx.user, input)),
+    togglePlanoStep: protectedProcedure
+      .input(z.object({ planoId: z.number().int().positive(), index: z.number().int().min(0).max(2) }))
+      .mutation(({ ctx, input }) => togglePlanoStep(ctx.user.id, input.planoId, input.index)),
   }),
   admin: router({
     viewAsOptions: viewAsOwnerProcedure.query(async () => listUsersForViewAs()),

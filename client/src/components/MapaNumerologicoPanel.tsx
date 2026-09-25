@@ -4,6 +4,7 @@ import { MASTER_NUMBERS, NUMBER_LABELS, type NumerologyNumbers } from "@shared/m
 import { Hash, Lock, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import PlanoAcaoCard from "@/components/PlanoAcaoCard";
 
 const ORDER = ["caminho", "expressao", "motivacao", "impressao", "aniversario", "anoPessoal"] as const;
 const isMaster = (n: number) => (MASTER_NUMBERS as readonly number[]).includes(n);
@@ -58,6 +59,7 @@ export default function MapaNumerologicoPanel() {
         <p className="text-xs" style={{ color: "rgba(237,233,254,.5)" }}>Números calculados pela tabela pitagórica (A=1 a I=9, acentos removidos; mestres 11, 22 e 33 preservados). A leitura é simbólica, gerada por IA: não é previsão nem diagnóstico.</p>
       </div>
     </div>}
+    {latest && <PlanoAcaoCard key={latest.id} source="mapa_numerologico" readingId={latest.id} forSelf={latest.input?.forSelf !== false} />}
     {data.error && <p className="mt-4 text-sm text-red-200">{data.error.message}</p>}
   </section>;
 }

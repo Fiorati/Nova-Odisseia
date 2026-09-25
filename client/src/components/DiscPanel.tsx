@@ -4,6 +4,7 @@ import { DISC_BLOCKS, DISC_FACTORS, DISC_LABELS, type DiscProfile } from "@share
 import { Lock, Sparkles, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import PlanoAcaoCard from "@/components/PlanoAcaoCard";
 
 type Choice = { most: number | null; least: number | null };
 
@@ -65,6 +66,7 @@ export default function DiscPanel() {
         <p className="text-xs" style={{ color: "rgba(237,233,254,.5)" }}>Questionário próprio de 12 blocos, inspirado no modelo DISC. Mostra estilo preferido no trabalho, não capacidade nem caráter, e pode mudar com o contexto. Não é o teste comercial certificado nem avaliação psicológica. Leitura gerada por IA.</p>
       </div>
     </div>}
+    {latest && <PlanoAcaoCard key={latest.id} source="disc" readingId={latest.id} />}
     {data.error && <p className="mt-4 text-sm text-red-200">{data.error.message}</p>}
   </section>;
 }

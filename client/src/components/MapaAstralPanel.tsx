@@ -4,6 +4,7 @@ import { formatPosition, type NatalChart } from "@shared/mapaAstral";
 import { Lock, MapPin, Search, Sparkles, Star } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import PlanoAcaoCard from "@/components/PlanoAcaoCard";
 
 type City = { name: string; admin1: string; admin2?: string; country: string; latitude: number; longitude: number; timezone: string };
 /** Mostra o município quando difere do nome (ex.: bairro "Caieiras" em Ipeúna) para evitar homônimos. */
@@ -67,6 +68,7 @@ export default function MapaAstralPanel() {
         <p className="text-xs" style={{ color: "rgba(237,233,254,.5)" }}>Posições calculadas astronomicamente (zodíaco tropical, casas {latest.chart.houseSystem === "placidus" ? "Placidus" : "Porfírio"}). A leitura é simbólica, gerada por IA: não é previsão nem diagnóstico.</p>
       </div>
     </div>}
+    {latest && <PlanoAcaoCard key={latest.id} source="mapa_astral" readingId={latest.id} forSelf={latest.input?.forSelf !== false} />}
     {data.error && <p className="mt-4 text-sm text-red-200">{data.error.message}</p>}
   </section>;
 }
