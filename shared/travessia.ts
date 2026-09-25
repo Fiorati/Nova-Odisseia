@@ -1,7 +1,7 @@
 export type TravessiaArea = "profissional" | "pessoal" | "emocional" | "comunidade";
 export type ProvaReflection = { fact: string; meaning: string; next: string };
 export type TravessiaMission = { id: string; title: string; area: TravessiaArea; done: boolean; xp: number; kind?: "prova"; dueDate?: string; doneAt?: string; reflection?: ProvaReflection };
-export type TravessiaCheckin = { date: string; energy: number; reflection: string; nextAction: string };
+export type TravessiaCheckin = { date: string; energy: number; reflection: string; nextAction: string; detail?: import("./checkinFlow").CheckinDetail };
 export type TravessiaPdi = { mentor: string; title: string; summary: string; focus: string[]; createdAt: string };
 export type TravessiaEvidence = { date: string; context: string; fact: string; meaning: string; next: string };
 export type TravessiaForge = { date: string; area: TravessiaArea; done: number[] };
