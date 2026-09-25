@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { journeyDateKey } from "@shared/journeyDate";
 import { activeProvaForArea, completeProva, createProva, lastVictory, latestEvidence, PROVA_XP, type TravessiaArea } from "@shared/travessia";
 import { useJourneyStore } from "@/lib/journeyStore";
+import ReflectionWizard, { type ReflectionResult } from "@/components/ReflectionWizard";
 
 type Destination = "jornada" | "historia";
 const areaOptions: { key: TravessiaArea; label: string; Icon: typeof Target; motto: string }[] = [
@@ -32,14 +33,13 @@ export default function UlissesPanel({ onNavigate }: { onNavigate:(view:Destinat
   const [reflectId, setReflectId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const openCreate = (key: TravessiaArea) => { setCreateArea(key); setReflectId(null); setTitle(""); };
-  const [fact, setFact] = useState(""); const [meaning, setMeaning] = useState(""); const [nextGesture, setNextGesture] = useState("");
   const [reward, setReward] = useState<{ xp:number; done:number; total:number; streak:number; gainedStreak:boolean } | null>(null);
   const acceptProva = async (area: TravessiaArea) => {
     try { await save(createProva(state, { title, area, today: journeyDateKey() })); setTitle(""); setCreateArea(null); setReward(null); toast.success("Prova aceita. Ela vale até o fim do dia."); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível criar a prova."); }
   };
-  const finishProva = async (id: string) => {
-    try { const result = completeProva(state, { id, today: journeyDateKey(), reflection: { fact, meaning, next: nextGesture } }); await save(result.state); setReward(result.reward); setFact(""); setMeaning(""); setNextGesture(""); setReflectId(null); }
+  const finishProva = async (id: string, reflection: ReflectionResult) => {
+    try { const result = completeProva(state, { id, today: journeyDateKey(), reflection }); await save(result.state); setReward(result.reward); setReflectId(null); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível concluir a prova."); }
   };
   const chip = "rounded-full bg-orange-50 px-3 py-1 text-xs text-orange-800";
@@ -57,11 +57,8 @@ export default function UlissesPanel({ onNavigate }: { onNavigate:(view:Destinat
           <h4 className="mt-1 text-lg font-semibold leading-6">{trial.title}</h4>
           <p className="mt-2 text-sm leading-6 text-emerald-950/65">Vale {trial.xp} XP. Cumpra a ação e depois conte o que aconteceu: é isso que vira evidência.</p>
           <div className="mt-3 flex flex-wrap gap-2"><span className={chip}>{trial.kind === "prova" ? "prazo: hoje" : "missão da jornada"}</span><span className={chip}>+{trial.xp} XP</span></div>
-          {reflecting ? <div className="mt-4 space-y-3 text-sm">
-            <label className="grid gap-1 font-semibold">1. O que aconteceu?<textarea rows={2} className={input} value={fact} onChange={e=>setFact(e.target.value)} placeholder="Só fatos. Ex.: Liguei para 3; 1 cliente voltou a pedir."/></label>
-            <label className="grid gap-1 font-semibold">2. O que isso revela?<textarea rows={2} className={input} value={meaning} onChange={e=>setMeaning(e.target.value)} placeholder="Padrão, força ou limite."/></label>
-            <label className="grid gap-1 font-semibold">3. Qual é o próximo gesto?<textarea rows={2} className={input} value={nextGesture} onChange={e=>setNextGesture(e.target.value)} placeholder="Ação pequena com quando."/></label>
-            <div className="flex items-center gap-3"><button type="button" disabled={saving || !fact.trim()} onClick={()=>finishProva(trial.id)} className="inline-flex items-center gap-2 rounded-lg bg-[#0e3426] px-4 py-2 font-semibold text-white disabled:opacity-50" style={{color:"#ffffff"}}><Sparkles size={16}/>{saving ? "Salvando..." : `Registrar e ganhar ${trial.xp} XP`}</button><button type="button" onClick={()=>setReflectId(null)} className="text-xs text-emerald-900/60">Voltar</button></div>
+          {reflecting ? <div className="mt-4 rounded-xl border border-orange-100 bg-white p-4">
+            <ReflectionWizard preset="prova" submitLabel={`Registrar e ganhar ${trial.xp} XP`} saving={saving} onSubmit={value=>finishProva(trial.id, value)} onCancel={()=>setReflectId(null)}/>
           </div> : <div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" onClick={()=>{setReflectId(trial.id);setCreateArea(null);}} className="inline-flex items-center gap-2 rounded-lg bg-[#3a1d16] px-4 py-2 text-sm font-semibold" style={{color:"#fef3c7"}}><CheckCircle2 size={16}/> Concluir prova</button>{trial.kind !== "prova" && <button type="button" onClick={()=>openCreate(key)} className="text-xs font-semibold text-orange-800">+ Criar minha prova nesta área</button>}</div>}
         </> : creating ? <div className="mt-4 space-y-3">
           <label className="grid gap-1 text-sm font-semibold">Qual ação você vai cumprir hoje?<input className={input} value={title} maxLength={300} onChange={e=>setTitle(e.target.value)} placeholder={examples[key][0]}/><span className="text-xs font-normal text-emerald-900/55">Uma ação que alguém conseguiria ver acontecendo.</span></label>
