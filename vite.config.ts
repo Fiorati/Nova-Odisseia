@@ -21,6 +21,7 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     sourcemap: false,
+    rollupOptions: { input: { main: path.resolve(import.meta.dirname, "client/index.html"), stonePsv: path.resolve(import.meta.dirname, "client/stone-psv.html") } },
   },
   server: {
     host: true,
