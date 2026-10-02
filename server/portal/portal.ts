@@ -298,8 +298,9 @@ export function registerPortal(app: Express) {
     const r = await q(sql`SELECT content FROM portal_data WHERE user_id=${target} AND tab=${tab}`);
     const cur = r[0] ? JSON.parse(r[0].content) : { plan: null, real: {}, locked: false };
     if (part === "plan") {
-      if (cur.locked) return res.status(409).json({ error: "O planejado desta semana já foi salvo e está travado." });
-      cur.plan = body; cur.locked = true; cur.lockedAt = new Date().toISOString();
+      if (cur.locked && u.role !== "owner") return res.status(409).json({ error: "O planejado desta semana está travado. Só a liderança do polo pode alterá-lo." });
+      if (cur.locked) cur.editedByLeaderAt = new Date().toISOString(); else cur.lockedAt = new Date().toISOString();
+      cur.plan = body; cur.locked = true;
     } else {
       if (!cur.locked) return res.status(409).json({ error: "Salve o planejado antes de lançar o realizado." });
       cur.real = body;
