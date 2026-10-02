@@ -5,7 +5,7 @@ import { parse as parseCookie } from "cookie";
 import { getDb } from "../db";
 import { createPassword, verifyPassword, normalizedEmail } from "../credentials";
 import { ENV } from "../_core/env";
-import { portalHtml } from "./page";
+import { portalHtml, portalJs } from "./page";
 
 const COOKIE = "portal_session";
 const POLO = "vila-medeiros";
@@ -86,6 +86,8 @@ const pub = (u: any) => ({ id: u.id, email: u.email, name: u.name, role: u.role,
 export function registerPortal(app: Express) {
   app.get("/", (_req, res) => res.redirect(302, "/portal"));
   app.get("/portal", (_req, res) => { res.set("Cache-Control", "no-store"); res.type("html").send(portalHtml); });
+
+  app.get("/portal/app.js", (_req, res) => { res.set("Cache-Control", "no-store"); res.type("application/javascript").send(portalJs); });
 
   app.post("/api/portal/login", async (req: Request, res: Response) => {
     try {

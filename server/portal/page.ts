@@ -12,7 +12,8 @@ button.ghost{background:#fff;color:#0b5d3b;border:1px solid #0b5d3b}label{displa
 </style></head><body>
 <header><h1>Portal do Polo Vila Medeiros - Nova Odisseia</h1><div id="who"></div></header>
 <main id="app"></main>
-<script>
+<script src="/portal/app.js"></script></body></html>`;
+export const portalJs = String.raw`
 const $=s=>document.querySelector(s);const app=$('#app');let me=null,people=[],sel=null,abas=[],tab='PSV',sub=0;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function api(p,b){const r=await fetch('/api/portal/'+p,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Erro');return j}
@@ -31,4 +32,4 @@ else h+='<p><b>'+esc(tab)+'</b>: em construção. Esta aba entra nas próximas v
 h+='</div>';app.innerHTML=h;const s=$('#sel');if(s)s.onchange=async()=>{sel=+s.value;sub=0;await load()};
 app.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sub=+b.dataset.s;render()})}
 api('me').then(j=>{me=j.user;start()}).catch(()=>login());
-</script></body></html>`;
+`;
