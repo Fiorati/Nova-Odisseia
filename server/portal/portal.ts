@@ -23,6 +23,7 @@ export const PORTAL_SEED = [
   { email: "maurilio.dantas@stone.com.br", name: "Maurílio Dantas", role: "agent" },
   { email: "nathan.ferreira@stone.com.br", name: "Nathan Ferreira", role: "agent" },
   { email: "rodrigo.vizoki@stone.com.br", name: "Rodrigo Vizoki", role: "agent" },
+  { email: "angelica.morais@stone.com.br", name: "Angélica Morais", role: "sdr" },
 ];
 
 async function q(query: any): Promise<any[]> {
@@ -108,6 +109,12 @@ function throttledN(key: string, max: number, windowMs: number) {
 const pub = (u: any) => ({ id: u.id, email: u.email, name: u.name, role: u.role, polo: u.polo, mustChange: !!u.must_change });
 
 export function registerPortal(app: Express) {
+  // Perfil SDR (agendamento): sem acesso a PSV, clientes, notas, itens, referencias nem dados de aba. So login, troca de senha e a propria sessao.
+  app.use(["/api/portal/data", "/api/portal/clients", "/api/portal/items", "/api/portal/note", "/api/portal/psv", "/api/portal/ref"], async (req, res, next) => {
+    const u = await currentUser(req);
+    if (u && u.role === "sdr") return res.status(403).json({ error: "Sem permissão." });
+    next();
+  });
   app.use(["/portal", "/api/portal"], (_req, res, next) => { res.set({ "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff" }); next(); });
   app.get("/", (_req, res) => res.redirect(302, "/portal"));
   app.get("/portal", (_req, res) => { res.set("Cache-Control", "no-store"); res.type("html").send(portalHtml); });
