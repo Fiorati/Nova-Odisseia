@@ -244,6 +244,28 @@ export function registerPortal(app: Express) {
     const u = await authed(req, res); if (!u) return;
     if (!KINDS.includes(req.params.kind)) return res.status(400).json({ error: "Tipo inválido." });
     await q(sql`CREATE TABLE IF NOT EXISTS portal_items (id INT AUTO_INCREMENT PRIMARY KEY, polo VARCHAR(64) NOT NULL, kind VARCHAR(24) NOT NULL, title VARCHAR(200) NOT NULL, url VARCHAR(1000) NOT NULL, note VARCHAR(500) NOT NULL DEFAULT '', INDEX(polo,kind))`);
+    if (req.params.kind === "links") {
+      const fl = await q(sql`SELECT 1 FROM portal_data WHERE user_id=0 AND tab=${"_links_seed_v1_" + u.polo}`);
+      if (!fl.length) {
+        const SEED: [string, string, string][] = [
+          ["Marcopolo Web", "https://marcopolo.stone.com.br/", "Acompanhamento de metas. O acesso depende da sua conta Stone."],
+          ["Salesforce", "https://stone.lightning.force.com/lightning/page/home", "CRM corporativo."],
+          ["Resolve", "https://stone.service-now.com/resolveaqui?id=home_resolve", "Central de solicitações."],
+          ["Solicitação de Uniforme", "https://stone.service-now.com/resolveaqui?id=sc_cat_item&sys_id=3f9042eb87fe6e10918dec240cbb3529&table=sc_cat_item&searchTerm=itens%20pontuais", "Item do catálogo corporativo."],
+          ["Stone I.A Apps", "https://ai-apps.stone.com.br/dashboard", "Painel de aplicativos."],
+          ["Studa", "https://studa.edusense.app/#/", "Plataforma de aprendizagem."],
+          ["Acompanhamento de Ofertas", "https://datastudio.google.com/u/0/reporting/4f8f9022-4ee1-421e-b884-2df6e4e7a487/page/p_jz1vybp9wd", "Painel de ofertas."],
+          ["Dash não conversão", "https://dashdeperdas-stone.lovable.app/dashboard", "Painel de perdas."],
+          ["Spande", "https://sites.google.com/stone.com.br/spandenovo/inicial", "Plataforma para pesquisar produtos."],
+          ["Biblioteca de Product Marketing", "https://sites.google.com/stone.com.br/bibliotecadeproductmarketing/product-marketing", "Materiais de produto."],
+        ];
+        for (const [t, l, n] of SEED) {
+          const ex = await q(sql`SELECT 1 FROM portal_items WHERE polo=${u.polo} AND kind='links' AND url=${l}`);
+          if (!ex.length) await q(sql`INSERT INTO portal_items (polo,kind,title,url,note) VALUES (${u.polo},'links',${t},${l},${n})`);
+        }
+        await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (0,${"_links_seed_v1_" + u.polo},'1') ON DUPLICATE KEY UPDATE content='1'`);
+      }
+    }
     res.json({ items: await q(sql`SELECT id,title,url,note FROM portal_items WHERE polo=${u.polo} AND kind=${req.params.kind} ORDER BY id`), canEdit: u.role === "owner" });
   });
   app.post("/api/portal/items/:kind", async (req, res) => {
