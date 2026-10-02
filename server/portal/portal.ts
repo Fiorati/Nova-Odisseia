@@ -4,23 +4,24 @@ import { SignJWT, jwtVerify } from "jose";
 import { parse as parseCookie } from "cookie";
 import { getDb } from "../db";
 import { createPassword, verifyPassword, normalizedEmail } from "../credentials";
+import { randomBytes, createHash } from "node:crypto";
 import { ENV } from "../_core/env";
 import { portalHtml, portalJs } from "./page";
 
 const COOKIE = "portal_session";
 const POLO = "vila-medeiros";
 
-// Equipe do polo Vila Medeiros. Senha provisoria = primeiro nome + 1 (troca obrigatoria no primeiro acesso).
+// Equipe do polo Vila Medeiros. Sem senha no codigo: o primeiro acesso e por convite individual, unico e com validade (gerado pela dona do polo).
 export const PORTAL_SEED = [
-  { email: "talitha.machado@stone.com.br", name: "Talitha Machado", role: "owner", pw: "Talitha1" },
-  { email: "gabriel.fmarcantonio@stone.com.br", name: "Gabriel Fiorati", role: "agent", pw: "Gabriel1" },
-  { email: "lucas.aquino@stone.com.br", name: "Lucas Aquino", role: "agent", pw: "Lucas1" },
-  { email: "afonso.martins@stone.com.br", name: "Afonso Martins", role: "agent", pw: "Afonso1" },
-  { email: "luiz.manzatto@stone.com.br", name: "Luiz Fernando Manzatto", role: "agent", pw: "Luiz1" },
-  { email: "kaike.rodrigues@stone.com.br", name: "Kaike Rodrigues", role: "agent", pw: "Kaike1" },
-  { email: "maurilio.dantas@stone.com.br", name: "Maurílio Dantas", role: "agent", pw: "Maurilio1" },
-  { email: "nathan.ferreira@stone.com.br", name: "Nathan Ferreira", role: "agent", pw: "Nathan1" },
-  { email: "rodrigo.vizoki@stone.com.br", name: "Rodrigo Vizoki", role: "agent", pw: "Rodrigo1" },
+  { email: "talitha.machado@stone.com.br", name: "Talitha Machado", role: "owner" },
+  { email: "gabriel.fmarcantonio@stone.com.br", name: "Gabriel Fiorati", role: "agent" },
+  { email: "lucas.aquino@stone.com.br", name: "Lucas Aquino", role: "agent" },
+  { email: "afonso.martins@stone.com.br", name: "Afonso Martins", role: "agent" },
+  { email: "luiz.manzatto@stone.com.br", name: "Luiz Fernando Manzatto", role: "agent" },
+  { email: "kaike.rodrigues@stone.com.br", name: "Kaike Rodrigues", role: "agent" },
+  { email: "maurilio.dantas@stone.com.br", name: "Maurílio Dantas", role: "agent" },
+  { email: "nathan.ferreira@stone.com.br", name: "Nathan Ferreira", role: "agent" },
+  { email: "rodrigo.vizoki@stone.com.br", name: "Rodrigo Vizoki", role: "agent" },
 ];
 
 async function q(query: any): Promise<any[]> {
@@ -50,11 +51,18 @@ export function ensurePortalSchema() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (user_id, tab)
     )`);
+    const cols = (await q(sql`SHOW COLUMNS FROM portal_users`)).map((c: any) => c.Field);
+    if (!cols.includes("invite_hash")) await q(sql`ALTER TABLE portal_users ADD COLUMN invite_hash VARCHAR(64) NULL, ADD COLUMN invite_exp BIGINT NULL`);
     for (const u of PORTAL_SEED) {
       const ex = await q(sql`SELECT id FROM portal_users WHERE email = ${u.email}`);
       if (ex.length) continue;
-      const p = await createPassword(u.pw);
+      const p = await createPassword(randomBytes(32).toString("hex"));
       await q(sql`INSERT INTO portal_users (email,name,role,polo,pass_hash,pass_salt,must_change) VALUES (${u.email},${u.name},${u.role},${POLO},${p.passwordHash},${p.passwordSalt},1)`);
+    }
+    // Quem ainda nao definiu senha propria (must_change=1) nao pode ter senha previsivel: troca por segredo aleatorio ate o convite ser usado.
+    for (const r of await q(sql`SELECT id FROM portal_users WHERE must_change=1 AND invite_hash IS NULL AND pass_hash NOT LIKE 'x%'`)) {
+      const p = await createPassword(randomBytes(32).toString("hex"));
+      await q(sql`UPDATE portal_users SET pass_hash=${"x" + p.passwordHash.slice(1)}, pass_salt=${p.passwordSalt} WHERE id=${r.id}`);
     }
   })();
   return ready;
@@ -67,8 +75,10 @@ async function currentUser(req: Request) {
   if (!tok) return null;
   try {
     const { payload } = await jwtVerify(tok, secret(), { algorithms: ["HS256"] });
-    const rows = await q(sql`SELECT id,email,name,role,polo,must_change FROM portal_users WHERE id = ${Number(payload.uid)}`);
-    return rows[0] ?? null;
+    const rows = await q(sql`SELECT id,email,name,role,polo,must_change,pass_salt FROM portal_users WHERE id = ${Number(payload.uid)}`);
+    const r0 = rows[0];
+    if (!r0 || payload.pv !== String(r0.pass_salt).slice(0, 12)) return null;
+    return r0;
   } catch { return null; }
 }
 
@@ -84,6 +94,7 @@ function throttled(key: string) {
 const pub = (u: any) => ({ id: u.id, email: u.email, name: u.name, role: u.role, polo: u.polo, mustChange: !!u.must_change });
 
 export function registerPortal(app: Express) {
+  app.use(["/portal", "/api/portal"], (_req, res, next) => { res.set({ "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff" }); next(); });
   app.get("/", (_req, res) => res.redirect(302, "/portal"));
   app.get("/portal", (_req, res) => { res.set("Cache-Control", "no-store"); res.type("html").send(portalHtml); });
 
@@ -98,7 +109,7 @@ export function registerPortal(app: Express) {
       const rows = await q(sql`SELECT * FROM portal_users WHERE email = ${email}`);
       const u = rows[0];
       if (!u || !(await verifyPassword(password, u.pass_salt, u.pass_hash))) return res.status(401).json({ error: "E-mail ou senha incorretos." });
-      const token = await new SignJWT({ uid: u.id }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("7d").sign(secret());
+      const token = await new SignJWT({ uid: u.id, pv: String(u.pass_salt).slice(0, 12) }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("7d").sign(secret());
       res.cookie(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 7 * 864e5, path: "/" });
       res.json({ user: pub(u) });
     } catch (e) { console.error(e); res.status(500).json({ error: "Erro interno." }); }
@@ -129,7 +140,7 @@ export function registerPortal(app: Express) {
   app.get("/api/portal/people", async (req, res) => {
     const u = await currentUser(req);
     if (!u || u.must_change) return res.status(401).json({ error: "Faça login e troque a senha." });
-    if (u.role === "owner") return res.json({ people: (await q(sql`SELECT id,name,email,role FROM portal_users WHERE polo=${u.polo} ORDER BY role='owner' DESC, name`)).map((r: any) => ({ id: r.id, name: r.name, email: r.email, role: r.role })) });
+    if (u.role === "owner") return res.json({ people: (await q(sql`SELECT id,name,email,role,must_change FROM portal_users WHERE polo=${u.polo} ORDER BY role='owner' DESC, name`)).map((r: any) => ({ id: r.id, name: r.name, email: r.email, role: r.role, pending: !!r.must_change })) });
     res.json({ people: [{ id: u.id, name: u.name, email: u.email, role: u.role }] });
   });
 
@@ -137,34 +148,12 @@ export function registerPortal(app: Express) {
     const u = await currentUser(req);
     if (!u || u.must_change) return res.status(401).json({ error: "Faça login e troque a senha." });
     const target = Number(req.params.userId);
-    let allowed = target === u.id;
+    let allowed = Number.isInteger(target) && target === u.id;
     if (!allowed && u.role === "owner") allowed = (await q(sql`SELECT id FROM portal_users WHERE id=${target} AND polo=${u.polo}`)).length > 0;
     if (!allowed) return res.status(403).json({ error: "Sem permissão." });
     const rows = await q(sql`SELECT tab, content, updated_at FROM portal_data WHERE user_id=${target} AND tab NOT LIKE '\\_%'`);
     const abas = rows.map((r: any) => ({ aba: r.tab, linhas: JSON.parse(r.content), atualizado: r.updated_at }));
     res.json({ abas });
-  });
-
-  // Importacao do pacote PSV/RMR (dados ficam so no banco). Somente dona do polo, e so antes do primeiro acesso dela (senha provisoria ainda ativa).
-  app.post("/api/portal/import", async (req, res) => {
-    const u = await currentUser(req);
-    if (!u || u.role !== "owner" || !u.must_change) return res.status(403).json({ error: "Importação indisponível." });
-    const agentes = req.body?.agentes;
-    if (!Array.isArray(agentes)) return res.status(400).json({ error: "Formato inválido." });
-    const out: string[] = [];
-    for (const a of agentes) {
-      const resumo = (a.abas ?? []).find((x: any) => x.aba === "Resumo");
-      const row = (resumo?.linhas ?? []).find((l: any[]) => String(l[0]).trim().toLowerCase().startsWith("e-mail"));
-      const email = row ? normalizedEmail(String(row[1])) : "";
-      const pu = (await q(sql`SELECT id FROM portal_users WHERE email=${email} AND polo=${u.polo}`))[0];
-      if (!pu) { out.push(`ignorado: ${email || "sem e-mail"}`); continue; }
-      for (const t of a.abas) {
-        const content = JSON.stringify(t.linhas);
-        await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${pu.id},${t.aba},${content}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
-      }
-      out.push(`ok: ${email} (${a.abas.length} abas)`);
-    }
-    res.json({ result: out });
   });
 
   const authed = async (req: Request, res: Response) => {
@@ -197,6 +186,7 @@ export function registerPortal(app: Express) {
     await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${userId},'_clientes_seeded','1') ON DUPLICATE KEY UPDATE content='1'`);
   }
   async function canSee(u: any, target: number) {
+    if (!Number.isInteger(target) || target <= 0) return false;
     if (target === u.id) return true;
     return u.role === "owner" && (await q(sql`SELECT id FROM portal_users WHERE id=${target} AND polo=${u.polo}`)).length > 0;
   }
@@ -266,14 +256,7 @@ export function registerPortal(app: Express) {
     res.json({ ok: true });
   });
 
-  // Tabelas de referencia da calculadora de RV (MCC e matriz de valores): ficam so no banco.
-  app.post("/api/portal/ref-import", async (req, res) => {
-    const u = await currentUser(req);
-    if (!u || u.role !== "owner" || !u.must_change) return res.status(403).json({ error: "Importação indisponível." });
-    if (!Array.isArray(req.body?.mcc) || !Array.isArray(req.body?.rates)) return res.status(400).json({ error: "Formato inválido." });
-    await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (0,'_ref_rv',${JSON.stringify(req.body)}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
-    res.json({ ok: true });
-  });
+  // Tabelas de referencia da calculadora de RV: ficam so no banco (carga feita fora da aplicacao).
   app.get("/api/portal/ref", async (req, res) => {
     const u = await authed(req, res); if (!u) return;
     const r = await q(sql`SELECT content FROM portal_data WHERE user_id=0 AND tab='_ref_rv'`);
@@ -307,6 +290,38 @@ export function registerPortal(app: Express) {
     }
     await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${target},${tab},${JSON.stringify(cur)}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
     res.json({ ok: true, state: cur });
+  });
+
+
+  // Acesso inicial: convite individual, aleatorio (256 bits), uso unico, validade de 48h. So o hash fica no banco.
+  const sha = (s: string) => createHash("sha256").update(s).digest("hex");
+  app.post("/api/portal/invite", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    if (u.role !== "owner") return res.status(403).json({ error: "Sem permissão." });
+    const target = Number(req.body?.userId);
+    const t = Number.isInteger(target) ? (await q(sql`SELECT id,role FROM portal_users WHERE id=${target} AND polo=${u.polo}`))[0] : null;
+    if (!t || t.role === "owner") return res.status(400).json({ error: "Pessoa inválida." });
+    const token = randomBytes(32).toString("base64url");
+    const exp = Date.now() + 48 * 3600_000;
+    await q(sql`UPDATE portal_users SET invite_hash=${sha(token)}, invite_exp=${exp} WHERE id=${t.id}`);
+    res.set("Cache-Control", "no-store");
+    res.json({ token, expiresAt: new Date(exp).toISOString() });
+  });
+  app.post("/api/portal/redeem", async (req: Request, res: Response) => {
+    try {
+      await ensurePortalSchema();
+      if (throttled(`redeem|${req.ip}`)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+      const token = String(req.body?.token ?? ""), password = String(req.body?.password ?? "");
+      if (token.length < 30 || token.length > 100) return res.status(400).json({ error: "Convite inválido ou expirado." });
+      if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) return res.status(400).json({ error: "A senha precisa ter 10 ou mais caracteres, com letras e números." });
+      const u = (await q(sql`SELECT * FROM portal_users WHERE invite_hash=${sha(token)}`))[0];
+      if (!u || !u.invite_exp || Number(u.invite_exp) < Date.now()) return res.status(400).json({ error: "Convite inválido ou expirado." });
+      const p = await createPassword(password);
+      const r: any = await q(sql`UPDATE portal_users SET pass_hash=${p.passwordHash}, pass_salt=${p.passwordSalt}, must_change=0, invite_hash=NULL, invite_exp=NULL WHERE id=${u.id} AND invite_hash=${sha(token)}`);
+      const jwt = await new SignJWT({ uid: u.id, pv: p.passwordSalt.slice(0, 12) }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("7d").sign(secret());
+      res.cookie(COOKIE, jwt, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 7 * 864e5, path: "/" });
+      res.json({ user: pub({ ...u, must_change: 0 }) });
+    } catch (e) { console.error(e); res.status(500).json({ error: "Erro interno." }); }
   });
 
   app.get("/api/portal/now", (_req, res) => res.json({ iso: new Date().toISOString() }));
