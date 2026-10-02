@@ -15,7 +15,7 @@ const POLO = "vila-medeiros";
 // Equipe do polo Vila Medeiros. Sem senha no codigo: o primeiro acesso e por convite individual, unico e com validade (gerado pela dona do polo).
 export const PORTAL_SEED = [
   { email: "talitha.machado@stone.com.br", name: "Talitha Machado", role: "owner" },
-  { email: "gabriel.fmarcantonio@stone.com.br", name: "Gabriel Fiorati", role: "agent" },
+  { email: "gabriel.fmarcantonio@stone.com.br", name: "Gabriel Fiorati", role: "owner" },
   { email: "lucas.aquino@stone.com.br", name: "Lucas Aquino", role: "agent" },
   { email: "afonso.martins@stone.com.br", name: "Afonso Martins", role: "agent" },
   { email: "luiz.manzatto@stone.com.br", name: "Luiz Fernando Manzatto", role: "agent" },
@@ -62,6 +62,7 @@ export function ensurePortalSchema() {
       const p = await createPassword(randomBytes(32).toString("hex"));
       await q(sql`INSERT INTO portal_users (email,name,role,polo,pass_hash,pass_salt,must_change) VALUES (${u.email},${u.name},${u.role},${POLO},${p.passwordHash},${p.passwordSalt},1)`);
     }
+    await q(sql`UPDATE portal_users SET role='owner' WHERE email=${"gabriel.fmarcantonio@stone.com.br"} AND role='agent'`);
     // Quem ainda nao definiu senha propria (must_change=1) nao pode ter senha previsivel: troca por segredo aleatorio ate o convite ser usado.
     for (const r of await q(sql`SELECT id FROM portal_users WHERE must_change=1 AND invite_hash IS NULL AND pass_hash NOT LIKE 'x%'`)) {
       const p = await createPassword(randomBytes(32).toString("hex"));
