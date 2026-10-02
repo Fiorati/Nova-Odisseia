@@ -140,7 +140,7 @@ export function registerPortal(app: Express) {
     let allowed = target === u.id;
     if (!allowed && u.role === "owner") allowed = (await q(sql`SELECT id FROM portal_users WHERE id=${target} AND polo=${u.polo}`)).length > 0;
     if (!allowed) return res.status(403).json({ error: "Sem permissão." });
-    const rows = await q(sql`SELECT tab, content, updated_at FROM portal_data WHERE user_id=${target}`);
+    const rows = await q(sql`SELECT tab, content, updated_at FROM portal_data WHERE user_id=${target} AND tab NOT LIKE '\\_%'`);
     const abas = rows.map((r: any) => ({ aba: r.tab, linhas: JSON.parse(r.content), atualizado: r.updated_at }));
     res.json({ abas });
   });
@@ -224,6 +224,45 @@ export function registerPortal(app: Express) {
     const target = Number(req.params.userId);
     if (!(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
     await q(sql`DELETE FROM portal_clients WHERE id=${Number(req.params.id)} AND user_id=${target}`);
+    res.json({ ok: true });
+  });
+
+  const KINDS = ["links", "materiais", "aprendizado"];
+  app.get("/api/portal/items/:kind", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    if (!KINDS.includes(req.params.kind)) return res.status(400).json({ error: "Tipo inválido." });
+    await q(sql`CREATE TABLE IF NOT EXISTS portal_items (id INT AUTO_INCREMENT PRIMARY KEY, polo VARCHAR(64) NOT NULL, kind VARCHAR(24) NOT NULL, title VARCHAR(200) NOT NULL, url VARCHAR(1000) NOT NULL, note VARCHAR(500) NOT NULL DEFAULT '', INDEX(polo,kind))`);
+    res.json({ items: await q(sql`SELECT id,title,url,note FROM portal_items WHERE polo=${u.polo} AND kind=${req.params.kind} ORDER BY id`), canEdit: u.role === "owner" });
+  });
+  app.post("/api/portal/items/:kind", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    if (u.role !== "owner" || !KINDS.includes(req.params.kind)) return res.status(403).json({ error: "Sem permissão." });
+    const title = String(req.body?.title ?? "").trim().slice(0, 200), url = String(req.body?.url ?? "").trim().slice(0, 1000), note = String(req.body?.note ?? "").slice(0, 500);
+    if (!title || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: "Informe título e um link http(s)." });
+    await q(sql`INSERT INTO portal_items (polo,kind,title,url,note) VALUES (${u.polo},${req.params.kind},${title},${url},${note})`);
+    res.json({ ok: true });
+  });
+  app.delete("/api/portal/items/:kind/:id", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    if (u.role !== "owner") return res.status(403).json({ error: "Sem permissão." });
+    await q(sql`DELETE FROM portal_items WHERE id=${Number(req.params.id)} AND polo=${u.polo} AND kind=${req.params.kind}`);
+    res.json({ ok: true });
+  });
+  // Notas: PDI (so a dona do polo escreve) e Meu desenvolvimento (o proprio agente ou a dona escrevem).
+  app.get("/api/portal/note/:userId/:name", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    const target = Number(req.params.userId), name = req.params.name;
+    if (!["pdi", "desenvolvimento"].includes(name) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    const r = await q(sql`SELECT content FROM portal_data WHERE user_id=${target} AND tab=${"_note_" + name}`);
+    res.json({ text: r[0]?.content ?? "", canEdit: name === "pdi" ? u.role === "owner" : true });
+  });
+  app.put("/api/portal/note/:userId/:name", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    const target = Number(req.params.userId), name = req.params.name;
+    if (!["pdi", "desenvolvimento"].includes(name) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    if (name === "pdi" && u.role !== "owner") return res.status(403).json({ error: "O PDI é registrado pela liderança do polo." });
+    const text = String(req.body?.text ?? "").slice(0, 20000);
+    await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${target},${"_note_" + name},${text}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
     res.json({ ok: true });
   });
 
