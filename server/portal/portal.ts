@@ -85,7 +85,7 @@ async function currentUser(req: Request) {
 }
 
 const attempts = new Map<string, { n: number; t: number }>();
-setInterval(() => { const now = Date.now(); for (const [k, v] of attempts) if (now - v.t > 3600_000) attempts.delete(k); }, 10 * 60_000).unref();
+setInterval(() => { const now = Date.now(); for (const [k, v] of Array.from(attempts)) if (now - v.t > 3600_000) attempts.delete(k); }, 10 * 60_000).unref();
 function throttled(key: string) {
   const now = Date.now();
   const a = attempts.get(key);
