@@ -208,7 +208,7 @@ export const appRouter = router({
   system: systemRouter,
   identity: router({
     configuration: publicProcedure.query(() => ({
-      title: process.env.VITE_APP_TITLE ?? "Nova Odisseia: Fiorati",
+      title: process.env.VITE_APP_TITLE ?? "Nova Odisseia",
     })),
   }),
   auth: router({

@@ -39,7 +39,7 @@ export async function sendRegistrationCode(input: { email: string; name: string;
     body: JSON.stringify({
       from,
       to: [input.email],
-      subject: "Seu código de acesso — Nova Odisseia: Fiorati",
+      subject: "Seu código de acesso — Nova Odisseia",
       text: `Olá, ${input.name}. Seu código de confirmação é ${input.code}. Ele expira em 15 minutos. Se você não solicitou este acesso, ignore este e-mail.`,
     }),
   });
@@ -59,7 +59,7 @@ export async function sendPasswordResetCode(input: { email: string; name: string
     body: JSON.stringify({
       from,
       to: [input.email],
-      subject: "Redefinição de senha — Nova Odisseia: Fiorati",
+      subject: "Redefinição de senha — Nova Odisseia",
       text: `Olá, ${input.name}. Seu código para redefinir a senha é ${input.code}. Ele expira em 15 minutos. Se você não solicitou essa alteração, ignore este e-mail.`,
     }),
   });
@@ -70,6 +70,6 @@ export async function sendOperationalReminder(input: { email: string; name: stri
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
   if (!apiKey || !from) throw new Error("O envio de e-mail ainda não está configurado.");
-  const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [input.email], subject: input.subject, text: `Olá, ${input.name}.\n\n${input.text}\n\nNova Odisseia: Fiorati` }) });
+  const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [input.email], subject: input.subject, text: `Olá, ${input.name}.\n\n${input.text}\n\nNova Odisseia` }) });
   if (!response.ok) throw new Error("Não foi possível enviar o lembrete.");
 }

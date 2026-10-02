@@ -25,7 +25,7 @@ function NovaOdisseiaIntro() {
       <div className="absolute -right-10 -top-18 h-44 w-44 rounded-full border-[22px] border-lime-200/15" />
       <div className="relative">
         <p className="font-mono text-[10px] font-semibold tracking-[.15em] text-lime-200">
-          NOVA ODISSEIA: FIORATI
+          NOVA ODISSEIA
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-[-.05em]">
           Sistema para transformar profissionais em Outliers.

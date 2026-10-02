@@ -1,5 +1,5 @@
 export const ENV = {
-  appTitle: process.env.VITE_APP_TITLE ?? "Nova Odisseia: Fiorati",
+  appTitle: process.env.VITE_APP_TITLE ?? "Nova Odisseia",
   cookieSecret: process.env.JWT_SECRET ?? "development-secret-change-me-please-set-in-production",
   databaseUrl: process.env.DATABASE_URL ?? "",
   isProduction: process.env.NODE_ENV === "production",

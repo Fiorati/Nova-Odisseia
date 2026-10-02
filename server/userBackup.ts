@@ -138,8 +138,8 @@ export async function emailUserBackup(userId: number) {
       from,
       to: [backup.email],
       subject: "Backup da sua Nova Odisseia",
-      text: `Olá, ${backup.displayName}.\n\nSeu backup está anexado nos formatos DOC, TXT e HTML. Guarde os arquivos em um local seguro.\n\nNova Odisseia: Fiorati`,
-      html: `<p>Olá, ${escapeHtml(backup.displayName)}.</p><p>Seu backup está anexado nos formatos <strong>DOC, TXT e HTML</strong>. Guarde os arquivos em um local seguro.</p><p>Nova Odisseia: Fiorati</p>`,
+      text: `Olá, ${backup.displayName}.\n\nSeu backup está anexado nos formatos DOC, TXT e HTML. Guarde os arquivos em um local seguro.\n\nNova Odisseia`,
+      html: `<p>Olá, ${escapeHtml(backup.displayName)}.</p><p>Seu backup está anexado nos formatos <strong>DOC, TXT e HTML</strong>. Guarde os arquivos em um local seguro.</p><p>Nova Odisseia</p>`,
       attachments,
     }),
   });
