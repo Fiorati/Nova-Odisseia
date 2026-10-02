@@ -280,5 +280,33 @@ export function registerPortal(app: Express) {
     res.json(r[0] ? JSON.parse(r[0].content) : { mcc: [], rates: [] });
   });
 
+  // PSV semanal: 4 semanas por mes, com historico. Salvar o planejado trava (no servidor); depois so o realizado muda.
+  const psvKey = (k: string) => /^\d{4}-(0[1-9]|1[0-2])-w[1-4]$/.test(k) ? "_psv_" + k : null;
+  app.get("/api/portal/psv/:userId/:key", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    const target = Number(req.params.userId), tab = psvKey(req.params.key);
+    if (!tab || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    const r = await q(sql`SELECT content FROM portal_data WHERE user_id=${target} AND tab=${tab}`);
+    res.json(r[0] ? JSON.parse(r[0].content) : { plan: null, real: {}, locked: false });
+  });
+  app.put("/api/portal/psv/:userId/:key/:part", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    const target = Number(req.params.userId), tab = psvKey(req.params.key), part = req.params.part;
+    if (!tab || !["plan", "real"].includes(part) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    const body = req.body?.data;
+    if (!body || typeof body !== "object" || JSON.stringify(body).length > 40000) return res.status(400).json({ error: "Dados inválidos." });
+    const r = await q(sql`SELECT content FROM portal_data WHERE user_id=${target} AND tab=${tab}`);
+    const cur = r[0] ? JSON.parse(r[0].content) : { plan: null, real: {}, locked: false };
+    if (part === "plan") {
+      if (cur.locked) return res.status(409).json({ error: "O planejado desta semana já foi salvo e está travado." });
+      cur.plan = body; cur.locked = true; cur.lockedAt = new Date().toISOString();
+    } else {
+      if (!cur.locked) return res.status(409).json({ error: "Salve o planejado antes de lançar o realizado." });
+      cur.real = body;
+    }
+    await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${target},${tab},${JSON.stringify(cur)}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
+    res.json({ ok: true, state: cur });
+  });
+
   ensurePortalSchema().catch(e => console.error("portal schema", e));
 }
