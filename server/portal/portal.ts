@@ -288,7 +288,15 @@ export function registerPortal(app: Express) {
     const target = Number(req.params.userId), name = req.params.name;
     if (!(["pdi", "desenvolvimento", "calc", "psv", "marks", "rmrdeck"].includes(name) || /^promessa-\d{4}-(0[1-9]|1[0-2])$/.test(name)) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
     const r = await q(sql`SELECT content FROM portal_data WHERE user_id=${target} AND tab=${"_note_" + name}`);
-    res.json({ text: r[0]?.content ?? "", canEdit: name === "pdi" ? u.role === "owner" : true });
+    let text = r[0]?.content ?? "";
+    if (name === "rmrdeck" && !text) {
+      const tu = await q(sql`SELECT email FROM portal_users WHERE id=${target}`);
+      if (tu[0] && /^gabriel\.fmarcantonio@/i.test(tu[0].email)) {
+        text = "https://docs.google.com/presentation/d/1s3wXISVxpY-_74djWeI_t9OSC4-yFdgrzItI9MCLgxI/edit?usp=sharing";
+        await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${target},${"_note_" + name},${text}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
+      }
+    }
+    res.json({ text, canEdit: name === "pdi" ? u.role === "owner" : true });
   });
   app.put("/api/portal/note/:userId/:name", async (req, res) => {
     const u = await authed(req, res); if (!u) return;
