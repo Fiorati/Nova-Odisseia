@@ -309,5 +309,7 @@ export function registerPortal(app: Express) {
     res.json({ ok: true, state: cur });
   });
 
+  app.get("/api/portal/now", (_req, res) => res.json({ iso: new Date().toISOString() }));
+
   ensurePortalSchema().catch(e => console.error("portal schema", e));
 }
