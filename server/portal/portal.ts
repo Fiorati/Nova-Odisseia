@@ -295,7 +295,10 @@ export function registerPortal(app: Express) {
     const target = Number(req.params.userId), name = req.params.name;
     if (!(["pdi", "desenvolvimento", "calc", "psv", "marks", "rmrdeck"].includes(name) || /^promessa-\d{4}-(0[1-9]|1[0-2])$/.test(name)) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
     if (name === "pdi" && u.role !== "owner") return res.status(403).json({ error: "O PDI é registrado pela liderança do polo." });
-    const text = String(req.body?.text ?? "").slice(0, 20000);
+    let text = String(req.body?.text ?? "").slice(0, 20000);
+    if (/^promessa-\d{4}-(0[1-9]|1[0-2])$/.test(name) && u.role === "owner" && target !== u.id) {
+      try { const o = JSON.parse(text || "{}"); o.editedByLeaderAt = new Date().toISOString(); text = JSON.stringify(o); } catch { /* texto livre */ }
+    }
     await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${target},${"_note_" + name},${text}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
     res.json({ ok: true });
   });
