@@ -6,6 +6,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { applySecurityHeaders, limitApiAbuse, limitSensitiveAuthMutations, rejectUntrustedTrpcMutationOrigin } from "./requestSecurity";
+import { registerPortal } from "../portal/portal";
 import { serveStatic, setupVite } from "./vite";
 import { publishScheduledNewsIfDue } from "../db";
 
@@ -20,6 +21,7 @@ export function createApp(): Express {
   app.use(express.urlencoded({ limit: "18mb", extended: true }));
   app.get("/healthz", (_req, res) => res.status(200).json({ ok: true }));
   registerStorageProxy(app);
+  registerPortal(app);
   app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext }));
   return app;
 }

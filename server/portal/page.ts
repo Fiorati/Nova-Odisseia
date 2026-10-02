@@ -1,0 +1,34 @@
+export const portalHtml = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portal do Polo - Nova Odisseia</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Arial,sans-serif;background:#f4f6f5;color:#12301f}
+header{background:#0b5d3b;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}main{max-width:1100px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border-radius:10px;padding:18px;box-shadow:0 1px 4px #0002;margin-bottom:14px}
+input,select,button{font:inherit;padding:9px 12px;border-radius:7px;border:1px solid #9bb;}button{background:#0b5d3b;color:#fff;border:0;cursor:pointer}
+button.ghost{background:#fff;color:#0b5d3b;border:1px solid #0b5d3b}label{display:block;margin:10px 0 4px;font-size:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.tabs button{background:#fff;color:#0b5d3b;border:1px solid #0b5d3b}.tabs button.on{background:#0b5d3b;color:#fff}
+.sub button{font-size:13px;padding:6px 10px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #d5ddd8;padding:5px 8px;text-align:left;vertical-align:top}tr:first-child td{font-weight:600;background:#eef4f0}
+.wrap{overflow:auto}.err{color:#b00020;margin-top:8px}.muted{color:#566}
+</style></head><body>
+<header><h1>Portal do Polo Vila Medeiros - Nova Odisseia</h1><div id="who"></div></header>
+<main id="app"></main>
+<script>
+const $=s=>document.querySelector(s);const app=$('#app');let me=null,people=[],sel=null,abas=[],tab='PSV',sub=0;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(p,b){const r=await fetch('/api/portal/'+p,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Erro');return j}
+function login(err){$('#who').innerHTML='';app.innerHTML='<div class="card" style="max-width:380px;margin:40px auto"><h2>Entrar</h2><label>E-mail Stone</label><input id="e" type="email" style="width:100%" autocomplete="username"><label>Senha</label><input id="p" type="password" style="width:100%" autocomplete="current-password"><p class="muted" style="font-size:13px">Primeiro acesso: sua senha provisória é seu primeiro nome seguido de 1 (exemplo: Gabriel1). Você vai trocá-la ao entrar.</p><button id="go">Entrar</button><div class="err">'+esc(err||'')+'</div></div>';
+const go=async()=>{try{const j=await api('login',{email:$('#e').value,password:$('#p').value});me=j.user;start()}catch(e){login(e.message)}};$('#go').onclick=go;$('#p').onkeydown=e=>{if(e.key==='Enter')go()}}
+function change(err){app.innerHTML='<div class="card" style="max-width:380px;margin:40px auto"><h2>Crie sua senha</h2><p>Por segurança, troque a senha provisória agora.</p><label>Senha atual</label><input id="c" type="password" style="width:100%"><label>Nova senha (8+ caracteres, letras e números)</label><input id="n" type="password" style="width:100%"><br><br><button id="ok">Salvar senha</button><div class="err">'+esc(err||'')+'</div></div>';
+$('#ok').onclick=async()=>{try{await api('change-password',{current:$('#c').value,next:$('#n').value});me.mustChange=false;start()}catch(e){change(e.message)}}}
+async function start(){if(me.mustChange)return change();$('#who').innerHTML=esc(me.name)+' ('+(me.role==='owner'?'dona do polo':'agente')+') <button class="ghost" id="out">Sair</button>';$('#out').onclick=async()=>{await api('logout',{});me=null;login()};
+people=(await api('people')).people;sel=me.id;await load()}
+async function load(){abas=(await api('data/'+sel)).abas;render()}
+const TABS=['PSV','RMR','Links úteis','Materiais','Minha remuneração','Meu desenvolvimento','PDI','Aprendizado'];
+function render(){let h='';if(me.role==='owner'){h+='<div class="card"><label>Agente</label><select id="sel">'+people.map(p=>'<option value="'+p.id+'"'+(p.id==sel?' selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></div>'}
+h+='<div class="tabs">'+TABS.map(t=>'<button class="'+(t===tab?'on':'')+'" data-t="'+esc(t)+'">'+esc(t)+'</button>').join('')+'</div><div class="card">';
+if(tab==='PSV'||tab==='RMR'){if(!abas.length)h+='<p class="muted">Sem dados importados para este perfil ainda.</p>';else{const names=abas.map(a=>a.aba);if(sub>=names.length)sub=0;h+='<div class="tabs sub">'+names.map((n,i)=>'<button class="'+(i===sub?'on':'')+'" data-s="'+i+'">'+esc(n)+'</button>').join('')+'</div><div class="wrap"><table>'+abas[sub].linhas.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</table></div><p class="muted">Dados lidos da planilha individual PSV, sem alterações. Visível apenas para você'+(me.role==='owner'?' e para a liderança do polo':' e a liderança do polo')+'.</p>'}}
+else h+='<p><b>'+esc(tab)+'</b>: em construção. Esta aba entra nas próximas versões do portal.</p>';
+h+='</div>';app.innerHTML=h;const s=$('#sel');if(s)s.onchange=async()=>{sel=+s.value;sub=0;await load()};
+app.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sub=+b.dataset.s;render()})}
+api('me').then(j=>{me=j.user;start()}).catch(()=>login());
+</script></body></html>`;
