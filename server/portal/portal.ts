@@ -252,14 +252,14 @@ export function registerPortal(app: Express) {
   app.get("/api/portal/note/:userId/:name", async (req, res) => {
     const u = await authed(req, res); if (!u) return;
     const target = Number(req.params.userId), name = req.params.name;
-    if (!["pdi", "desenvolvimento", "calc", "psv"].includes(name) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    if (!(["pdi", "desenvolvimento", "calc", "psv"].includes(name) || /^promessa-\d{4}-(0[1-9]|1[0-2])$/.test(name)) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
     const r = await q(sql`SELECT content FROM portal_data WHERE user_id=${target} AND tab=${"_note_" + name}`);
     res.json({ text: r[0]?.content ?? "", canEdit: name === "pdi" ? u.role === "owner" : true });
   });
   app.put("/api/portal/note/:userId/:name", async (req, res) => {
     const u = await authed(req, res); if (!u) return;
     const target = Number(req.params.userId), name = req.params.name;
-    if (!["pdi", "desenvolvimento", "calc", "psv"].includes(name) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    if (!(["pdi", "desenvolvimento", "calc", "psv"].includes(name) || /^promessa-\d{4}-(0[1-9]|1[0-2])$/.test(name)) || !(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
     if (name === "pdi" && u.role !== "owner") return res.status(403).json({ error: "O PDI é registrado pela liderança do polo." });
     const text = String(req.body?.text ?? "").slice(0, 20000);
     await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${target},${"_note_" + name},${text}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
