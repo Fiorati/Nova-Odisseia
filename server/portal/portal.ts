@@ -167,5 +167,65 @@ export function registerPortal(app: Express) {
     res.json({ result: out });
   });
 
+  const authed = async (req: Request, res: Response) => {
+    const u = await currentUser(req);
+    if (!u || u.must_change) { res.status(401).json({ error: "Faça login e troque a senha." }); return null; }
+    return u;
+  };
+  // Clientes: so os credenciados sob o e-mail do proprio agente (derivados das abas da planilha dele na primeira abertura).
+  const SEED_TABS: Record<string, string> = { "Onboarding": "Onboarding", "Ativação": "Ativação", "Coorte agosto": "Coorte agosto" };
+  async function seedClients(userId: number) {
+    const flag = await q(sql`SELECT 1 FROM portal_data WHERE user_id=${userId} AND tab='_clientes_seeded'`);
+    if (flag.length) return;
+    await q(sql`CREATE TABLE IF NOT EXISTS portal_clients (
+      id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, name VARCHAR(200) NOT NULL, tpv VARCHAR(40) NOT NULL DEFAULT '',
+      credenc VARCHAR(40) NOT NULL DEFAULT '', origem VARCHAR(60) NOT NULL DEFAULT '', obs TEXT, INDEX(user_id))`);
+    const tabs = await q(sql`SELECT tab, content FROM portal_data WHERE user_id=${userId}`);
+    for (const t of tabs) {
+      if (!SEED_TABS[t.tab]) continue;
+      const rows: any[][] = JSON.parse(t.content);
+      const head = (rows[0] ?? []).map((h: any) => String(h).toLowerCase());
+      const ic = head.findIndex((h: string) => h.startsWith("cliente"));
+      if (ic < 0) continue;
+      const it = head.findIndex((h: string) => h.startsWith("tpv")), id = head.findIndex((h: string) => h.startsWith("credenc"));
+      for (const r of rows.slice(1)) {
+        const name = String(r[ic] ?? "").trim();
+        if (!name) continue;
+        await q(sql`INSERT INTO portal_clients (user_id,name,tpv,credenc,origem,obs) VALUES (${userId},${name},${String(r[it] ?? "")},${String(r[id] ?? "")},${t.tab},'')`);
+      }
+    }
+    await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (${userId},'_clientes_seeded','1') ON DUPLICATE KEY UPDATE content='1'`);
+  }
+  async function canSee(u: any, target: number) {
+    if (target === u.id) return true;
+    return u.role === "owner" && (await q(sql`SELECT id FROM portal_users WHERE id=${target} AND polo=${u.polo}`)).length > 0;
+  }
+  app.get("/api/portal/clients/:userId", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    const target = Number(req.params.userId);
+    if (!(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    await seedClients(target);
+    const rows = await q(sql`SELECT id,name,tpv,credenc,origem,obs FROM portal_clients WHERE user_id=${target} ORDER BY name`);
+    res.json({ clients: rows });
+  });
+  app.post("/api/portal/clients/:userId", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    const target = Number(req.params.userId);
+    if (!(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    await seedClients(target);
+    const name = String(req.body?.name ?? "").trim().slice(0, 200);
+    if (!name) return res.status(400).json({ error: "Informe o nome do cliente." });
+    const f = (k: string, n: number) => String(req.body?.[k] ?? "").slice(0, n);
+    await q(sql`INSERT INTO portal_clients (user_id,name,tpv,credenc,origem,obs) VALUES (${target},${name},${f("tpv", 40)},${f("credenc", 40)},'Manual',${f("obs", 2000)})`);
+    res.json({ ok: true });
+  });
+  app.delete("/api/portal/clients/:userId/:id", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    const target = Number(req.params.userId);
+    if (!(await canSee(u, target))) return res.status(403).json({ error: "Sem permissão." });
+    await q(sql`DELETE FROM portal_clients WHERE id=${Number(req.params.id)} AND user_id=${target}`);
+    res.json({ ok: true });
+  });
+
   ensurePortalSchema().catch(e => console.error("portal schema", e));
 }

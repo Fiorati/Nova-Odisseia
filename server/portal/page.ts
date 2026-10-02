@@ -8,13 +8,13 @@ input,select,button{font:inherit;padding:9px 12px;border-radius:7px;border:1px s
 button.ghost{background:#fff;color:#0b5d3b;border:1px solid #0b5d3b}label{display:block;margin:10px 0 4px;font-size:14px}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.tabs button{background:#fff;color:#0b5d3b;border:1px solid #0b5d3b}.tabs button.on{background:#0b5d3b;color:#fff}
 .sub button{font-size:13px;padding:6px 10px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #d5ddd8;padding:5px 8px;text-align:left;vertical-align:top}tr:first-child td{font-weight:600;background:#eef4f0}
-.wrap{overflow:auto}.err{color:#b00020;margin-top:8px}.muted{color:#566}
+.wrap{overflow:auto}@media print{header,.tabs,h4,input,button,.np,.muted{display:none!important}body{background:#fff}.card{box-shadow:none}}.err{color:#b00020;margin-top:8px}.muted{color:#566}
 </style></head><body>
 <header><h1>Portal do Polo Vila Medeiros - Nova Odisseia</h1><div id="who"></div></header>
 <main id="app"></main>
 <script src="/portal/app.js"></script></body></html>`;
 export const portalJs = String.raw`
-const $=s=>document.querySelector(s);const app=$('#app');let me=null,people=[],sel=null,abas=[],tab='PSV',sub=0;
+const $=s=>document.querySelector(s);const app=$('#app');let me=null,people=[],sel=null,abas=[],clients=[],tab='PSV',sub=0;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function api(p,b){const r=await fetch('/api/portal/'+p,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Erro');return j}
 function login(err){$('#who').innerHTML='';app.innerHTML='<div class="card" style="max-width:380px;margin:40px auto"><h2>Entrar</h2><label>E-mail Stone</label><input id="e" type="email" style="width:100%" autocomplete="username"><label>Senha</label><input id="p" type="password" style="width:100%" autocomplete="current-password"><p class="muted" style="font-size:13px">Primeiro acesso: sua senha provisória é seu primeiro nome seguido de 1 (exemplo: Gabriel1). Você vai trocá-la ao entrar.</p><button id="go">Entrar</button><div class="err">'+esc(err||'')+'</div></div>';
@@ -23,13 +23,17 @@ function change(err){app.innerHTML='<div class="card" style="max-width:380px;mar
 $('#ok').onclick=async()=>{try{await api('change-password',{current:$('#c').value,next:$('#n').value});me.mustChange=false;start()}catch(e){change(e.message)}}}
 async function start(){if(me.mustChange)return change();$('#who').innerHTML=esc(me.name)+' ('+(me.role==='owner'?'dona do polo':'agente')+') <button class="ghost" id="out">Sair</button>';$('#out').onclick=async()=>{await api('logout',{});me=null;login()};
 people=(await api('people')).people;sel=me.id;await load()}
-async function load(){abas=(await api('data/'+sel)).abas;render()}
-const TABS=['PSV','RMR','Links úteis','Materiais','Minha remuneração','Meu desenvolvimento','PDI','Aprendizado'];
+async function load(){abas=(await api('data/'+sel)).abas;clients=(await api('clients/'+sel)).clients;render()}
+async function del(id){if(!confirm('Excluir este cliente da lista?'))return;await fetch('/api/portal/clients/'+sel+'/'+id,{method:'DELETE'});await load()}
+async function addc(){const name=$('#cn').value.trim();if(!name)return alert('Informe o nome do cliente.');await api('clients/'+sel,{name,tpv:$('#ct').value,credenc:$('#cd').value,obs:$('#co').value});await load()}
+const TABS=['PSV','RMR','Clientes','Links úteis','Materiais','Minha remuneração','Meu desenvolvimento','PDI','Aprendizado'];
 function render(){let h='';if(me.role==='owner'){h+='<div class="card"><label>Agente</label><select id="sel">'+people.map(p=>'<option value="'+p.id+'"'+(p.id==sel?' selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></div>'}
 h+='<div class="tabs">'+TABS.map(t=>'<button class="'+(t===tab?'on':'')+'" data-t="'+esc(t)+'">'+esc(t)+'</button>').join('')+'</div><div class="card">';
 if(tab==='PSV'||tab==='RMR'){if(!abas.length)h+='<p class="muted">Sem dados importados para este perfil ainda.</p>';else{const names=abas.map(a=>a.aba);if(sub>=names.length)sub=0;h+='<div class="tabs sub">'+names.map((n,i)=>'<button class="'+(i===sub?'on':'')+'" data-s="'+i+'">'+esc(n)+'</button>').join('')+'</div><div class="wrap"><table>'+abas[sub].linhas.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</table></div><p class="muted">Dados lidos da planilha individual PSV, sem alterações. Visível apenas para você'+(me.role==='owner'?' e para a liderança do polo':' e a liderança do polo')+'.</p>'}}
+else if(tab==='Clientes'){h+='<h3>Carteira de clientes ('+clients.length+')</h3><p class="muted">Apenas clientes credenciados sob o e-mail deste agente.</p><div class="wrap"><table id="ct1"><tr><td>Cliente</td><td>TPV precificado</td><td>Credenc.</td><td>Origem</td><td>Obs</td><td class="np"></td></tr>'+clients.map(c=>'<tr><td>'+esc(c.name)+'</td><td>'+esc(c.tpv)+'</td><td>'+esc(c.credenc)+'</td><td>'+esc(c.origem)+'</td><td>'+esc(c.obs)+'</td><td class="np"><button class="ghost" data-d="'+c.id+'">Excluir</button></td></tr>').join('')+'</table></div><h4>Adicionar cliente</h4><input id="cn" placeholder="Nome do cliente"> <input id="ct" placeholder="TPV precificado"> <input id="cd" placeholder="Credenciamento (dd/mm)"> <input id="co" placeholder="Observação"> <button id="ca">Adicionar</button> <button class="ghost" id="cp">Exportar PDF</button>'}
 else h+='<p><b>'+esc(tab)+'</b>: em construção. Esta aba entra nas próximas versões do portal.</p>';
 h+='</div>';app.innerHTML=h;const s=$('#sel');if(s)s.onchange=async()=>{sel=+s.value;sub=0;await load()};
+const ca=$('#ca');if(ca){ca.onclick=addc;$('#cp').onclick=()=>window.print();app.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>del(b.dataset.d))}
 app.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sub=+b.dataset.s;render()})}
 api('me').then(j=>{me=j.user;start()}).catch(()=>login());
 `;
