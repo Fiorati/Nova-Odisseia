@@ -315,6 +315,40 @@ export function registerPortal(app: Express) {
   });
 
 
+
+  // Visao do polo (so a dona do polo): consolida PSV e promessa dos agentes. Metas do polo ficam separadas das dos agentes e vazias ate a lideranca definir.
+  const poloKey = (k: string) => /^\d{4}-(0[1-9]|1[0-2])-w[1-4]$/.test(k);
+  const poloMonth = (k: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(k);
+  app.get("/api/portal/polo/:key", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    if (u.role !== "owner") return res.status(403).json({ error: "Sem permissão." });
+    const k = req.params.key;
+    if (!poloKey(k)) return res.status(400).json({ error: "Semana inválida." });
+    const month = k.slice(0, 7);
+    const ag = await q(sql`SELECT id,name,email FROM portal_users WHERE polo=${u.polo} AND (role='agent' OR email=${"gabriel.fmarcantonio@stone.com.br"}) ORDER BY name`);
+    const agents: any[] = [];
+    for (const a of ag) {
+      const p = await q(sql`SELECT content FROM portal_data WHERE user_id=${a.id} AND tab=${"_psv_" + k}`);
+      const m = await q(sql`SELECT content FROM portal_data WHERE user_id=${a.id} AND tab=${"_note_promessa-" + month}`);
+      const st = p[0] ? JSON.parse(p[0].content) : {};
+      let prom: any = {}; try { prom = m[0] ? JSON.parse(m[0].content) : {}; } catch { prom = {}; }
+      agents.push({ id: a.id, name: a.name, locked: !!st.locked, plan: st.plan ?? null, real: st.real ?? {}, prom });
+    }
+    const mw = await q(sql`SELECT content FROM portal_data WHERE user_id=0 AND tab=${"_polo_meta_" + k}`);
+    const mm = await q(sql`SELECT content FROM portal_data WHERE user_id=0 AND tab=${"_polo_meta_" + month}`);
+    res.json({ agents, metaWeek: mw[0] ? JSON.parse(mw[0].content) : {}, metaMonth: mm[0] ? JSON.parse(mm[0].content) : {} });
+  });
+  app.put("/api/portal/polo/meta/:scope", async (req, res) => {
+    const u = await authed(req, res); if (!u) return;
+    if (u.role !== "owner") return res.status(403).json({ error: "Sem permissão." });
+    const sc = req.params.scope;
+    if (!poloKey(sc) && !poloMonth(sc)) return res.status(400).json({ error: "Período inválido." });
+    const d = req.body?.data;
+    if (!d || typeof d !== "object" || JSON.stringify(d).length > 4000) return res.status(400).json({ error: "Dados inválidos." });
+    await q(sql`INSERT INTO portal_data (user_id,tab,content) VALUES (0,${"_polo_meta_" + sc},${JSON.stringify(d)}) ON DUPLICATE KEY UPDATE content=VALUES(content)`);
+    res.json({ ok: true });
+  });
+
   // Acesso inicial: convite individual, aleatorio (256 bits), uso unico, validade de 48h. So o hash fica no banco.
   const sha = (s: string) => createHash("sha256").update(s).digest("hex");
   app.post("/api/portal/invite", async (req, res) => {
