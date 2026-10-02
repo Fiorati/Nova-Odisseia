@@ -4,9 +4,10 @@ import { SignJWT, jwtVerify } from "jose";
 import { parse as parseCookie } from "cookie";
 import { getDb } from "../db";
 import { createPassword, verifyPassword, normalizedEmail } from "../credentials";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, randomInt, createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { ENV } from "../_core/env";
 import { portalHtml, portalJs } from "./page";
+import { PORTAL_ASSETS } from "./assets";
 
 const COOKIE = "portal_session";
 const POLO = "vila-medeiros";
@@ -53,6 +54,7 @@ export function ensurePortalSchema() {
     )`);
     const cols = (await q(sql`SHOW COLUMNS FROM portal_users`)).map((c: any) => c.Field);
     if (!cols.includes("invite_hash")) await q(sql`ALTER TABLE portal_users ADD COLUMN invite_hash VARCHAR(64) NULL, ADD COLUMN invite_exp BIGINT NULL`);
+    if (!cols.includes("reset_hash")) await q(sql`ALTER TABLE portal_users ADD COLUMN reset_hash VARCHAR(64) NULL, ADD COLUMN reset_exp BIGINT NULL, ADD COLUMN reset_tries INT NOT NULL DEFAULT 0`);
     for (const u of PORTAL_SEED) {
       const ex = await q(sql`SELECT id FROM portal_users WHERE email = ${u.email}`);
       if (ex.length) continue;
@@ -83,12 +85,24 @@ async function currentUser(req: Request) {
 }
 
 const attempts = new Map<string, { n: number; t: number }>();
+setInterval(() => { const now = Date.now(); for (const [k, v] of attempts) if (now - v.t > 3600_000) attempts.delete(k); }, 10 * 60_000).unref();
 function throttled(key: string) {
   const now = Date.now();
   const a = attempts.get(key);
   if (!a || now - a.t > 15 * 60_000) { attempts.set(key, { n: 1, t: now }); return false; }
   a.n++;
   return a.n > 10;
+}
+
+// IP real do cliente: ultimo valor de X-Forwarded-For (o que o proxy da hospedagem acrescenta); sem proxy, o IP da conexao.
+function clientIp(req: Request) {
+  const x = String(req.headers["x-forwarded-for"] ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  return x.length ? x[x.length - 1] : req.ip;
+}
+function throttledN(key: string, max: number, windowMs: number) {
+  const now = Date.now(); const a = attempts.get(key);
+  if (!a || now - a.t > windowMs) { attempts.set(key, { n: 1, t: now }); return false; }
+  a.n++; return a.n > max;
 }
 
 const pub = (u: any) => ({ id: u.id, email: u.email, name: u.name, role: u.role, polo: u.polo, mustChange: !!u.must_change });
@@ -105,7 +119,7 @@ export function registerPortal(app: Express) {
       await ensurePortalSchema();
       const email = normalizedEmail(String(req.body?.email ?? ""));
       const password = String(req.body?.password ?? "");
-      if (throttled(`${req.ip}|${email}`)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+      if (throttled(`${clientIp(req)}|${email}`)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
       const rows = await q(sql`SELECT * FROM portal_users WHERE email = ${email}`);
       const u = rows[0];
       if (!u || !(await verifyPassword(password, u.pass_salt, u.pass_hash))) return res.status(401).json({ error: "E-mail ou senha incorretos." });
@@ -310,7 +324,7 @@ export function registerPortal(app: Express) {
   app.post("/api/portal/redeem", async (req: Request, res: Response) => {
     try {
       await ensurePortalSchema();
-      if (throttled(`redeem|${req.ip}`)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+      if (throttledN(`redeem|${clientIp(req)}`, 30, 15 * 60_000)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
       const token = String(req.body?.token ?? ""), password = String(req.body?.password ?? "");
       if (token.length < 30 || token.length > 100) return res.status(400).json({ error: "Convite inválido ou expirado." });
       if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) return res.status(400).json({ error: "A senha precisa ter 10 ou mais caracteres, com letras e números." });
@@ -318,6 +332,68 @@ export function registerPortal(app: Express) {
       if (!u || !u.invite_exp || Number(u.invite_exp) < Date.now()) return res.status(400).json({ error: "Convite inválido ou expirado." });
       const p = await createPassword(password);
       const r: any = await q(sql`UPDATE portal_users SET pass_hash=${p.passwordHash}, pass_salt=${p.passwordSalt}, must_change=0, invite_hash=NULL, invite_exp=NULL WHERE id=${u.id} AND invite_hash=${sha(token)}`);
+      const jwt = await new SignJWT({ uid: u.id, pv: p.passwordSalt.slice(0, 12) }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("7d").sign(secret());
+      res.cookie(COOKIE, jwt, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 7 * 864e5, path: "/" });
+      res.json({ user: pub({ ...u, must_change: 0 }) });
+    } catch (e) { console.error(e); res.status(500).json({ error: "Erro interno." }); }
+  });
+
+  app.get("/portal/assets/:name", (req, res) => {
+    const a = PORTAL_ASSETS[String(req.params.name)];
+    if (!a) return res.status(404).end();
+    res.set({ "Cache-Control": "public, max-age=86400", "Content-Type": a.type });
+    res.send(Buffer.from(a.b64, "base64"));
+  });
+
+  // Esqueci minha senha: codigo de 6 digitos enviado ao e-mail Stone, 15 min, uso unico, 5 tentativas. Resposta identica exista ou nao o e-mail.
+  const codeHash = (email: string, code: string) => createHmac("sha256", ENV.cookieSecret).update("reset|" + email + "|" + code).digest("hex");
+  const sendResetEmail = async (to: string, name: string, code: string) => {
+    const key = process.env.RESEND_API_KEY, from = process.env.EMAIL_FROM;
+    if (!key || !from) { console.error("portal reset: e-mail nao configurado"); return; }
+    const first = String(name).split(" ")[0];
+    const text = `Olá, ${first}.\n\nSeu código para criar uma nova senha no Portal do Polo é: ${code}\n\nEle vale por 15 minutos e só pode ser usado uma vez. Se você não pediu, ignore este e-mail: sua senha atual continua valendo.\n\nNova Odisseia`;
+    const html = `<div style="background:#f3f6f4;padding:24px;font-family:Arial,Helvetica,sans-serif"><div style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden"><div style="background:#00a868;color:#fff;padding:18px 24px;font-size:18px;font-weight:bold">Portal do Polo Vila Medeiros</div><div style="padding:24px;color:#14211b;font-size:15px;line-height:1.5"><p>Olá, ${first.replace(/[<>&"]/g, "")}.</p><p>Use este código para criar uma nova senha:</p><p style="font-size:34px;letter-spacing:8px;font-weight:bold;background:#e6f6ef;border-radius:10px;padding:14px;text-align:center;color:#00774a">${code}</p><p>Ele vale por <b>15 minutos</b> e só pode ser usado uma vez.</p><p style="color:#566;font-size:13px">Se você não pediu, ignore este e-mail: sua senha atual continua valendo.</p></div><div style="padding:12px 24px;background:#f3f6f4;color:#789;font-size:12px">Nova Odisseia</div></div></div>`;
+    try {
+      const r = await fetch(process.env.RESEND_API_URL || "https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [to], subject: "Seu código de verificação - Portal do Polo", text, html }) });
+      if (!r.ok) console.error("portal reset: envio falhou", r.status);
+    } catch (e) { console.error("portal reset: envio falhou", (e as Error).message); }
+  };
+  app.post("/api/portal/forgot", async (req: Request, res: Response) => {
+    const reply = () => res.json({ ok: true, message: "Se este e-mail estiver cadastrado, enviamos um código de 6 dígitos. Ele vale por 15 minutos." });
+    try {
+      await ensurePortalSchema();
+      const email = normalizedEmail(String(req.body?.email ?? ""));
+      if (throttledN(`forgot-ip|${clientIp(req)}`, 30, 15 * 60_000)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+      if (!email || email.length > 190 || !/^[^@\s]+@[^@\s]+$/.test(email)) return reply();
+      if (throttledN(`forgot-mail|${email}`, 3, 60 * 60_000)) return reply();
+      const u = (await q(sql`SELECT id,name,email FROM portal_users WHERE email=${email}`))[0];
+      reply();
+      if (!u) return;
+      const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+      await q(sql`UPDATE portal_users SET reset_hash=${codeHash(email, code)}, reset_exp=${Date.now() + 15 * 60_000}, reset_tries=0 WHERE id=${u.id}`);
+      void sendResetEmail(u.email, u.name, code);
+    } catch (e) { console.error(e); if (!res.headersSent) res.json({ ok: true, message: "Se este e-mail estiver cadastrado, enviamos um código de 6 dígitos. Ele vale por 15 minutos." }); }
+  });
+  app.post("/api/portal/reset", async (req: Request, res: Response) => {
+    const bad = () => res.status(400).json({ error: "Código inválido ou expirado." });
+    try {
+      await ensurePortalSchema();
+      if (throttledN(`reset-ip|${clientIp(req)}`, 30, 15 * 60_000)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+      const email = normalizedEmail(String(req.body?.email ?? "")), code = String(req.body?.code ?? "").replace(/\s/g, ""), password = String(req.body?.password ?? "");
+      if (!/^\d{6}$/.test(code) || !email) return bad();
+      if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) return res.status(400).json({ error: "A senha precisa ter 10 ou mais caracteres, com letras e números." });
+      const u = (await q(sql`SELECT * FROM portal_users WHERE email=${email}`))[0];
+      const given = Buffer.from(codeHash(email, code), "hex");
+      const stored = Buffer.from(u?.reset_hash && /^[0-9a-f]{64}$/.test(u.reset_hash) ? u.reset_hash : "0".repeat(64), "hex");
+      const match = timingSafeEqual(given, stored);
+      if (!u || !u.reset_hash || !u.reset_exp || Number(u.reset_exp) < Date.now() || Number(u.reset_tries) >= 5) return bad();
+      if (!match) {
+        await q(sql`UPDATE portal_users SET reset_tries=reset_tries+1 WHERE id=${u.id}`);
+        if (Number(u.reset_tries) + 1 >= 5) await q(sql`UPDATE portal_users SET reset_hash=NULL, reset_exp=NULL WHERE id=${u.id}`);
+        return bad();
+      }
+      const p = await createPassword(password);
+      await q(sql`UPDATE portal_users SET pass_hash=${p.passwordHash}, pass_salt=${p.passwordSalt}, must_change=0, invite_hash=NULL, invite_exp=NULL, reset_hash=NULL, reset_exp=NULL, reset_tries=0 WHERE id=${u.id} AND reset_hash=${u.reset_hash}`);
       const jwt = await new SignJWT({ uid: u.id, pv: p.passwordSalt.slice(0, 12) }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("7d").sign(secret());
       res.cookie(COOKIE, jwt, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 7 * 864e5, path: "/" });
       res.json({ user: pub({ ...u, must_change: 0 }) });
